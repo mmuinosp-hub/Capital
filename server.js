@@ -84,4 +84,41 @@ io.on("connection", (socket) => {
   });
 
   // ---- Entrega de recursos ----
-  socket.on("entrega", ({ roomId, f
+  socket.on("entrega", ({ roomId, from, to, recurso, cantidad }, callback) => {
+    const game = games[roomId];
+    if (!game) return callback({ success: false, message: "Sala no encontrada" });
+
+    const jugadorFrom = game.players[from];
+    const jugadorTo = game.players[to];
+
+    if (!jugadorFrom || !jugadorTo) {
+      return callback({ success: false, message: "Jugador no válido" });
+    }
+
+    if (jugadorFrom.entregas >= 5) {
+      return callback({ success: false, message: "Máximo de 5 entregas alcanzado" });
+    }
+
+    if (jugadorFrom[recurso] < cantidad) {
+      return callback({ success: false, message: "Recursos insuficientes" });
+    }
+
+    // Transferencia
+    jugadorFrom[recurso] -= cantidad;
+    jugadorTo[recurso] += cantidad;
+    jugadorFrom.entregas += 1;
+
+    io.to(roomId).emit("updatePlayers", game.players);
+    callback({ success: true });
+  });
+
+  // ---- Desconexión ----
+  socket.on("disconnect", () => {
+    console.log("Un usuario se ha desconectado");
+  });
+});
+
+// ---- Iniciar servidor ----
+server.listen(PORT, () => {
+  console.log(`Servidor escuchando en puerto ${PORT}`);
+});
