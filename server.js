@@ -121,7 +121,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Desconexión
   socket.on("disconnect", () => {
     console.log("Un usuario se ha desconectado");
   });
@@ -132,30 +131,44 @@ function aplicarProduccion(roomId) {
   const game = games[roomId];
   if (!game) return;
 
+  const producciones = {}; // Para admin
+
   Object.keys(game.players).forEach(jugador => {
     const p = game.players[jugador];
     const proceso = game.eleccionesProduccion[jugador] || 3;
 
-    const trigo = p.trigo;
-    const hierro = p.hierro;
+    const trigoAntes = p.trigo;
+    const hierroAntes = p.hierro;
 
     if (proceso === 1) {
-      const factor = Math.min(trigo / 280, hierro / 12);
+      const factor = Math.min(trigoAntes / 280, hierroAntes / 12);
       p.trigo = Math.floor(factor * 575);
       p.hierro = 0;
     } else if (proceso === 2) {
-      const factor = Math.min(trigo / 120, hierro / 8);
+      const factor = Math.min(trigoAntes / 120, hierroAntes / 8);
       p.hierro = Math.floor(factor * 20);
       p.trigo = 0;
     } else {
-      p.trigo = Math.floor(trigo / 2);
-      p.hierro = Math.floor(hierro / 2);
+      p.trigo = Math.floor(trigoAntes / 2);
+      p.hierro = Math.floor(hierroAntes / 2);
     }
 
-    p.entregas = 0; // reset para siguiente ronda
+    p.entregas = 0;
+
+    // Guardar producción individual
+    const trigoProd = p.trigo - trigoAntes;
+    const hierroProd = p.hierro - hierroAntes;
+    producciones[jugador] = { trigoProd, hierroProd };
   });
 
-  io.to(roomId).emit("updatePlayers", game.players);
+  // Emitir a admin toda la producción
+  io.to(roomId).emit("produccionAdmin", producciones);
+
+  // Emitir a cada jugador solo su producción
+  Object.keys(game.players).forEach(jugador => {
+    io.to(roomId).emit("produccionJugador_" + jugador, producciones[jugador]);
+  });
+
   game.fase = "entregas";
   io.to(roomId).emit("faseActual", game.fase);
 }
