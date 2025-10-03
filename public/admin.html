@@ -30,6 +30,8 @@
           <th>Trigo</th>
           <th>Hierro</th>
           <th>Entregas usadas</th>
+          <th>Producción Trigo</th>
+          <th>Producción Hierro</th>
         </tr>
       </thead>
       <tbody id="tabla"></tbody>
@@ -41,6 +43,8 @@
 <script>
   const socket = io();
   let roomId;
+  let playersActuales = {};
+  let produccionActual = {};
 
   function login() {
     roomId = document.getElementById("roomId").value;
@@ -80,18 +84,27 @@
   }
 
   function renderTabla(players) {
+    playersActuales = players;
     const tbody = document.getElementById("tabla");
     tbody.innerHTML = "";
     Object.keys(players).forEach(nombre => {
       const p = players[nombre];
+      const prod = produccionActual[nombre] || { trigoProd: 0, hierroProd: 0 };
       const row = document.createElement("tr");
-      row.innerHTML = `<td>${nombre}</td><td>${p.trigo}</td><td>${p.hierro}</td><td>${p.entregas}/5</td>`;
+      row.innerHTML = `<td>${nombre}</td><td>${p.trigo}</td><td>${p.hierro}</td><td>${p.entregas}/5</td>
+        <td>${prod.trigoProd}</td><td>${prod.hierroProd}</td>`;
       tbody.appendChild(row);
     });
   }
 
   socket.on("updatePlayers", (players) => renderTabla(players));
+
   socket.on("faseActual", (fase) => console.log("Fase actual:", fase));
+
+  socket.on("produccionAdmin", (producciones) => {
+    produccionActual = producciones;
+    renderTabla(playersActuales);
+  });
 </script>
 </body>
 </html>
