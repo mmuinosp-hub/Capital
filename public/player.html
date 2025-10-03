@@ -60,7 +60,10 @@
     nombre = document.getElementById("nombre").value;
     const password = document.getElementById("password").value;
 
+    console.log("Intentando login jugador:", nombre, "en sala:", roomId);
+
     socket.emit("loginPlayer", { roomId, nombre, password }, (res) => {
+      console.log("Respuesta loginPlayer:", res);
       if (res.success) {
         currentPlayer = res.data;
         document.getElementById("login").style.display = "none";
@@ -86,7 +89,10 @@
     const recurso = document.getElementById("recurso").value;
     const cantidad = parseInt(document.getElementById("cantidad").value);
 
+    console.log("Intentando entregar:", cantidad, recurso, "a", to);
+
     socket.emit("entrega", { roomId, from: nombre, to, recurso, cantidad }, (res) => {
+      console.log("Respuesta entrega:", res);
       if (!res.success) {
         alert(res.message);
       }
@@ -97,11 +103,11 @@
   function renderTabla(players) {
     const tbody = document.getElementById("tabla");
     tbody.innerHTML = "";
-    Object.keys(players).forEach(nombre => {
-      const p = players[nombre];
+    Object.keys(players).forEach(n => {
+      const p = players[n];
       const row = document.createElement("tr");
       row.innerHTML = `
-        <td>${nombre}</td>
+        <td>${n}</td>
         <td>${p.trigo}</td>
         <td>${p.hierro}</td>
         <td>${p.entregas}/5</td>
@@ -112,6 +118,8 @@
 
   // ---- Recibir actualizaciones del servidor ----
   socket.on("updatePlayers", (players) => {
+    console.log("updatePlayers recibido:", players);
+
     if (players[nombre]) {
       updateRecursos(players[nombre]);
     }
