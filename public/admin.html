@@ -1,60 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Consola</title>
+  <meta charset="UTF-8">
+  <title>Administrador</title>
   <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-  <h1>Administrador</h1>
+  <h1>Consola de Administrador</h1>
 
-  <div id="crearSala">
-    <h2>Crear nuevo juego</h2>
-    <input id="adminPass" type="password" placeholder="Contraseña admin" />
-    <h3>Jugadores</h3>
-    <div id="jugadoresList"></div>
-    <button onclick="agregarJugador()">Agregar jugador</button>
-    <button onclick="crearSala()">Crear Sala</button>
+  <div id="login">
+    <input id="roomId" placeholder="Room ID"><br>
+    <input id="password" placeholder="Contraseña de admin"><br>
+    <button onclick="login()">Entrar</button>
   </div>
 
-  <div id="adminPanel" style="display:none;">
-    <h2>Consola de control</h2>
-    <div id="roomId"></div>
-    <div id="playersPanel"></div>
+  <div id="juego" style="display:none;">
+    <h2>Estado de los jugadores</h2>
+    <table border="1">
+      <thead>
+        <tr>
+          <th>Jugador</th>
+          <th>Trigo</th>
+          <th>Hierro</th>
+          <th>Entregas usadas</th>
+        </tr>
+      </thead>
+      <tbody id="tabla"></tbody>
+    </table>
   </div>
 
-  <script>
-    const socket = io();
-    let jugadores = [];
-    let roomId = null;
+<script>
+  const socket = io();
+  let roomId;
 
-    function agregarJugador() {
-      const nombre = prompt("Nombre del jugador:");
-      const password = prompt("Contraseña del jugador:");
-      if (nombre && password) {
-        jugadores.push({ nombre, password });
-        document.getElementById("jugadoresList").innerHTML = jugadores.map(j => `${j.nombre}`).join(", ");
+  function login() {
+    roomId = document.getElementById("roomId").value;
+    const password = document.getElementById("password").value;
+
+    socket.emit("loginAdmin", { roomId, password }, (res) => {
+      if (res.success) {
+        document.getElementById("login").style.display = "none";
+        document.getElementById("juego").style.display = "block";
+      } else {
+        alert(res.message);
       }
-    }
-
-    function crearSala() {
-      const adminPassword = document.getElementById("adminPass").value;
-      socket.emit("createRoom", { adminPassword, jugadores }, (res) => {
-        if (res.success) {
-          roomId = res.roomId;
-          document.getElementById("crearSala").style.display = "none";
-          document.getElementById("adminPanel").style.display = "block";
-          document.getElementById("roomId").innerText = "ID de sala: " + roomId;
-        }
-      });
-    }
-
-    socket.on("updatePlayers", (players) => {
-      const panel = document.getElementById("playersPanel");
-      panel.innerHTML = "<h3>Jugadores y recursos:</h3>";
-      Object.entries(players).forEach(([n,p]) => {
-        panel.innerHTML += `<p>${n}: 🌾 ${p.trigo} — ⛓ ${p.hierro}, entregas: ${p.entregas}/5</p>`;
-      });
     });
-  </script>
+  }
+
+  function renderTabla(players) {
+    const tbody = document.getElementById("tabla");
+    tbody.innerHTML = "";
+    Object.keys(players).forEach(nombre => {
+      const p = players[nombre];
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${nombre}</td>
+        <td>${p.trigo}</td>
+        <td>${p.hierro}</td>
+        <td>${p.entregas}/5</td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  // Actualizar tabla en tiempo real
+  socket.on("updatePlayers", (players) => {
+    renderTabla(players);
+  });
+</script>
 </body>
 </html>
