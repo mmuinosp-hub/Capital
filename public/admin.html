@@ -8,14 +8,12 @@
 <body>
   <h1>Consola de Administrador</h1>
 
-  <!-- Login admin -->
   <div id="login">
     <input id="roomId" placeholder="Room ID"><br>
     <input id="password" placeholder="Contraseña de admin"><br>
     <button onclick="login()">Entrar</button>
   </div>
 
-  <!-- Consola admin -->
   <div id="juego" style="display:none;">
     <h2>Crear jugador</h2>
     <input id="jugadorNombre" placeholder="Nombre"><br>
@@ -36,6 +34,8 @@
       </thead>
       <tbody id="tabla"></tbody>
     </table>
+
+    <button onclick="abrirProduccion()">Abrir Producción</button>
   </div>
 
 <script>
@@ -56,7 +56,6 @@
     });
   }
 
-  // Crear jugador desde admin
   function crearJugador() {
     const nombre = document.getElementById("jugadorNombre").value;
     const clave = document.getElementById("jugadorClave").value;
@@ -64,10 +63,8 @@
     const hierro = parseInt(document.getElementById("jugadorHierro").value) || 0;
 
     socket.emit("crearJugador", { roomId, nombre, clave, trigo, hierro }, (res) => {
-      if (!res.success) {
-        alert(res.message);
-      } else {
-        // limpiar formulario
+      if (!res.success) alert(res.message);
+      else {
         document.getElementById("jugadorNombre").value = "";
         document.getElementById("jugadorClave").value = "";
         document.getElementById("jugadorTrigo").value = "";
@@ -76,27 +73,25 @@
     });
   }
 
-  // Renderizar tabla
+  function abrirProduccion() {
+    socket.emit("cambiarFase", { roomId, fase: "produccion" }, (res) => {
+      if (res.success) alert("Producción abierta");
+    });
+  }
+
   function renderTabla(players) {
     const tbody = document.getElementById("tabla");
     tbody.innerHTML = "";
     Object.keys(players).forEach(nombre => {
       const p = players[nombre];
       const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${nombre}</td>
-        <td>${p.trigo}</td>
-        <td>${p.hierro}</td>
-        <td>${p.entregas}/5</td>
-      `;
+      row.innerHTML = `<td>${nombre}</td><td>${p.trigo}</td><td>${p.hierro}</td><td>${p.entregas}/5</td>`;
       tbody.appendChild(row);
     });
   }
 
-  // Escuchar actualizaciones
-  socket.on("updatePlayers", (players) => {
-    renderTabla(players);
-  });
+  socket.on("updatePlayers", (players) => renderTabla(players));
+  socket.on("faseActual", (fase) => console.log("Fase actual:", fase));
 </script>
 </body>
 </html>
