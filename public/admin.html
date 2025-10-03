@@ -8,13 +8,22 @@
 <body>
   <h1>Consola de Administrador</h1>
 
+  <!-- Login admin -->
   <div id="login">
     <input id="roomId" placeholder="Room ID"><br>
     <input id="password" placeholder="Contraseña de admin"><br>
     <button onclick="login()">Entrar</button>
   </div>
 
+  <!-- Consola admin -->
   <div id="juego" style="display:none;">
+    <h2>Crear jugador</h2>
+    <input id="jugadorNombre" placeholder="Nombre"><br>
+    <input id="jugadorClave" placeholder="Contraseña"><br>
+    <input id="jugadorTrigo" type="number" placeholder="Trigo inicial"><br>
+    <input id="jugadorHierro" type="number" placeholder="Hierro inicial"><br>
+    <button onclick="crearJugador()">Añadir jugador</button>
+
     <h2>Estado de los jugadores</h2>
     <table border="1">
       <thead>
@@ -47,6 +56,27 @@
     });
   }
 
+  // Crear jugador desde admin
+  function crearJugador() {
+    const nombre = document.getElementById("jugadorNombre").value;
+    const clave = document.getElementById("jugadorClave").value;
+    const trigo = parseInt(document.getElementById("jugadorTrigo").value) || 0;
+    const hierro = parseInt(document.getElementById("jugadorHierro").value) || 0;
+
+    socket.emit("crearJugador", { roomId, nombre, clave, trigo, hierro }, (res) => {
+      if (!res.success) {
+        alert(res.message);
+      } else {
+        // limpiar formulario
+        document.getElementById("jugadorNombre").value = "";
+        document.getElementById("jugadorClave").value = "";
+        document.getElementById("jugadorTrigo").value = "";
+        document.getElementById("jugadorHierro").value = "";
+      }
+    });
+  }
+
+  // Renderizar tabla
   function renderTabla(players) {
     const tbody = document.getElementById("tabla");
     tbody.innerHTML = "";
@@ -63,7 +93,7 @@
     });
   }
 
-  // Actualizar tabla en tiempo real
+  // Escuchar actualizaciones
   socket.on("updatePlayers", (players) => {
     renderTabla(players);
   });
