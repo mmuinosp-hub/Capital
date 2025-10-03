@@ -91,7 +91,6 @@
       });
     }
 
-    // Limpiar campos
     document.getElementById("cantidadTrigo").value = 0;
     document.getElementById("cantidadHierro").value = 0;
   }
@@ -132,6 +131,10 @@
       document.getElementById("produccion").style.display = "none";
       document.getElementById("juego").style.display = "block";
     }
+  });
+
+  socket.on("produccionJugador_" + nombre, (produccion) => {
+    alert(`Producción obtenida:\nTrigo: ${produccion.trigoProd}\nHierro: ${produccion.hierroProd}`);
   });
 </script>
 </body>
