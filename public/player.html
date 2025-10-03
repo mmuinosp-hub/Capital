@@ -8,7 +8,6 @@
 <body>
   <h1>Consola de Jugador</h1>
 
-  <!-- Pantalla de login -->
   <div id="login">
     <input id="roomId" placeholder="Room ID"><br>
     <input id="nombre" placeholder="Nombre"><br>
@@ -16,7 +15,6 @@
     <button onclick="login()">Entrar</button>
   </div>
 
-  <!-- Pantalla de juego -->
   <div id="juego" style="display:none;">
     <h2>Mis recursos</h2>
     <p id="recursos"></p>
@@ -24,16 +22,10 @@
     <h3>Hacer entrega</h3>
     <label>Enviar a: </label>
     <select id="to"></select><br><br>
-
     <label>Recurso: </label>
-    <select id="recurso">
-      <option value="trigo">Trigo</option>
-      <option value="hierro">Hierro</option>
-    </select><br><br>
-
+    <select id="recurso"><option value="trigo">Trigo</option><option value="hierro">Hierro</option></select><br><br>
     <label>Cantidad: </label>
     <input id="cantidad" type="number" min="1"><br><br>
-
     <button onclick="entregar()">Enviar</button>
 
     <h2>Estado de todos los jugadores</h2>
@@ -50,94 +42,83 @@
     </table>
   </div>
 
+  <div id="produccion" style="display:none;">
+    <h3>Elegir proceso</h3>
+    <button onclick="elegirProceso(1)">Proceso 1: Trigo</button>
+    <button onclick="elegirProceso(2)">Proceso 2: Hierro</button>
+    <button onclick="elegirProceso(3)">Proceso 3: Default</button>
+  </div>
+
 <script>
   const socket = io();
   let currentPlayer, roomId, nombre;
 
-  // ---- Login del jugador ----
   function login() {
     roomId = document.getElementById("roomId").value;
     nombre = document.getElementById("nombre").value;
     const password = document.getElementById("password").value;
 
-    console.log("Intentando login jugador:", nombre, "en sala:", roomId);
-
     socket.emit("loginPlayer", { roomId, nombre, password }, (res) => {
-      console.log("Respuesta loginPlayer:", res);
       if (res.success) {
         currentPlayer = res.data;
         document.getElementById("login").style.display = "none";
         document.getElementById("juego").style.display = "block";
         updateRecursos(currentPlayer);
-      } else {
-        alert(res.message);
-      }
+      } else alert(res.message);
     });
   }
 
-  // ---- Actualizar mis recursos ----
   function updateRecursos(player) {
     document.getElementById("recursos").innerText =
-      "Trigo: " + player.trigo +
-      " | Hierro: " + player.hierro +
-      " | Entregas usadas: " + player.entregas + "/5";
+      "Trigo: " + player.trigo + " | Hierro: " + player.hierro + " | Entregas: " + player.entregas + "/5";
   }
 
-  // ---- Enviar entrega ----
   function entregar() {
     const to = document.getElementById("to").value;
     const recurso = document.getElementById("recurso").value;
     const cantidad = parseInt(document.getElementById("cantidad").value);
 
-    console.log("Intentando entregar:", cantidad, recurso, "a", to);
-
     socket.emit("entrega", { roomId, from: nombre, to, recurso, cantidad }, (res) => {
-      console.log("Respuesta entrega:", res);
-      if (!res.success) {
-        alert(res.message);
-      }
+      if (!res.success) alert(res.message);
     });
   }
 
-  // ---- Renderizar tabla compartida ----
+  function elegirProceso(proceso) {
+    socket.emit("elegirProceso", { roomId, jugador: nombre, proceso }, (res) => {
+      if (res.success) alert("Proceso elegido: " + proceso);
+    });
+  }
+
   function renderTabla(players) {
     const tbody = document.getElementById("tabla");
     tbody.innerHTML = "";
     Object.keys(players).forEach(n => {
       const p = players[n];
       const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${n}</td>
-        <td>${p.trigo}</td>
-        <td>${p.hierro}</td>
-        <td>${p.entregas}/5</td>
-      `;
+      row.innerHTML = `<td>${n}</td><td>${p.trigo}</td><td>${p.hierro}</td><td>${p.entregas}/5</td>`;
       tbody.appendChild(row);
     });
   }
 
-  // ---- Recibir actualizaciones del servidor ----
   socket.on("updatePlayers", (players) => {
-    console.log("updatePlayers recibido:", players);
+    renderTabla(players);
+    if (players[nombre]) updateRecursos(players[nombre]);
 
-    if (players[nombre]) {
-      updateRecursos(players[nombre]);
-    }
-
-    // Actualizar destinatarios
     const select = document.getElementById("to");
     select.innerHTML = "";
-    Object.keys(players).forEach(p => {
-      if (p !== nombre) {
-        const opt = document.createElement("option");
-        opt.value = p;
-        opt.text = p;
-        select.appendChild(opt);
-      }
-    });
+    Object.keys(players).forEach(p => { if (p !== nombre) {
+      const opt = document.createElement("option"); opt.value = p; opt.text = p; select.appendChild(opt);
+    }});
+  });
 
-    // Actualizar tabla
-    renderTabla(players);
+  socket.on("faseActual", (fase) => {
+    if (fase === "produccion") {
+      document.getElementById("produccion").style.display = "block";
+      document.getElementById("juego").style.display = "none";
+    } else {
+      document.getElementById("produccion").style.display = "none";
+      document.getElementById("juego").style.display = "block";
+    }
   });
 </script>
 </body>
