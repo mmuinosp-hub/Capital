@@ -1,97 +1,124 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+const PORT = process.env.PORT || 3000;
+
+// Guardamos aquí todas las salas activas
+let games = {};
+
+// Servir archivos estáticos (admin.html, player.html, etc.)
 app.use(express.static("public"));
 
-// Estado de juegos
-let games = {}; 
-// Estructura:
-// games[roomId] = { adminPassword, players: { nombre: { password, trigo, hierro, entregas } } }
-
-// Generador de IDs simple
-function generateRoomId(length = 6) {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let id = "";
-  for (let i = 0; i < length; i++) {
-    id += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return id;
-}
-
+// ---- Socket.IO ----
 io.on("connection", (socket) => {
-  console.log("Cliente conectado:", socket.id);
+  console.log("Un usuario se ha conectado");
 
-  // Crear sala (admin)
-  socket.on("createRoom", ({ adminPassword, jugadores }, callback) => {
-    let roomId;
-    do {
-      roomId = generateRoomId();
-    } while (games[roomId]); // asegura que no se repita
-
-    const playersObj = {};
-    jugadores.forEach(j => {
-      playersObj[j.nombre] = {
-        password: j.password,
-        trigo: 500,
-        hierro: 50,
-        entregas: 0
-      };
-    });
-    games[roomId] = {
-      adminPassword,
-      players: playersObj
-    };
-    socket.join(roomId);
-    callback({ success: true, roomId });
-  });
-
-  // Login admin
+  // ---- Login del administrador ----
   socket.on("loginAdmin", ({ roomId, password }, callback) => {
+    if (!games[roomId]) {
+      // Crear sala nueva si no existe
+      games[roomId] = {
+        adminPassword: password,
+        players: {}
+      };
+      console.log(`Sala creada: ${roomId}`);
+    }
+
     const game = games[roomId];
-    if (!game) return callback({ success: false, message: "Sala no encontrada" });
-    if (game.adminPassword !== password) return callback({ success: false, message: "Contraseña incorrecta" });
+
+    // Verificar contraseña
+    if (game.adminPassword !== password) {
+      return callback({ success: false, message: "Contraseña incorrecta" });
+    }
+
     socket.join(roomId);
-    callback({ success: true, players: game.players });
+    callback({ success: true });
+
+    // Mandar estado actual al admin que acaba de entrar
+    io.to(roomId).emit("updatePlayers", game.players);
   });
 
-  // Login jugador
-  socket.on("loginPlayer", ({ roomId, nombre, password }, callback) => {
+  // ---- Crear jugador desde admin ----
+  socket.on("crearJugador", ({ roomId, nombre, clave, trigo, hierro }, callback) => {
     const game = games[roomId];
     if (!game) return callback({ success: false, message: "Sala no encontrada" });
-    const player = game.players[nombre];
-    if (!player || player.password !== password) return callback({ success: false, message: "Credenciales incorrectas" });
-    socket.join(roomId);
-    callback({ success: true, data: player });
-  });
 
-  // Entregas
-  socket.on("entrega", ({ roomId, from, to, recurso, cantidad }, callback) => {
-    const game = games[roomId];
-    if (!game || !game.players[from] || !game.players[to]) return;
-    const sender = game.players[from];
-    const receiver = game.players[to];
+    if (game.players[nombre]) {
+      return callback({ success: false, message: "El jugador ya existe" });
+    }
 
-    if (sender.entregas >= 5) return callback({ success: false, message: "Máximo 5 entregas alcanzado" });
-    if (sender[recurso] < cantidad) return callback({ success: false, message: "Recursos insuficientes" });
-
-    sender[recurso] -= cantidad;
-    sender.entregas += 1;
-    receiver[recurso] += cantidad;
+    game.players[nombre] = {
+      nombre,
+      password: clave,
+      trigo,
+      hierro,
+      entregas: 0
+    };
 
     io.to(roomId).emit("updatePlayers", game.players);
     callback({ success: true });
   });
 
+  // ---- Login de jugador ----
+  socket.on("loginPlayer", ({ roomId, nombre, password }, callback) => {
+    const game = games[roomId];
+    if (!game) return callback({ success: false, message: "Sala no encontrada" });
+
+    const player = game.players[nombre];
+    if (!player) return callback({ success: false, message: "Jugador no encontrado" });
+
+    if (player.password !== password) {
+      return callback({ success: false, message: "Contraseña incorrecta" });
+    }
+
+    socket.join(roomId);
+    callback({ success: true, data: player });
+
+    // Mandar estado actual al jugador que entra
+    io.to(roomId).emit("updatePlayers", game.players);
+  });
+
+  // ---- Entrega de recursos ----
+  socket.on("entrega", ({ roomId, from, to, recurso, cantidad }, callback) => {
+    const game = games[roomId];
+    if (!game) return callback({ success: false, message: "Sala no encontrada" });
+
+    const jugadorFrom = game.players[from];
+    const jugadorTo = game.players[to];
+
+    if (!jugadorFrom || !jugadorTo) {
+      return callback({ success: false, message: "Jugador no válido" });
+    }
+
+    if (jugadorFrom.entregas >= 5) {
+      return callback({ success: false, message: "Máximo de 5 entregas alcanzado" });
+    }
+
+    if (jugadorFrom[recurso] < cantidad) {
+      return callback({ success: false, message: "Recursos insuficientes" });
+    }
+
+    // Transferencia
+    jugadorFrom[recurso] -= cantidad;
+    jugadorTo[recurso] += cantidad;
+    jugadorFrom.entregas += 1;
+
+    io.to(roomId).emit("updatePlayers", game.players);
+    callback({ success: true });
+  });
+
+  // ---- Desconexión ----
   socket.on("disconnect", () => {
-    console.log("Cliente desconectado:", socket.id);
+    console.log("Un usuario se ha desconectado");
   });
 });
 
-const port = process.env.PORT || 3000;
-server.listen(port, () => console.log("Servidor escuchando en puerto " + port));
+// ---- Iniciar servidor ----
+server.listen(PORT, () => {
+  console.log(`Servidor escuchando en puerto ${PORT}`);
+});
