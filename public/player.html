@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Jugador Consola</title>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>Jugador</h1>
+
+  <input id="roomId" placeholder="ID de sala" />
+  <input id="nombre" placeholder="Nombre" />
+  <input id="password" type="password" placeholder="Contraseña" />
+  <button onclick="loginPlayer()">Entrar</button>
+
+  <div id="panel"></div>
+
+  <script>
+    const socket = io();
+    let myName = null;
+    let myData = null;
+    let players = {};
+    let room = null;
+
+    function loginPlayer() {
+      room = document.getElementById("roomId").value;
+      const nombre = document.getElementById("nombre").value;
+      const password = document.getElementById("password").value;
+      myName = nombre;
+      socket.emit("loginPlayer", { roomId: room, nombre, password }, (res) => {
+        if (res.success) {
+          myData = res.data;
+          render();
+          socket.on("updatePlayers", (p) => {
+            players = p;
+            myData = p[myName];
+            render();
+          });
+        } else {
+          alert(res.message);
+        }
+      });
+    }
+
+    function entregar(to, recurso, cantidad) {
+      socket.emit("entrega", { roomId: room, from: myName, to, recurso, cantidad }, (res) => {
+        if (!res.success) alert(res.message);
+      });
+    }
+
+    function render() {
+      if (!myData) return;
+      const panel = document.getElementById("panel");
+      panel.innerHTML = `
+        <h2>Mis recursos</h2>
+        🌾 ${myData.trigo} — ⛓ ${myData.hierro} <br>
+        Entregas usadas: ${myData.entregas}/5
+        <h3>Entregar a otros jugadores:</h3>
+      `;
+      Object.keys(players).filter(n => n !== myName).forEach(n => {
+        panel.innerHTML += `
+          <p>${n}:
+            <button onclick="entregar('${n}','trigo',50)">Dar 50 trigo</button>
+            <button onclick="entregar('${n}','hierro',10)">Dar 10 hierro</button>
+          </p>
+        `;
+      });
+    }
+  </script>
+</body>
+</html>

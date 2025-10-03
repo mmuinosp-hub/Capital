@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Consola</title>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <h1>Administrador</h1>
+
+  <div id="crearSala">
+    <h2>Crear nuevo juego</h2>
+    <input id="adminPass" type="password" placeholder="Contraseña admin" />
+    <h3>Jugadores</h3>
+    <div id="jugadoresList"></div>
+    <button onclick="agregarJugador()">Agregar jugador</button>
+    <button onclick="crearSala()">Crear Sala</button>
+  </div>
+
+  <div id="adminPanel" style="display:none;">
+    <h2>Consola de control</h2>
+    <div id="roomId"></div>
+    <div id="playersPanel"></div>
+  </div>
+
+  <script>
+    const socket = io();
+    let jugadores = [];
+    let roomId = null;
+
+    function agregarJugador() {
+      const nombre = prompt("Nombre del jugador:");
+      const password = prompt("Contraseña del jugador:");
+      if (nombre && password) {
+        jugadores.push({ nombre, password });
+        document.getElementById("jugadoresList").innerHTML = jugadores.map(j => `${j.nombre}`).join(", ");
+      }
+    }
+
+    function crearSala() {
+      const adminPassword = document.getElementById("adminPass").value;
+      socket.emit("createRoom", { adminPassword, jugadores }, (res) => {
+        if (res.success) {
+          roomId = res.roomId;
+          document.getElementById("crearSala").style.display = "none";
+          document.getElementById("adminPanel").style.display = "block";
+          document.getElementById("roomId").innerText = "ID de sala: " + roomId;
+        }
+      });
+    }
+
+    socket.on("updatePlayers", (players) => {
+      const panel = document.getElementById("playersPanel");
+      panel.innerHTML = "<h3>Jugadores y recursos:</h3>";
+      Object.entries(players).forEach(([n,p]) => {
+        panel.innerHTML += `<p>${n}: 🌾 ${p.trigo} — ⛓ ${p.hierro}, entregas: ${p.entregas}/5</p>`;
+      });
+    });
+  </script>
+</body>
+</html>
