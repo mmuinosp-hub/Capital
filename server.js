@@ -11,46 +11,39 @@ const PORT = process.env.PORT || 3000;
 // Guardamos aquí todas las salas activas
 let games = {};
 
-// Servir archivos estáticos (admin.html, player.html, etc.)
 app.use(express.static("public"));
 
-// ---- Socket.IO ----
 io.on("connection", (socket) => {
   console.log("Un usuario se ha conectado");
 
-  // ---- Login del administrador ----
+  // Login administrador
   socket.on("loginAdmin", ({ roomId, password }, callback) => {
     if (!games[roomId]) {
-      // Crear sala nueva si no existe
       games[roomId] = {
         adminPassword: password,
-        players: {}
+        players: {},
+        fase: "entregas",
+        eleccionesProduccion: {}
       };
-      console.log(`Sala creada: ${roomId}`);
     }
 
     const game = games[roomId];
-
-    // Verificar contraseña
     if (game.adminPassword !== password) {
       return callback({ success: false, message: "Contraseña incorrecta" });
     }
 
     socket.join(roomId);
     callback({ success: true });
-
-    // Mandar estado actual al admin que acaba de entrar
     io.to(roomId).emit("updatePlayers", game.players);
+    io.to(roomId).emit("faseActual", game.fase);
   });
 
-  // ---- Crear jugador desde admin ----
+  // Crear jugador
   socket.on("crearJugador", ({ roomId, nombre, clave, trigo, hierro }, callback) => {
     const game = games[roomId];
     if (!game) return callback({ success: false, message: "Sala no encontrada" });
 
-    if (game.players[nombre]) {
-      return callback({ success: false, message: "El jugador ya existe" });
-    }
+    if (game.players[nombre]) return callback({ success: false, message: "El jugador ya existe" });
 
     game.players[nombre] = {
       nombre,
@@ -64,7 +57,7 @@ io.on("connection", (socket) => {
     callback({ success: true });
   });
 
-  // ---- Login de jugador ----
+  // Login jugador
   socket.on("loginPlayer", ({ roomId, nombre, password }, callback) => {
     const game = games[roomId];
     if (!game) return callback({ success: false, message: "Sala no encontrada" });
@@ -72,38 +65,27 @@ io.on("connection", (socket) => {
     const player = game.players[nombre];
     if (!player) return callback({ success: false, message: "Jugador no encontrado" });
 
-    if (player.password !== password) {
-      return callback({ success: false, message: "Contraseña incorrecta" });
-    }
+    if (player.password !== password) return callback({ success: false, message: "Contraseña incorrecta" });
 
     socket.join(roomId);
     callback({ success: true, data: player });
-
-    // Mandar estado actual al jugador que entra
     io.to(roomId).emit("updatePlayers", game.players);
+    io.to(roomId).emit("faseActual", game.fase);
   });
 
-  // ---- Entrega de recursos ----
+  // Entrega de recursos
   socket.on("entrega", ({ roomId, from, to, recurso, cantidad }, callback) => {
     const game = games[roomId];
     if (!game) return callback({ success: false, message: "Sala no encontrada" });
+    if (game.fase !== "entregas") return callback({ success: false, message: "No es fase de entregas" });
 
     const jugadorFrom = game.players[from];
     const jugadorTo = game.players[to];
 
-    if (!jugadorFrom || !jugadorTo) {
-      return callback({ success: false, message: "Jugador no válido" });
-    }
+    if (!jugadorFrom || !jugadorTo) return callback({ success: false, message: "Jugador no válido" });
+    if (jugadorFrom.entregas >= 5) return callback({ success: false, message: "Máximo de 5 entregas alcanzado" });
+    if (jugadorFrom[recurso] < cantidad) return callback({ success: false, message: "Recursos insuficientes" });
 
-    if (jugadorFrom.entregas >= 5) {
-      return callback({ success: false, message: "Máximo de 5 entregas alcanzado" });
-    }
-
-    if (jugadorFrom[recurso] < cantidad) {
-      return callback({ success: false, message: "Recursos insuficientes" });
-    }
-
-    // Transferencia
     jugadorFrom[recurso] -= cantidad;
     jugadorTo[recurso] += cantidad;
     jugadorFrom.entregas += 1;
@@ -112,13 +94,72 @@ io.on("connection", (socket) => {
     callback({ success: true });
   });
 
-  // ---- Desconexión ----
+  // Cambiar fase
+  socket.on("cambiarFase", ({ roomId, fase }, callback) => {
+    const game = games[roomId];
+    if (!game) return callback({ success: false, message: "Sala no encontrada" });
+
+    game.fase = fase;
+    if (fase === "produccion") game.eleccionesProduccion = {};
+
+    io.to(roomId).emit("faseActual", game.fase);
+    callback({ success: true });
+  });
+
+  // Elegir proceso de producción
+  socket.on("elegirProceso", ({ roomId, jugador, proceso }, callback) => {
+    const game = games[roomId];
+    if (!game) return callback({ success: false, message: "Sala no encontrada" });
+    if (game.fase !== "produccion") return callback({ success: false, message: "No es fase de producción" });
+
+    game.eleccionesProduccion[jugador] = proceso;
+    callback({ success: true });
+
+    // Aplicar producción si todos eligieron
+    if (Object.keys(game.eleccionesProduccion).length === Object.keys(game.players).length) {
+      aplicarProduccion(roomId);
+    }
+  });
+
+  // Desconexión
   socket.on("disconnect", () => {
     console.log("Un usuario se ha desconectado");
   });
 });
 
-// ---- Iniciar servidor ----
+// Función para aplicar producción
+function aplicarProduccion(roomId) {
+  const game = games[roomId];
+  if (!game) return;
+
+  Object.keys(game.players).forEach(jugador => {
+    const p = game.players[jugador];
+    const proceso = game.eleccionesProduccion[jugador] || 3;
+
+    const trigo = p.trigo;
+    const hierro = p.hierro;
+
+    if (proceso === 1) {
+      const factor = Math.min(trigo / 280, hierro / 12);
+      p.trigo = Math.floor(factor * 575);
+      p.hierro = 0;
+    } else if (proceso === 2) {
+      const factor = Math.min(trigo / 120, hierro / 8);
+      p.hierro = Math.floor(factor * 20);
+      p.trigo = 0;
+    } else {
+      p.trigo = Math.floor(trigo / 2);
+      p.hierro = Math.floor(hierro / 2);
+    }
+
+    p.entregas = 0; // reset para siguiente ronda
+  });
+
+  io.to(roomId).emit("updatePlayers", game.players);
+  game.fase = "entregas";
+  io.to(roomId).emit("faseActual", game.fase);
+}
+
 server.listen(PORT, () => {
   console.log(`Servidor escuchando en puerto ${PORT}`);
 });
