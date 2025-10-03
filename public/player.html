@@ -22,10 +22,12 @@
     <h3>Hacer entrega</h3>
     <label>Enviar a: </label>
     <select id="to"></select><br><br>
-    <label>Recurso: </label>
-    <select id="recurso"><option value="trigo">Trigo</option><option value="hierro">Hierro</option></select><br><br>
-    <label>Cantidad: </label>
-    <input id="cantidad" type="number" min="1"><br><br>
+
+    <label>Cantidad de Trigo: </label>
+    <input id="cantidadTrigo" type="number" min="0" value="0"><br>
+    <label>Cantidad de Hierro: </label>
+    <input id="cantidadHierro" type="number" min="0" value="0"><br><br>
+
     <button onclick="entregar()">Enviar</button>
 
     <h2>Estado de todos los jugadores</h2>
@@ -75,12 +77,23 @@
 
   function entregar() {
     const to = document.getElementById("to").value;
-    const recurso = document.getElementById("recurso").value;
-    const cantidad = parseInt(document.getElementById("cantidad").value);
+    const cantidadTrigo = parseInt(document.getElementById("cantidadTrigo").value) || 0;
+    const cantidadHierro = parseInt(document.getElementById("cantidadHierro").value) || 0;
 
-    socket.emit("entrega", { roomId, from: nombre, to, recurso, cantidad }, (res) => {
-      if (!res.success) alert(res.message);
-    });
+    if (cantidadTrigo > 0) {
+      socket.emit("entrega", { roomId, from: nombre, to, recurso: "trigo", cantidad: cantidadTrigo }, (res) => {
+        if (!res.success) alert(res.message);
+      });
+    }
+    if (cantidadHierro > 0) {
+      socket.emit("entrega", { roomId, from: nombre, to, recurso: "hierro", cantidad: cantidadHierro }, (res) => {
+        if (!res.success) alert(res.message);
+      });
+    }
+
+    // Limpiar campos
+    document.getElementById("cantidadTrigo").value = 0;
+    document.getElementById("cantidadHierro").value = 0;
   }
 
   function elegirProceso(proceso) {
