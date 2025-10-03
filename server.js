@@ -1,7 +1,6 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const { nanoid } = require("nanoid"); // para generar IDs únicas
 const path = require("path");
 
 const app = express();
@@ -15,12 +14,26 @@ let games = {};
 // Estructura:
 // games[roomId] = { adminPassword, players: { nombre: { password, trigo, hierro, entregas } } }
 
+// Generador de IDs simple
+function generateRoomId(length = 6) {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let id = "";
+  for (let i = 0; i < length; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
 
   // Crear sala (admin)
   socket.on("createRoom", ({ adminPassword, jugadores }, callback) => {
-    const roomId = nanoid(6).toUpperCase(); // ID único para la sala
+    let roomId;
+    do {
+      roomId = generateRoomId();
+    } while (games[roomId]); // asegura que no se repita
+
     const playersObj = {};
     jugadores.forEach(j => {
       playersObj[j.nombre] = {
