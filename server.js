@@ -112,7 +112,7 @@ io.on("connection", socket => {
 
       if(!j.proceso) j.proceso = 3; // proceso por defecto
 
-      // insumos después de las entregas
+      // Insumos después de todas las entregas
       const trigoInsumo = parseFloat(j.trigo);
       const hierroInsumo = parseFloat(j.hierro);
 
@@ -133,10 +133,9 @@ io.on("connection", socket => {
           hierroProd = hierroInsumo/2;
       }
 
+      // Guardamos productos y actualizamos recursos actuales
       j.trigoProd = trigoProd;
       j.hierroProd = hierroProd;
-
-      // Actualizamos los recursos del jugador
       j.trigo = trigoProd;
       j.hierro = hierroProd;
     }
