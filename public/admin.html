@@ -1,101 +1,82 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
 <title>Administrador - Capitalismo Simulado</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-  body { font-family: Arial; margin: 30px; }
-  table { border-collapse: collapse; margin-top: 10px; width: 100%; }
-  th, td { border: 1px solid #aaa; padding: 6px; text-align: center; }
-  button { margin: 4px; padding: 6px 12px; }
-  input { margin: 4px; }
+body { font-family: Arial; margin: 20px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
 <h2>Administrador</h2>
-<label>Sala: <input id="sala" /></label>
-<button id="crearSalaBtn">Entrar / Crear Sala</button>
+<input id="sala" placeholder="Sala">
+<input id="password" type="password" placeholder="Contraseña">
+<button onclick="entrar()">Entrar</button>
 
 <h3>Crear jugador</h3>
-<label>Nombre: <input id="jugador" /></label>
-<label>Contraseña: <input id="password" type="password" /></label>
-<label>Trigo inicial: <input id="trigoInicial" type="number" value="1000" /></label>
-<label>Hierro inicial: <input id="hierroInicial" type="number" value="500" /></label>
-<button id="crearJugadorBtn">Agregar jugador</button>
+<input id="jugador" placeholder="Nombre jugador">
+<input id="passJugador" placeholder="Contraseña jugador">
+<input id="trigoIni" type="number" placeholder="Trigo inicial">
+<input id="hierroIni" type="number" placeholder="Hierro inicial">
+<button onclick="crearJugador()">Crear</button>
+
+<h3>Control del juego</h3>
+<button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
+<button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
 
 <h3>Jugadores</h3>
-<table id="tablaJugadores">
-  <thead>
-    <tr>
-      <th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th>
-      <th>Proceso</th><th>Prod Trigo</th><th>Prod Hierro</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
+<table>
+<thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th><th>Prod Trigo</th><th>Prod Hierro</th></tr></thead>
+<tbody id="jugadores"></tbody>
 </table>
 
-<h3>Controles</h3>
-<button id="abrirEntregas">Abrir entregas</button>
-<button id="cerrarEntregasAbrirProduccion">Cerrar entregas / Abrir producción</button>
-<button id="iniciarProduccion">Iniciar producción</button>
-
 <h3>Historial de entregas</h3>
-<table id="tablaHistorial">
-  <thead>
-    <tr><th>De</th><th>Para</th><th>Recurso</th><th>Cantidad</th><th>Hora</th></tr>
-  </thead>
-  <tbody></tbody>
+<table>
+<thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+<tbody id="historial"></tbody>
 </table>
 
 <script>
 const socket = io();
-let salaActual = "";
+let sala = "";
 
-document.getElementById("crearSalaBtn").onclick = () => {
-  salaActual = document.getElementById("sala").value.trim();
-  if (!salaActual) return alert("Introduce una sala");
-  socket.emit("crearSala", { sala: salaActual });
-};
+function entrar() {
+  sala = document.getElementById("sala").value;
+  const password = document.getElementById("password").value;
+  socket.emit("entrarAdmin", { sala, password });
+}
 
-document.getElementById("crearJugadorBtn").onclick = () => {
-  const jugador = document.getElementById("jugador").value.trim();
-  const password = document.getElementById("password").value.trim();
-  const trigoInicial = document.getElementById("trigoInicial").value.trim();
-  const hierroInicial = document.getElementById("hierroInicial").value.trim();
-  if (!jugador || !password) return alert("Faltan datos");
-  socket.emit("crearJugador", { sala: salaActual, jugador, password, trigoInicial, hierroInicial });
-};
+function crearJugador() {
+  const nombre = document.getElementById("jugador").value;
+  const password = document.getElementById("passJugador").value;
+  const trigo = document.getElementById("trigoIni").value;
+  const hierro = document.getElementById("hierroIni").value;
+  socket.emit("crearJugador", { sala, nombre, password, trigo, hierro });
+}
 
-socket.on("jugadoresActualizados", (jugadores) => {
-  const tbody = document.querySelector("#tablaJugadores tbody");
+function toggleEntregas() { socket.emit("toggleEntregas", sala); }
+function toggleProduccion() { socket.emit("toggleProduccion", sala); }
+
+socket.on("actualizarEstado", (data) => {
+  const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
-  for (const [nombre, j] of Object.entries(jugadores)) {
-    const fila = `<tr>
-      <td>${nombre}</td>
-      <td>${j.trigo.toFixed(2)}</td>
-      <td>${j.hierro.toFixed(2)}</td>
-      <td>${j.entregas}</td>
-      <td>${j.proceso ?? "-"}</td>
-      <td>${j.prodTrigo.toFixed(2)}</td>
-      <td>${j.prodHierro.toFixed(2)}</td>
+  for (const [nombre, j] of Object.entries(data.jugadores)) {
+    tbody.innerHTML += `<tr>
+      <td>${nombre}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td>
+      <td>${j.entregas}</td><td>${j.proceso ?? "-"}</td>
+      <td>${j.trigoProd.toFixed(2)}</td><td>${j.hierroProd.toFixed(2)}</td>
     </tr>`;
-    tbody.innerHTML += fila;
+  }
+
+  const hist = document.getElementById("historial");
+  hist.innerHTML = "";
+  for (const h of data.historial) {
+    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
   }
 });
-
-socket.on("historialActualizado", (historial) => {
-  const tbody = document.querySelector("#tablaHistorial tbody");
-  tbody.innerHTML = "";
-  for (const e of historial) {
-    tbody.innerHTML += `<tr><td>${e.origen}</td><td>${e.destino}</td><td>${e.recurso}</td><td>${e.cantidad}</td><td>${e.hora}</td></tr>`;
-  }
-});
-
-document.getElementById("abrirEntregas").onclick = () => socket.emit("abrirEntregas", salaActual);
-document.getElementById("cerrarEntregasAbrirProduccion").onclick = () => socket.emit("cerrarEntregasAbrirProduccion", salaActual);
-document.getElementById("iniciarProduccion").onclick = () => socket.emit("iniciarProduccion", salaActual);
 </script>
 </body>
 </html>
-
