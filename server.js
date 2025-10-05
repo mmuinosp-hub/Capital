@@ -13,7 +13,7 @@ let salas = {};
 io.on("connection", socket => {
   console.log("🔗 Usuario conectado:", socket.id);
 
-  // ADMIN LOGIN
+  // LOGIN ADMIN
   socket.on("loginAdmin", ({ roomId, password }, cb) => {
     if(!salas[roomId]){
       salas[roomId] = { adminPassword: password, jugadores: {}, fase: "inicio", historial: [] };
@@ -31,7 +31,15 @@ io.on("connection", socket => {
   socket.on("crearJugador", ({ roomId, nombre, password, trigo, hierro }, cb) => {
     const sala = salas[roomId];
     if(!sala) return cb({ success:false, message:"Sala no encontrada"});
-    sala.jugadores[nombre] = { password, trigo:parseFloat(trigo)||0, hierro:parseFloat(hierro)||0, entregas:0, proceso:null, trigoProd:0, hierroProd:0 };
+    sala.jugadores[nombre] = { 
+      password, 
+      trigo:parseFloat(trigo)||0, 
+      hierro:parseFloat(hierro)||0, 
+      entregas:0, 
+      proceso:null, 
+      trigoProd:0, 
+      hierroProd:0 
+    };
     console.log(`👤 Jugador creado: ${nombre} (${roomId})`);
     actualizar(roomId);
     cb({ success:true });
@@ -101,10 +109,12 @@ io.on("connection", socket => {
 
     for(let nombre in sala.jugadores){
       const j = sala.jugadores[nombre];
-      if(!j.proceso) j.proceso = 3;
 
-      const trigoInsumo = j.trigo;
-      const hierroInsumo = j.hierro;
+      if(!j.proceso) j.proceso = 3; // proceso por defecto
+
+      // insumos después de las entregas
+      const trigoInsumo = parseFloat(j.trigo);
+      const hierroInsumo = parseFloat(j.hierro);
 
       let trigoProd = 0, hierroProd = 0;
 
@@ -112,25 +122,23 @@ io.on("connection", socket => {
         case 1:
           trigoProd = 575 * Math.min(trigoInsumo/280, hierroInsumo/12);
           hierroProd = 0;
-          j.trigo = trigoProd;
-          j.hierro = 0;
           break;
         case 2:
           trigoProd = 0;
           hierroProd = 20 * Math.min(trigoInsumo/120, hierroInsumo/8);
-          j.trigo = 0;
-          j.hierro = hierroProd;
           break;
         case 3:
         default:
           trigoProd = trigoInsumo/2;
           hierroProd = hierroInsumo/2;
-          j.trigo = trigoProd;
-          j.hierro = hierroProd;
       }
 
       j.trigoProd = trigoProd;
       j.hierroProd = hierroProd;
+
+      // Actualizamos los recursos del jugador
+      j.trigo = trigoProd;
+      j.hierro = hierroProd;
     }
 
     sala.fase = "fin";
