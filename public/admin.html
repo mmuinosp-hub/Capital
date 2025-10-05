@@ -9,7 +9,7 @@
 <h1>Consola Administrador</h1>
 
 <div id="login">
-  <input id="roomId" placeholder="Room ID"><br>
+  <input id="roomId" placeholder="Sala"><br>
   <input id="password" placeholder="Contraseña" type="password"><br>
   <button onclick="login()">Entrar</button>
 </div>
@@ -26,7 +26,9 @@
 
   <h3>Fase del juego</h3>
   <button onclick="setFase('entregas')">Abrir entregas</button>
+  <button onclick="setFase('cerrarEntregas')">Cerrar entregas</button>
   <button onclick="setFase('produccion')">Abrir producción</button>
+  <button onclick="concluirProduccion()">Concluir producción</button>
 
   <h2>Jugadores</h2>
   <table border="1">
@@ -46,9 +48,7 @@
 
   <h2>Historial de Entregas</h2>
   <table border="1">
-    <thead>
-      <tr><th>De</th><th>Para</th><th>Recurso</th><th>Cantidad</th><th>Hora</th></tr>
-    </thead>
+    <thead><tr><th>De</th><th>Para</th><th>Recurso</th><th>Cantidad</th><th>Hora</th></tr></thead>
     <tbody id="historial"></tbody>
   </table>
 </div>
@@ -85,20 +85,24 @@ function crearJugador() {
 }
 
 function setFase(fase) {
-  socket.emit("setFase", { roomId, fase }, () => {});
+  if (fase === "cerrarEntregas") socket.emit("setFase", { roomId, fase: "bloqueadas" });
+  else socket.emit("setFase", { roomId, fase });
+}
+
+function concluirProduccion() {
+  socket.emit("concluirProduccion", { roomId }, () => alert("Producción concluida"));
 }
 
 function renderTabla(players) {
   const tbody = document.getElementById("tabla");
   tbody.innerHTML = "";
-  Object.keys(players).forEach(n => {
-    const p = players[n];
+  Object.entries(players).forEach(([n, p]) => {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${n}</td>
       <td>${p.trigo.toFixed(1)}</td>
       <td>${p.hierro.toFixed(1)}</td>
-      <td>${p.entregas}/5</td>
+      <td>${p.entregas}</td>
       <td>${p.proceso || "-"}</td>
       <td>${p.trigoProd?.toFixed(1) || 0}</td>
       <td>${p.hierroProd?.toFixed(1) || 0}</td>`;
