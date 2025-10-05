@@ -77,25 +77,33 @@ io.on("connection", socket => {
   });
 
   // === ENTREGA ===
-  socket.on("entregar", ({ roomId, from, to, recurso, cantidad }, cb) => {
+  socket.on("entregar", ({ roomId, from, to, trigo, hierro }, cb) => {
     const sala = salas[roomId];
     if (!sala || sala.fase !== "entregas")
       return cb({ success: false, message: "No se pueden hacer entregas ahora" });
 
     const jugadorFrom = sala.jugadores[from];
     const jugadorTo = sala.jugadores[to];
-    cantidad = parseFloat(cantidad);
+    trigo = parseFloat(trigo) || 0;
+    hierro = parseFloat(hierro) || 0;
 
     if (!jugadorFrom || !jugadorTo)
       return cb({ success: false, message: "Jugador no encontrado" });
-    if (jugadorFrom[recurso] < cantidad)
+
+    if (jugadorFrom.trigo < trigo || jugadorFrom.hierro < hierro)
       return cb({ success: false, message: "Recursos insuficientes" });
 
-    jugadorFrom[recurso] -= cantidad;
-    jugadorTo[recurso] += cantidad;
+    jugadorFrom.trigo -= trigo;
+    jugadorFrom.hierro -= hierro;
+    jugadorTo.trigo += trigo;
+    jugadorTo.hierro += hierro;
+
     jugadorFrom.entregas++;
     sala.historial.push({
-      from, to, recurso, cantidad,
+      from,
+      to,
+      trigo,
+      hierro,
       timestamp: new Date().toLocaleTimeString()
     });
 
@@ -119,49 +127,54 @@ io.on("connection", socket => {
   });
 
   // === CONCLUIR PRODUCCIÓN ===
-socket.on("concluirProduccion", ({ roomId }, cb) => {
-  const sala = salas[roomId];
-  if (!sala) return;
+  socket.on("concluirProduccion", ({ roomId }, cb) => {
+    const sala = salas[roomId];
+    if (!sala) return;
 
-  for (let nombre in sala.jugadores) {
-    const j = sala.jugadores[nombre];
-    if (!j.proceso) j.proceso = 3;
+    for (let nombre in sala.jugadores) {
+      const j = sala.jugadores[nombre];
+      if (!j.proceso) j.proceso = 3;
 
-    // Guardamos los insumos actuales antes de modificar nada
-    const trigoDisp = j.trigo;
-    const hierroDisp = j.hierro;
+      // Insumos actuales tras entregas
+      const trigoDisp = j.trigo;
+      const hierroDisp = j.hierro;
 
-    let trigoProd = 0, hierroProd = 0;
+      let trigoProd = 0, hierroProd = 0;
 
-    switch (j.proceso) {
-      case 1:
-        trigoProd = 575 * Math.min(trigoDisp / 280, hierroDisp / 12);
-        hierroProd = 0;
-        j.trigo = trigoProd;
-        j.hierro = 0;
-        break;
-      case 2:
-        trigoProd = 0;
-        hierroProd = 20 * Math.min(trigoDisp / 120, hierroDisp / 8);
-        j.trigo = 0;
-        j.hierro = hierroProd;
-        break;
-      case 3:
-      default:
-        trigoProd = trigoDisp / 2;
-        hierroProd = hierroDisp / 2;
-        j.trigo = trigoProd;
-        j.hierro = hierroProd;
+      switch (j.proceso) {
+        case 1:
+          trigoProd = 575 * Math.min(trigoDisp / 280, hierroDisp / 12);
+          hierroProd = 0;
+          j.trigo = trigoProd;
+          j.hierro = 0;
+          break;
+        case 2:
+          trigoProd = 0;
+          hierroProd = 20 * Math.min(trigoDisp / 120, hierroDisp / 8);
+          j.trigo = 0;
+          j.hierro = hierroProd;
+          break;
+        case 3:
+        default:
+          trigoProd = trigoDisp / 2;
+          hierroProd = hierroDisp / 2;
+          j.trigo = trigoProd;
+          j.hierro = hierroProd;
+      }
+
+      // Guardamos productos por separado para mostrar en consolas
+      j.trigoProd = trigoProd;
+      j.hierroProd = hierroProd;
     }
 
-    // Guardamos productos por separado para mostrar
-    j.trigoProd = trigoProd;
-    j.hierroProd = hierroProd;
-  }
+    sala.fase = "fin";
+    actualizar(roomId);
+    cb && cb({ success: true });
+  });
 
-  sala.fase = "fin";
-  actualizar(roomId);
-  cb && cb({ success: true });
+  socket.on("disconnect", () => {
+    console.log("❎ Desconectado:", socket.id);
+  });
 });
 
 // Función para actualizar todas las consolas
@@ -174,4 +187,3 @@ function actualizar(roomId) {
 }
 
 server.listen(3000, () => console.log("🚀 Servidor escuchando en puerto 3000"));
-
