@@ -119,54 +119,49 @@ io.on("connection", socket => {
   });
 
   // === CONCLUIR PRODUCCIÓN ===
-  socket.on("concluirProduccion", ({ roomId }, cb) => {
-    const sala = salas[roomId];
-    if (!sala) return;
+socket.on("concluirProduccion", ({ roomId }, cb) => {
+  const sala = salas[roomId];
+  if (!sala) return;
 
-    for (let nombre in sala.jugadores) {
-      const j = sala.jugadores[nombre];
-      if (!j.proceso) j.proceso = 3;
+  for (let nombre in sala.jugadores) {
+    const j = sala.jugadores[nombre];
+    if (!j.proceso) j.proceso = 3;
 
-      // Insumos actuales tras entregas
-      const trigoDisp = j.trigo;
-      const hierroDisp = j.hierro;
+    // Guardamos los insumos actuales antes de modificar nada
+    const trigoDisp = j.trigo;
+    const hierroDisp = j.hierro;
 
-      let trigoProd = 0, hierroProd = 0;
+    let trigoProd = 0, hierroProd = 0;
 
-      switch (j.proceso) {
-        case 1:
-          trigoProd = 575 * Math.min(trigoDisp / 280, hierroDisp / 12);
-          hierroProd = 0;
-          j.trigo = trigoProd;
-          j.hierro = 0;
-          break;
-        case 2:
-          trigoProd = 0;
-          hierroProd = 20 * Math.min(trigoDisp / 120, hierroDisp / 8);
-          j.trigo = 0;
-          j.hierro = hierroProd;
-          break;
-        case 3:
-        default:
-          trigoProd = trigoDisp / 2;
-          hierroProd = hierroDisp / 2;
-          j.trigo = trigoProd;
-          j.hierro = hierroProd;
-      }
-
-      // Guardamos productos por separado
-      j.trigoProd = trigoProd;
-      j.hierroProd = hierroProd;
+    switch (j.proceso) {
+      case 1:
+        trigoProd = 575 * Math.min(trigoDisp / 280, hierroDisp / 12);
+        hierroProd = 0;
+        j.trigo = trigoProd;
+        j.hierro = 0;
+        break;
+      case 2:
+        trigoProd = 0;
+        hierroProd = 20 * Math.min(trigoDisp / 120, hierroDisp / 8);
+        j.trigo = 0;
+        j.hierro = hierroProd;
+        break;
+      case 3:
+      default:
+        trigoProd = trigoDisp / 2;
+        hierroProd = hierroDisp / 2;
+        j.trigo = trigoProd;
+        j.hierro = hierroProd;
     }
 
-    sala.fase = "fin";
-    actualizar(roomId);
-    cb && cb({ success: true });
-  });
+    // Guardamos productos por separado para mostrar
+    j.trigoProd = trigoProd;
+    j.hierroProd = hierroProd;
+  }
 
-  socket.on("disconnect", () => {
-    console.log("❎ Desconectado:", socket.id);
-  });
+  sala.fase = "fin";
+  actualizar(roomId);
+  cb && cb({ success: true });
 });
 
 // Función para actualizar todas las consolas
@@ -179,3 +174,4 @@ function actualizar(roomId) {
 }
 
 server.listen(3000, () => console.log("🚀 Servidor escuchando en puerto 3000"));
+
