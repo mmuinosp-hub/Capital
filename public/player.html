@@ -48,6 +48,20 @@
   <h3>Mi Producción</h3>
   <p>Trigo producido: <span id="trigoProd"></span></p>
   <p>Hierro producido: <span id="hierroProd"></span></p>
+
+  <h3>Historial de Entregas</h3>
+  <table id="historialTabla">
+    <thead>
+      <tr>
+        <th>De</th>
+        <th>Para</th>
+        <th>Trigo</th>
+        <th>Hierro</th>
+        <th>Hora</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 </div>
 
 <script>
@@ -59,12 +73,10 @@ document.getElementById("loginBtn").onclick = () => {
   nombre = document.getElementById("nombre").value;
   const password = document.getElementById("password").value;
   socket.emit("loginJugador", { roomId, nombre, password }, res => {
-    if(res.success) {
+    if(res.success){
       document.getElementById("controls").style.display = "block";
       actualizarRecursos(res.jugador);
-    } else {
-      alert(res.message);
-    }
+    } else alert(res.message);
   });
 };
 
@@ -85,11 +97,9 @@ document.getElementById("procesoBtn").onclick = () => {
 };
 
 socket.on("updatePlayers", jugadores => {
-  if(jugadores[nombre]) {
-    actualizarRecursos(jugadores[nombre]);
-  }
+  if(jugadores[nombre]) actualizarRecursos(jugadores[nombre]);
 
-  // Actualizamos menú de receptores
+  // actualizar menú de receptores
   const receptorSelect = document.getElementById("receptor");
   receptorSelect.innerHTML = "";
   for(let jNombre in jugadores){
@@ -102,7 +112,19 @@ socket.on("updatePlayers", jugadores => {
   }
 });
 
-function actualizarRecursos(jugador) {
+socket.on("updateHistorial", historial => {
+  const tbody = document.getElementById("historialTabla").querySelector("tbody");
+  tbody.innerHTML = "";
+  historial.forEach(entrega => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${entrega.from}</td><td>${entrega.to}</td>
+                    <td>${entrega.trigo}</td><td>${entrega.hierro}</td>
+                    <td>${entrega.timestamp}</td>`;
+    tbody.appendChild(tr);
+  });
+});
+
+function actualizarRecursos(jugador){
   document.getElementById("trigo").textContent = jugador.trigo;
   document.getElementById("hierro").textContent = jugador.hierro;
   document.getElementById("trigoProd").textContent = jugador.trigoProd;
