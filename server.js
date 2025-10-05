@@ -119,46 +119,43 @@ io.on("connection", socket => {
   });
 
   // === CONCLUIR PRODUCCIÓN ===
-  socket.on("concluirProduccion", ({ roomId }, cb) => {
-    const sala = salas[roomId];
-    if (!sala) return;
+socket.on("concluirProduccion", ({ roomId }, cb) => {
+  const sala = salas[roomId];
+  if (!sala) return;
 
-    for (let nombre in sala.jugadores) {
-      const j = sala.jugadores[nombre];
-      if (!j.proceso) j.proceso = 3;
+  for (let nombre in sala.jugadores) {
+    const j = sala.jugadores[nombre];
+    if (!j.proceso) j.proceso = 3;
 
-      let trigoProd = 0, hierroProd = 0;
-      switch (j.proceso) {
-        case 1:
-          trigoProd = 575 * Math.min(j.trigo / 280, j.hierro / 12);
-          hierroProd = 0;
-          break;
-        case 2:
-          trigoProd = 0;
-          hierroProd = 20 * Math.min(j.trigo / 120, j.hierro / 8);
-          break;
-        case 3:
-        default:
-          trigoProd = j.trigo / 2;
-          hierroProd = j.hierro / 2;
-      }
+    let trigoProd = 0, hierroProd = 0;
 
-      j.trigoProd = trigoProd;
-      j.hierroProd = hierroProd;
-      j.trigo += trigoProd;
-      j.hierro += hierroProd;
+    switch (j.proceso) {
+      case 1:
+        trigoProd = 575 * Math.min(j.trigo / 280, j.hierro / 12);
+        hierroProd = 0;
+        break;
+      case 2:
+        trigoProd = 0;
+        hierroProd = 20 * Math.min(j.trigo / 120, j.hierro / 8);
+        break;
+      case 3:
+      default:
+        trigoProd = j.trigo / 2;
+        hierroProd = j.hierro / 2;
     }
 
-    sala.fase = "fin";
-    actualizar(roomId);
-    cb && cb({ success: true });
-  });
+    j.trigoProd = trigoProd;
+    j.hierroProd = hierroProd;
 
-  socket.on("disconnect", () => {
-    console.log("❎ Desconectado:", socket.id);
-  });
+    // Actualizar recursos del jugador
+    j.trigo += trigoProd;
+    j.hierro += hierroProd;
+  }
+
+  sala.fase = "fin";
+  actualizar(roomId);
+  cb && cb({ success: true });
 });
-
 function actualizar(roomId) {
   const sala = salas[roomId];
   if (!sala) return;
@@ -168,3 +165,4 @@ function actualizar(roomId) {
 }
 
 server.listen(3000, () => console.log("🚀 Servidor escuchando en puerto 3000"));
+
