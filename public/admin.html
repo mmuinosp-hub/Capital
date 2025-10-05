@@ -77,6 +77,8 @@ socket.on("actualizarEstado", (data) => {
     hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
   }
 });
+
+socket.on("error", msg => alert(msg));
 </script>
 </body>
 </html>
