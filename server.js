@@ -135,34 +135,35 @@ io.on("connection", socket => {
       const j = sala.jugadores[nombre];
       if (!j.proceso) j.proceso = 3;
 
-      // Insumos actuales tras entregas
-      const trigoDisp = j.trigo;
-      const hierroDisp = j.hierro;
+      // --- Insumos actuales tras todas las entregas ---
+      const trigoInsumo = j.trigo;
+      const hierroInsumo = j.hierro;
 
-      let trigoProd = 0, hierroProd = 0;
+      let trigoProd = 0;
+      let hierroProd = 0;
 
       switch (j.proceso) {
         case 1:
-          trigoProd = 575 * Math.min(trigoDisp / 280, hierroDisp / 12);
+          trigoProd = 575 * Math.min(trigoInsumo / 280, hierroInsumo / 12);
           hierroProd = 0;
           j.trigo = trigoProd;
           j.hierro = 0;
           break;
         case 2:
           trigoProd = 0;
-          hierroProd = 20 * Math.min(trigoDisp / 120, hierroDisp / 8);
+          hierroProd = 20 * Math.min(trigoInsumo / 120, hierroInsumo / 8);
           j.trigo = 0;
           j.hierro = hierroProd;
           break;
         case 3:
         default:
-          trigoProd = trigoDisp / 2;
-          hierroProd = hierroDisp / 2;
+          trigoProd = trigoInsumo / 2;
+          hierroProd = hierroInsumo / 2;
           j.trigo = trigoProd;
           j.hierro = hierroProd;
       }
 
-      // Guardamos productos por separado para mostrar en consolas
+      // Guardamos los productos por separado para mostrar
       j.trigoProd = trigoProd;
       j.hierroProd = hierroProd;
     }
