@@ -1,4 +1,3 @@
-// === server.js ===
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -11,21 +10,22 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, "public")));
 
-const games = {}; // Estructura: { roomId: { adminPassword, players, fase, historial } }
+const games = {}; // roomId -> { adminPassword, players, fase, historial }
 
 io.on("connection", (socket) => {
-  console.log("Usuario conectado:", socket.id);
+  console.log("🔗 Usuario conectado:", socket.id);
 
   // === ADMIN LOGIN ===
   socket.on("loginAdmin", ({ roomId, password }, callback) => {
+    roomId = roomId.trim().toLowerCase();
     if (!games[roomId]) {
       games[roomId] = {
         adminPassword: password,
         players: {},
         fase: "entregas",
         historial: [],
-        producciones: {}
       };
+      console.log(`🆕 Sala creada: ${roomId}`);
     }
     const game = games[roomId];
     if (game.adminPassword !== password)
@@ -37,8 +37,9 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("updateHistorial", game.historial);
   });
 
-  // === CREAR JUGADOR (ADMIN) ===
+  // === CREAR JUGADOR ===
   socket.on("crearJugador", ({ roomId, nombre, password, trigo, hierro }, callback) => {
+    roomId = roomId.trim().toLowerCase();
     const game = games[roomId];
     if (!game) return callback({ success: false, message: "Sala no encontrada" });
     if (game.players[nombre])
@@ -46,28 +47,42 @@ io.on("connection", (socket) => {
 
     game.players[nombre] = {
       password,
-      trigo: parseFloat(trigo),
-      hierro: parseFloat(hierro),
+      trigo: parseFloat(trigo) || 0,
+      hierro: parseFloat(hierro) || 0,
       entregas: 0,
       proceso: null,
       trigoProd: 0,
       hierroProd: 0
     };
+
+    console.log(`👤 Jugador creado: ${nombre} (${roomId}) con contraseña: ${password}`);
     io.to(roomId).emit("updatePlayers", game.players);
     callback({ success: true });
   });
 
   // === LOGIN JUGADOR ===
   socket.on("loginPlayer", ({ roomId, nombre, password }, callback) => {
+    roomId = roomId.trim().toLowerCase();
     const game = games[roomId];
-    if (!game) return callback({ success: false, message: "Sala no encontrada" });
+    if (!game) {
+      console.log(`❌ Sala no encontrada: ${roomId}`);
+      return callback({ success: false, message: "Sala no encontrada" });
+    }
+
     const player = game.players[nombre];
-    if (!player) return callback({ success: false, message: "Jugador no encontrado" });
-    if (player.password !== password)
+    if (!player) {
+      console.log(`❌ Jugador no encontrado: ${nombre} en ${roomId}`);
+      return callback({ success: false, message: "Jugador no encontrado" });
+    }
+
+    if (player.password !== password) {
+      console.log(`⚠️ Contraseña incorrecta para ${nombre} (esperada: ${player.password}, recibida: ${password})`);
       return callback({ success: false, message: "Contraseña incorrecta" });
+    }
 
     socket.join(roomId);
     socket.data = { roomId, nombre };
+    console.log(`✅ Jugador ${nombre} ha iniciado sesión en ${roomId}`);
     callback({ success: true, data: player });
 
     io.to(roomId).emit("updatePlayers", game.players);
@@ -77,6 +92,7 @@ io.on("connection", (socket) => {
 
   // === ENTREGA ===
   socket.on("entrega", ({ roomId, from, to, recurso, cantidad }, callback) => {
+    roomId = roomId.trim().toLowerCase();
     const game = games[roomId];
     if (!game) return callback({ success: false, message: "Sala no encontrada" });
     if (game.fase !== "entregas")
@@ -86,6 +102,7 @@ io.on("connection", (socket) => {
     const jugadorTo = game.players[to];
     if (!jugadorFrom || !jugadorTo)
       return callback({ success: false, message: "Jugador inválido" });
+
     if (jugadorFrom.entregas >= 5)
       return callback({ success: false, message: "Límite de 5 entregas alcanzado" });
 
@@ -111,6 +128,7 @@ io.on("connection", (socket) => {
 
   // === CONTROL DE FASE ===
   socket.on("setFase", ({ roomId, fase }, callback) => {
+    roomId = roomId.trim().toLowerCase();
     const game = games[roomId];
     if (!game) return;
     game.fase = fase;
@@ -130,6 +148,7 @@ io.on("connection", (socket) => {
 
   // === ELEGIR PROCESO ===
   socket.on("elegirProceso", ({ roomId, jugador, proceso }, callback) => {
+    roomId = roomId.trim().toLowerCase();
     const game = games[roomId];
     if (!game || game.fase !== "produccion")
       return callback({ success: false, message: "No está abierta la producción" });
@@ -172,7 +191,6 @@ io.on("connection", (socket) => {
 
     io.to(roomId).emit("updatePlayers", game.players);
 
-    // Notificar a cada jugador su producción
     Object.keys(game.players).forEach(nombre => {
       const p = game.players[nombre];
       io.to(roomId).emit("produccionJugador", {
@@ -184,8 +202,8 @@ io.on("connection", (socket) => {
   }
 
   socket.on("disconnect", () => {
-    console.log("Desconectado:", socket.id);
+    console.log("❎ Desconectado:", socket.id);
   });
 });
 
-server.listen(PORT, () => console.log("Servidor activo en puerto", PORT));
+server.listen(PORT, () => console.log("🚀 Servidor activo en puerto", PORT));
