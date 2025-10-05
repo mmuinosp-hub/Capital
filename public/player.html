@@ -22,11 +22,10 @@
 
   <div id="entregas" style="display:none;">
     <h3>Entregas</h3>
-    <input id="to" placeholder="Para (jugador)">
+    <select id="to"></select><br><br>
     <input id="trigoEntregado" type="number" placeholder="Trigo a entregar">
     <input id="hierroEntregado" type="number" placeholder="Hierro a entregar">
-    <button onclick="entregar('trigo')">Entregar Trigo</button>
-    <button onclick="entregar('hierro')">Entregar Hierro</button>
+    <button onclick="entregar()">Entregar</button>
   </div>
 
   <div id="produccion" style="display:none;">
@@ -47,11 +46,13 @@
 <script>
 const socket = io();
 let roomId, nombre;
+let jugadoresSala = [];
 
 function login() {
   roomId = document.getElementById("roomId").value;
   nombre = document.getElementById("nombre").value;
   const password = document.getElementById("password").value;
+
   socket.emit("loginJugador", { roomId, nombre, password }, res => {
     if (!res.success) return alert(res.message);
     document.getElementById("login").style.display = "none";
@@ -61,14 +62,30 @@ function login() {
   });
 }
 
-function entregar(recurso) {
+function entregar() {
   const to = document.getElementById("to").value;
-  const cantidad = recurso === "trigo"
-    ? document.getElementById("trigoEntregado").value
-    : document.getElementById("hierroEntregado").value;
-  socket.emit("entregar", { roomId, from: nombre, to, recurso, cantidad }, res => {
-    if (!res.success) alert(res.message);
-  });
+  const trigoCant = parseFloat(document.getElementById("trigoEntregado").value) || 0;
+  const hierroCant = parseFloat(document.getElementById("hierroEntregado").value) || 0;
+
+  if (to === nombre) return alert("No puedes enviarte recursos a ti mismo");
+
+  // Entregar trigo
+  if (trigoCant > 0) {
+    socket.emit("entregar", { roomId, from: nombre, to, recurso: "trigo", cantidad: trigoCant }, res => {
+      if (!res.success) alert(res.message);
+    });
+  }
+
+  // Entregar hierro
+  if (hierroCant > 0) {
+    socket.emit("entregar", { roomId, from: nombre, to, recurso: "hierro", cantidad: hierroCant }, res => {
+      if (!res.success) alert(res.message);
+    });
+  }
+
+  // Limpiar campos
+  document.getElementById("trigoEntregado").value = "";
+  document.getElementById("hierroEntregado").value = "";
 }
 
 function elegir(proc) {
@@ -81,11 +98,24 @@ function elegir(proc) {
 
 socket.on("updatePlayers", players => {
   if (!players[nombre]) return;
+
+  // Actualizar recursos propios
   const j = players[nombre];
   document.getElementById("trigo").innerText = j.trigo.toFixed(1);
   document.getElementById("hierro").innerText = j.hierro.toFixed(1);
   document.getElementById("trigoProd").innerText = j.trigoProd?.toFixed(1) || 0;
   document.getElementById("hierroProd").innerText = j.hierroProd?.toFixed(1) || 0;
+
+  // Actualizar lista de receptores
+  jugadoresSala = Object.keys(players).filter(n => n !== nombre);
+  const select = document.getElementById("to");
+  select.innerHTML = "";
+  jugadoresSala.forEach(jn => {
+    const opt = document.createElement("option");
+    opt.value = jn;
+    opt.text = jn;
+    select.add(opt);
+  });
 });
 
 socket.on("updateFase", actualizarUI);
