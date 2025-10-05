@@ -1,12 +1,16 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const { nanoid } = require("nanoid");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static("public"));
+
+// Función simple para generar IDs únicos
+function generarId() {
+  return Math.random().toString(36).substring(2, 10);
+}
 
 const salas = {};
 
@@ -43,7 +47,9 @@ io.on("connection", (socket) => {
   socket.on("crearJugador", ({ sala, nombre, password, trigo, hierro }) => {
     const data = salas[sala];
     if (data) {
+      const id = generarId(); // Generamos un ID interno único
       data.jugadores[nombre] = {
+        id,
         password,
         trigo: parseFloat(trigo),
         hierro: parseFloat(hierro),
@@ -111,6 +117,7 @@ io.on("connection", (socket) => {
     } else {
       data.produccionAbierta = false;
 
+      // Aplicar producción usando las cantidades finales tras entregas
       for (const nombre in data.jugadores) {
         const j = data.jugadores[nombre];
         let trigoNuevo = 0;
