@@ -30,19 +30,19 @@ io.on("connection", (socket) => {
     socket.emit("estadoActualizado", salas[sala]);
   });
 
-  // 🟩 CREAR JUGADOR
-  socket.on("crearJugador", ({ sala, jugador, password }) => {
+  // 🟩 CREAR JUGADOR (ahora con trigo y hierro inicial)
+  socket.on("crearJugador", ({ sala, jugador, password, trigoInicial, hierroInicial }) => {
     if (!salas[sala]) return;
     salas[sala].jugadores[jugador] = {
       password,
-      trigo: 1000,
-      hierro: 500,
+      trigo: parseFloat(trigoInicial) || 0,
+      hierro: parseFloat(hierroInicial) || 0,
       entregas: 2,
       proceso: null,
       prodTrigo: 0,
       prodHierro: 0,
     };
-    console.log(`👤 Jugador creado: ${jugador} (${sala})`);
+    console.log(`👤 Jugador creado: ${jugador} (${sala}) con trigo=${trigoInicial}, hierro=${hierroInicial}`);
     io.to(sala).emit("jugadoresActualizados", salas[sala].jugadores);
   });
 
@@ -134,8 +134,8 @@ io.on("connection", (socket) => {
 
       j.prodTrigo = trigoProd;
       j.prodHierro = hierroProd;
-      j.trigo += trigoProd;
-      j.hierro += hierroProd;
+      j.trigo = trigoProd;
+      j.hierro = hierroProd;
     }
 
     io.to(sala).emit("jugadoresActualizados", s.jugadores);
