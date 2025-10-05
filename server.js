@@ -9,7 +9,7 @@ app.use(express.static("public"));
 
 // Función simple para generar IDs únicos
 function generarId() {
-  return Math.random().toString(36).substring(2, 10);
+  return Math.random().toString(36).substring(2, 10); // 8 caracteres
 }
 
 const salas = {};
@@ -17,6 +17,7 @@ const salas = {};
 io.on("connection", (socket) => {
   console.log("🟢 Usuario conectado:", socket.id);
 
+  // Crear sala
   socket.on("crearSala", ({ sala, password }) => {
     if (!salas[sala]) {
       salas[sala] = {
@@ -33,6 +34,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Entrar como administrador
   socket.on("entrarAdmin", ({ sala, password }) => {
     const data = salas[sala];
     if (data && data.adminPassword === password) {
@@ -44,10 +46,11 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Crear jugador
   socket.on("crearJugador", ({ sala, nombre, password, trigo, hierro }) => {
     const data = salas[sala];
     if (data) {
-      const id = generarId(); // Generamos un ID interno único
+      const id = generarId();
       data.jugadores[nombre] = {
         id,
         password,
@@ -63,6 +66,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Entrar como jugador
   socket.on("entrarJugador", ({ sala, nombre, password }) => {
     const data = salas[sala];
     if (data && data.jugadores[nombre] && data.jugadores[nombre].password === password) {
@@ -74,6 +78,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Enviar entrega
   socket.on("enviarEntrega", ({ sala, de, para, trigo, hierro }) => {
     const data = salas[sala];
     if (!data || !data.entregasAbiertas) return;
@@ -100,6 +105,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Abrir/Cerrar entregas
   socket.on("toggleEntregas", (sala) => {
     const data = salas[sala];
     if (data) {
@@ -108,6 +114,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Abrir/Cerrar producción
   socket.on("toggleProduccion", (sala) => {
     const data = salas[sala];
     if (!data) return;
@@ -120,26 +127,33 @@ io.on("connection", (socket) => {
       // Aplicar producción usando las cantidades finales tras entregas
       for (const nombre in data.jugadores) {
         const j = data.jugadores[nombre];
+
         let trigoNuevo = 0;
         let hierroNuevo = 0;
 
-        if (j.proceso === 1) {
+        // Si no eligió proceso, usar Proceso 3
+        const proceso = j.proceso || 3;
+
+        if (proceso === 1) {
           const factor = Math.min(j.trigo / 280, j.hierro / 12);
           trigoNuevo = 575 * factor;
           hierroNuevo = 0;
-        } else if (j.proceso === 2) {
+        } else if (proceso === 2) {
           const factor = Math.min(j.trigo / 120, j.hierro / 8);
           trigoNuevo = 0;
           hierroNuevo = 20 * factor;
-        } else {
+        } else { // proceso 3
           trigoNuevo = j.trigo / 2;
           hierroNuevo = j.hierro / 2;
         }
 
+        // Guardamos la producción y actualizamos recursos
         j.trigoProd = trigoNuevo;
         j.hierroProd = hierroNuevo;
         j.trigo = trigoNuevo;
         j.hierro = hierroNuevo;
+
+        // Reiniciamos entregas y proceso para siguiente ronda
         j.entregas = 5;
         j.proceso = null;
       }
@@ -148,6 +162,7 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", data);
   });
 
+  // Elegir proceso de producción
   socket.on("elegirProceso", ({ sala, nombre, proceso }) => {
     const data = salas[sala];
     if (data && data.produccionAbierta && data.jugadores[nombre] && data.jugadores[nombre].proceso === null) {
