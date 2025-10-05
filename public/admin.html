@@ -10,17 +10,23 @@
 
 <div id="login">
   <input id="roomId" placeholder="Room ID"><br>
-  <input id="password" placeholder="Contraseña"><br>
+  <input id="password" placeholder="Contraseña" type="password"><br>
   <button onclick="login()">Entrar</button>
 </div>
 
-<div id="juego" style="display:none;">
-  <h2>Crear jugador</h2>
-  <input id="jugadorNombre" placeholder="Nombre"><br>
-  <input id="jugadorClave" placeholder="Contraseña"><br>
-  <input id="jugadorTrigo" type="number" placeholder="Trigo inicial"><br>
-  <input id="jugadorHierro" type="number" placeholder="Hierro inicial"><br>
-  <button onclick="crearJugador()">Añadir jugador</button>
+<div id="panel" style="display:none;">
+  <h2>Sala: <span id="sala"></span></h2>
+
+  <h3>Crear jugador</h3>
+  <input id="nombreJugador" placeholder="Nombre">
+  <input id="passwordJugador" placeholder="Contraseña" type="password">
+  <input id="trigo" type="number" placeholder="Trigo inicial">
+  <input id="hierro" type="number" placeholder="Hierro inicial">
+  <button onclick="crearJugador()">Crear jugador</button>
+
+  <h3>Fase del juego</h3>
+  <button onclick="setFase('entregas')">Abrir entregas</button>
+  <button onclick="setFase('produccion')">Abrir producción</button>
 
   <h2>Jugadores</h2>
   <table border="1">
@@ -38,11 +44,11 @@
     <tbody id="tabla"></tbody>
   </table>
 
-  <button onclick="abrirProduccion()">Abrir Producción</button>
-
   <h2>Historial de Entregas</h2>
   <table border="1">
-    <thead><tr><th>De</th><th>Para</th><th>Recurso</th><th>Cantidad</th><th>Hora</th></tr></thead>
+    <thead>
+      <tr><th>De</th><th>Para</th><th>Recurso</th><th>Cantidad</th><th>Hora</th></tr>
+    </thead>
     <tbody id="historial"></tbody>
   </table>
 </div>
@@ -50,9 +56,6 @@
 <script>
 const socket = io();
 let roomId;
-let playersActuales = {};
-let produccionActual = {};
-let historial = {};
 
 function login() {
   roomId = document.getElementById("roomId").value;
@@ -60,25 +63,29 @@ function login() {
   socket.emit("loginAdmin", { roomId, password }, res => {
     if (res.success) {
       document.getElementById("login").style.display = "none";
-      document.getElementById("juego").style.display = "block";
+      document.getElementById("panel").style.display = "block";
+      document.getElementById("sala").innerText = roomId;
     } else alert(res.message);
   });
 }
 
 function crearJugador() {
-  const nombre = jugadorNombre.value;
-  const clave = jugadorClave.value;
-  const trigo = parseInt(jugadorTrigo.value) || 0;
-  const hierro = parseInt(jugadorHierro.value) || 0;
-  socket.emit("crearJugador", { roomId, nombre, clave, trigo, hierro }, res => {
-    if (!res.success) alert(res.message);
+  const nombre = document.getElementById("nombreJugador").value;
+  const password = document.getElementById("passwordJugador").value;
+  const trigo = document.getElementById("trigo").value;
+  const hierro = document.getElementById("hierro").value;
+  socket.emit("crearJugador", { roomId, nombre, password, trigo, hierro }, res => {
+    if (res.success) {
+      document.getElementById("nombreJugador").value = "";
+      document.getElementById("passwordJugador").value = "";
+      document.getElementById("trigo").value = "";
+      document.getElementById("hierro").value = "";
+    } else alert(res.message);
   });
 }
 
-function abrirProduccion() {
-  socket.emit("cambiarFase", { roomId, fase: "produccion" }, res => {
-    if (res.success) alert("Producción abierta");
-  });
+function setFase(fase) {
+  socket.emit("setFase", { roomId, fase }, () => {});
 }
 
 function renderTabla(players) {
@@ -86,11 +93,15 @@ function renderTabla(players) {
   tbody.innerHTML = "";
   Object.keys(players).forEach(n => {
     const p = players[n];
-    const prod = produccionActual[n] || {};
     const row = document.createElement("tr");
-    row.innerHTML = `<td>${n}</td><td>${p.trigo}</td><td>${p.hierro}</td>
-    <td>${p.entregas}/5</td><td>${prod.proceso || ""}</td>
-    <td>${prod.trigoProd || ""}</td><td>${prod.hierroProd || ""}</td>`;
+    row.innerHTML = `
+      <td>${n}</td>
+      <td>${p.trigo.toFixed(1)}</td>
+      <td>${p.hierro.toFixed(1)}</td>
+      <td>${p.entregas}/5</td>
+      <td>${p.proceso || "-"}</td>
+      <td>${p.trigoProd?.toFixed(1) || 0}</td>
+      <td>${p.hierroProd?.toFixed(1) || 0}</td>`;
     tbody.appendChild(row);
   });
 }
@@ -106,11 +117,8 @@ function renderHistorial(historial) {
   });
 }
 
-socket.on("updatePlayers", p => { playersActuales = p; renderTabla(p); });
-socket.on("produccionAdmin", prod => { produccionActual = prod; renderTabla(playersActuales); });
-socket.on("updateHistorial", h => { renderHistorial(h); });
+socket.on("updatePlayers", renderTabla);
+socket.on("updateHistorial", renderHistorial);
 </script>
 </body>
 </html>
-
-
