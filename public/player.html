@@ -23,7 +23,7 @@
 
 <div id="controls" style="display:none;">
   <h2>Mis Recursos</h2>
-  <p>Trigo: <span id="trigo"></span> | Hierro: <span id="hierro"></span></p>
+  <p>Trigo: <span id="trigo"></span> | Hierro: <span id="hierro"></span> | Entregas realizadas: <span id="entregasRealizadas"></span></p>
 
   <div id="entregasDiv">
     <h3>Realizar Entrega</h3>
@@ -129,6 +129,7 @@ function actualizarRecursos(jugador){
   document.getElementById("hierro").textContent = jugador.hierro;
   document.getElementById("trigoProd").textContent = jugador.trigoProd;
   document.getElementById("hierroProd").textContent = jugador.hierroProd;
+  document.getElementById("entregasRealizadas").textContent = jugador.entregas;
 }
 </script>
 </body>
