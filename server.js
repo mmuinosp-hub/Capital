@@ -1,8 +1,8 @@
-// server.js
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -14,6 +14,7 @@ let salas = {};
 io.on("connection", (socket) => {
   console.log("🟢 Usuario conectado:", socket.id);
 
+  // 🟩 CREAR SALA
   socket.on("crearSala", ({ sala }) => {
     if (!salas[sala]) {
       salas[sala] = {
@@ -23,25 +24,29 @@ io.on("connection", (socket) => {
         historialEntregas: [],
       };
       console.log(`🆕 Sala creada: ${sala}`);
-      socket.emit("salaCreada", sala);
     }
+    socket.join(sala);
+    socket.emit("salaCreada", sala);
+    socket.emit("estadoActualizado", salas[sala]);
   });
 
+  // 🟩 CREAR JUGADOR
   socket.on("crearJugador", ({ sala, jugador, password }) => {
-    if (salas[sala]) {
-      salas[sala].jugadores[jugador] = {
-        password,
-        trigo: 1000,
-        hierro: 500,
-        entregas: 2,
-        proceso: null,
-        prodTrigo: 0,
-        prodHierro: 0,
-      };
-      io.emit("jugadoresActualizados", salas[sala].jugadores);
-    }
+    if (!salas[sala]) return;
+    salas[sala].jugadores[jugador] = {
+      password,
+      trigo: 1000,
+      hierro: 500,
+      entregas: 2,
+      proceso: null,
+      prodTrigo: 0,
+      prodHierro: 0,
+    };
+    console.log(`👤 Jugador creado: ${jugador} (${sala})`);
+    io.to(sala).emit("jugadoresActualizados", salas[sala].jugadores);
   });
 
+  // 🟩 LOGIN JUGADOR
   socket.on("loginJugador", ({ sala, jugador, password }) => {
     const s = salas[sala];
     if (!s || !s.jugadores[jugador]) {
@@ -57,6 +62,7 @@ io.on("connection", (socket) => {
     socket.emit("estadoInicial", s);
   });
 
+  // 🟩 CONTROL DE ENTREGAS Y PRODUCCIÓN
   socket.on("abrirEntregas", (sala) => {
     if (salas[sala]) {
       salas[sala].entregasAbiertas = true;
@@ -73,14 +79,13 @@ io.on("connection", (socket) => {
     }
   });
 
+  // 🟩 REGISTRAR ENTREGA
   socket.on("enviarRecurso", ({ sala, origen, destino, recurso, cantidad }) => {
     const s = salas[sala];
     if (!s || !s.entregasAbiertas) return;
-
     const o = s.jugadores[origen];
     const d = s.jugadores[destino];
     cantidad = parseFloat(cantidad);
-
     if (o && d && o.entregas > 0 && cantidad > 0 && o[recurso] >= cantidad) {
       o[recurso] -= cantidad;
       d[recurso] += cantidad;
@@ -98,14 +103,14 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 🔧 PROCESO DE PRODUCCIÓN CORREGIDO
+  // 🟩 INICIAR PRODUCCIÓN
   socket.on("iniciarProduccion", (sala) => {
     const s = salas[sala];
     if (!s || !s.produccionAbierta) return;
 
     for (const [nombre, j] of Object.entries(s.jugadores)) {
-      let trigoInsumo = j.trigo;
-      let hierroInsumo = j.hierro;
+      const trigoInsumo = j.trigo;
+      const hierroInsumo = j.hierro;
       let trigoProd = 0;
       let hierroProd = 0;
 
@@ -127,11 +132,8 @@ io.on("connection", (socket) => {
           hierroProd = 0;
       }
 
-      // Guardamos producción calculada
       j.prodTrigo = trigoProd;
       j.prodHierro = hierroProd;
-
-      // Sumamos a los inventarios
       j.trigo += trigoProd;
       j.hierro += hierroProd;
     }
