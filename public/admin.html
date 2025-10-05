@@ -6,9 +6,10 @@
 <script src="/socket.io/socket.io.js"></script>
 <style>
   body { font-family: Arial; margin: 30px; }
-  table { border-collapse: collapse; margin-top: 10px; }
-  th, td { border: 1px solid #aaa; padding: 4px 8px; text-align: center; }
+  table { border-collapse: collapse; margin-top: 10px; width: 100%; }
+  th, td { border: 1px solid #aaa; padding: 6px; text-align: center; }
   button { margin: 4px; padding: 6px 12px; }
+  input { margin: 4px; }
 </style>
 </head>
 <body>
@@ -16,17 +17,19 @@
 <label>Sala: <input id="sala" /></label>
 <button id="crearSalaBtn">Entrar / Crear Sala</button>
 
-<h3>Jugadores</h3>
+<h3>Crear jugador</h3>
 <label>Nombre: <input id="jugador" /></label>
 <label>Contraseña: <input id="password" type="password" /></label>
+<label>Trigo inicial: <input id="trigoInicial" type="number" value="1000" /></label>
+<label>Hierro inicial: <input id="hierroInicial" type="number" value="500" /></label>
 <button id="crearJugadorBtn">Agregar jugador</button>
 
+<h3>Jugadores</h3>
 <table id="tablaJugadores">
   <thead>
     <tr>
-      <th>Jugador</th><th>Trigo</th><th>Hierro</th>
-      <th>Entregas</th><th>Proceso</th>
-      <th>Prod Trigo</th><th>Prod Hierro</th>
+      <th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th>
+      <th>Proceso</th><th>Prod Trigo</th><th>Prod Hierro</th>
     </tr>
   </thead>
   <tbody></tbody>
@@ -58,8 +61,10 @@ document.getElementById("crearSalaBtn").onclick = () => {
 document.getElementById("crearJugadorBtn").onclick = () => {
   const jugador = document.getElementById("jugador").value.trim();
   const password = document.getElementById("password").value.trim();
+  const trigoInicial = document.getElementById("trigoInicial").value.trim();
+  const hierroInicial = document.getElementById("hierroInicial").value.trim();
   if (!jugador || !password) return alert("Faltan datos");
-  socket.emit("crearJugador", { sala: salaActual, jugador, password });
+  socket.emit("crearJugador", { sala: salaActual, jugador, password, trigoInicial, hierroInicial });
 };
 
 socket.on("jugadoresActualizados", (jugadores) => {
@@ -93,3 +98,4 @@ document.getElementById("iniciarProduccion").onclick = () => socket.emit("inicia
 </script>
 </body>
 </html>
+
