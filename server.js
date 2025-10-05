@@ -1,6 +1,7 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -12,7 +13,7 @@ let salas = {};
 io.on("connection", socket => {
   console.log("🔗 Usuario conectado:", socket.id);
 
-  // === ADMIN LOGIN ===
+  // === LOGIN ADMIN ===
   socket.on("loginAdmin", ({ roomId, password }, cb) => {
     if (!salas[roomId]) {
       salas[roomId] = {
@@ -26,12 +27,16 @@ io.on("connection", socket => {
     } else if (salas[roomId].adminPassword === password) {
       cb({ success: true });
     } else cb({ success: false, message: "Contraseña incorrecta" });
+
+    socket.join(roomId);
+    actualizar(roomId);
   });
 
   // === CREAR JUGADOR ===
   socket.on("crearJugador", ({ roomId, nombre, password, trigo, hierro }, cb) => {
     const sala = salas[roomId];
     if (!sala) return cb({ success: false, message: "Sala no encontrada" });
+
     sala.jugadores[nombre] = {
       password,
       trigo: parseFloat(trigo) || 0,
@@ -41,6 +46,7 @@ io.on("connection", socket => {
       trigoProd: 0,
       hierroProd: 0
     };
+
     console.log(`👤 Jugador creado: ${nombre} (${roomId}) con contraseña: ${password}`);
     actualizar(roomId);
     cb({ success: true });
@@ -53,12 +59,14 @@ io.on("connection", socket => {
       return cb({ success: false, message: "Sala o jugador no encontrado" });
     if (sala.jugadores[nombre].password !== password)
       return cb({ success: false, message: "Contraseña incorrecta" });
+
     socket.join(roomId);
     socket.data = { roomId, nombre };
     cb({ success: true, jugador: sala.jugadores[nombre], fase: sala.fase });
+    actualizar(roomId);
   });
 
-  // === CAMBIAR FASE (solo admin) ===
+  // === CAMBIAR FASE ===
   socket.on("setFase", ({ roomId, fase }, cb) => {
     const sala = salas[roomId];
     if (!sala) return;
@@ -100,18 +108,21 @@ io.on("connection", socket => {
     const sala = salas[roomId];
     if (!sala || sala.fase !== "produccion")
       return cb({ success: false, message: "No se puede elegir proceso ahora" });
+
     const jugador = sala.jugadores[nombre];
     if (!jugador) return cb({ success: false, message: "Jugador no encontrado" });
     if (jugador.proceso) return cb({ success: false, message: "Ya elegiste proceso" });
+
     jugador.proceso = proceso;
     actualizar(roomId);
     cb({ success: true });
   });
 
-  // === CONCLUIR PRODUCCIÓN (ADMIN) ===
+  // === CONCLUIR PRODUCCIÓN ===
   socket.on("concluirProduccion", ({ roomId }, cb) => {
     const sala = salas[roomId];
     if (!sala) return;
+
     for (let nombre in sala.jugadores) {
       const j = sala.jugadores[nombre];
       if (!j.proceso) j.proceso = 3;
@@ -131,11 +142,13 @@ io.on("connection", socket => {
           trigoProd = j.trigo / 2;
           hierroProd = j.hierro / 2;
       }
+
       j.trigoProd = trigoProd;
       j.hierroProd = hierroProd;
       j.trigo += trigoProd;
       j.hierro += hierroProd;
     }
+
     sala.fase = "fin";
     actualizar(roomId);
     cb && cb({ success: true });
@@ -148,9 +161,10 @@ io.on("connection", socket => {
 
 function actualizar(roomId) {
   const sala = salas[roomId];
+  if (!sala) return;
   io.to(roomId).emit("updatePlayers", sala.jugadores);
   io.to(roomId).emit("updateHistorial", sala.historial);
   io.to(roomId).emit("updateFase", sala.fase);
 }
 
-server.listen(3000, () => console.log("Servidor en puerto 3000"));
+server.listen(3000, () => console.log("🚀 Servidor escuchando en puerto 3000"));
