@@ -1,65 +1,55 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Consola Jugador</title>
+<meta charset="utf-8" />
+<title>Jugador - Capitalismo simulado</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-  body { font-family: sans-serif; margin: 20px; }
-  table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-  th, td { border: 1px solid #aaa; padding: 5px; text-align: center; }
-  input, select, button { margin: 5px; }
+  body{font-family:Arial, sans-serif;margin:16px}
+  table{border-collapse:collapse;width:100%}
+  th,td{border:1px solid #ccc;padding:6px;text-align:center}
+  input,select,button{margin:6px}
 </style>
 </head>
 <body>
 <h1>Consola Jugador</h1>
 
 <div>
-  <label>Sala: <input id="roomId" /></label>
-  <label>Jugador: <input id="nombre" /></label>
-  <label>Contraseña: <input type="password" id="password" /></label>
+  Sala: <input id="roomId" /> 
+  Jugador: <input id="nombre" /> 
+  Contraseña: <input id="password" type="password" />
   <button id="loginBtn">Entrar</button>
 </div>
 
-<div id="controls" style="display:none;">
-  <h2>Mis Recursos</h2>
-  <p>Trigo: <span id="trigo"></span> | Hierro: <span id="hierro"></span> | Entregas realizadas: <span id="entregasRealizadas"></span></p>
+<div id="panel" style="display:none">
+  <h2>Jugador: <span id="miNombre"></span></h2>
 
-  <div id="entregasDiv">
-    <h3>Realizar Entrega</h3>
-    <label>Receptor: 
-      <select id="receptor"></select>
-    </label>
-    <label>Trigo: <input type="number" id="trigoEntregado" /></label>
-    <label>Hierro: <input type="number" id="hierroEntregado" /></label>
+  <p>Recursos disponibles: Trigo: <span id="trigo">0</span> | Hierro: <span id="hierro">0</span> | Entregas realizadas: <span id="entregasRealizadas">0</span></p>
+
+  <div id="entregarDiv">
+    <h3>Realizar entrega</h3>
+    Receptor: <select id="receptor"></select>
+    Trigo: <input id="trigoEntregado" type="number" />
+    Hierro: <input id="hierroEntregado" type="number" />
     <button id="entregarBtn">Entregar</button>
   </div>
 
   <div id="produccionDiv">
-    <h3>Elegir Proceso de Producción</h3>
+    <h3>Elegir proceso (solo en fase producción)</h3>
     <select id="proceso">
-      <option value="1">Proceso 1</option>
-      <option value="2">Proceso 2</option>
-      <option value="3">Proceso 3</option>
+      <option value="1">Proceso 1 (solo trigo)</option>
+      <option value="2">Proceso 2 (solo hierro)</option>
+      <option value="3">Proceso 3 (mitad de cada insumo)</option>
     </select>
-    <button id="procesoBtn">Seleccionar</button>
+    <button id="elegirBtn">Elegir</button>
   </div>
 
-  <h3>Mi Producción</h3>
-  <p>Trigo producido: <span id="trigoProd"></span></p>
-  <p>Hierro producido: <span id="hierroProd"></span></p>
+  <h3>Mi producción (última)</h3>
+  <p>Trigo producido: <span id="trigoProd">0</span> | Hierro producido: <span id="hierroProd">0</span></p>
 
-  <h3>Historial de Entregas</h3>
-  <table id="historialTabla">
-    <thead>
-      <tr>
-        <th>De</th>
-        <th>Para</th>
-        <th>Trigo</th>
-        <th>Hierro</th>
-        <th>Hora</th>
-      </tr>
-    </thead>
+  <h3>Historial de entregas</h3>
+  <table id="histTable">
+    <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
     <tbody></tbody>
   </table>
 </div>
@@ -69,14 +59,16 @@ const socket = io();
 let roomId, nombre;
 
 document.getElementById("loginBtn").onclick = () => {
-  roomId = document.getElementById("roomId").value;
-  nombre = document.getElementById("nombre").value;
-  const password = document.getElementById("password").value;
-  socket.emit("loginJugador", { roomId, nombre, password }, res => {
+  roomId = document.getElementById("roomId").value.trim();
+  nombre = document.getElementById("nombre").value.trim();
+  const pass = document.getElementById("password").value;
+  if(!roomId || !nombre){ alert("Sala y nombre requeridos"); return; }
+  socket.emit("loginJugador", { roomId, nombre, password: pass }, res => {
     if(res.success){
-      document.getElementById("controls").style.display = "block";
+      document.getElementById("panel").style.display = "block";
+      document.getElementById("miNombre").textContent = nombre;
       actualizarRecursos(res.jugador);
-    } else alert(res.message);
+    } else alert(res.message || "error");
   });
 };
 
@@ -86,50 +78,62 @@ document.getElementById("entregarBtn").onclick = () => {
   const hierro = parseFloat(document.getElementById("hierroEntregado").value) || 0;
   socket.emit("entregar", { roomId, from: nombre, to, trigo, hierro }, res => {
     if(!res.success) alert(res.message);
+    else {
+      document.getElementById("trigoEntregado").value = "";
+      document.getElementById("hierroEntregado").value = "";
+    }
   });
 };
 
-document.getElementById("procesoBtn").onclick = () => {
-  const proceso = parseInt(document.getElementById("proceso").value);
-  socket.emit("elegirProceso", { roomId, nombre, proceso }, res => {
+document.getElementById("elegirBtn").onclick = () => {
+  const proc = Number(document.getElementById("proceso").value);
+  socket.emit("elegirProceso", { roomId, nombre, proceso: proc }, res => {
     if(!res.success) alert(res.message);
+    else alert("Proceso enviado: " + proc);
   });
 };
 
 socket.on("updatePlayers", jugadores => {
-  if(jugadores[nombre]) actualizarRecursos(jugadores[nombre]);
+  const mi = jugadores[nombre];
+  if(mi) actualizarRecursos(mi);
 
-  // actualizar menú de receptores
-  const receptorSelect = document.getElementById("receptor");
-  receptorSelect.innerHTML = "";
-  for(let jNombre in jugadores){
-    if(jNombre !== nombre){
-      const option = document.createElement("option");
-      option.value = jNombre;
-      option.textContent = jNombre;
-      receptorSelect.appendChild(option);
-    }
+  // llenar receptor con nombres (excepto yo)
+  const sel = document.getElementById("receptor");
+  sel.innerHTML = "";
+  for(const n in jugadores){
+    if(n === nombre) continue;
+    const opt = document.createElement("option");
+    opt.value = n; opt.textContent = n;
+    sel.appendChild(opt);
   }
 });
 
 socket.on("updateHistorial", historial => {
-  const tbody = document.getElementById("historialTabla").querySelector("tbody");
+  const tbody = document.querySelector("#histTable tbody");
   tbody.innerHTML = "";
-  historial.forEach(entrega => {
+  historial.forEach(e => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${entrega.from}</td><td>${entrega.to}</td>
-                    <td>${entrega.trigo}</td><td>${entrega.hierro}</td>
-                    <td>${entrega.timestamp}</td>`;
+    tr.innerHTML = `<td>${e.from}</td><td>${e.to}</td><td>${e.trigo}</td><td>${e.hierro}</td><td>${e.timestamp}</td>`;
     tbody.appendChild(tr);
   });
 });
 
-function actualizarRecursos(jugador){
-  document.getElementById("trigo").textContent = jugador.trigo;
-  document.getElementById("hierro").textContent = jugador.hierro;
-  document.getElementById("trigoProd").textContent = jugador.trigoProd;
-  document.getElementById("hierroProd").textContent = jugador.hierroProd;
-  document.getElementById("entregasRealizadas").textContent = jugador.entregas;
+socket.on("produccionResultados", resultados => {
+  // mostrar mi propio resultado si está
+  const r = resultados.find(x => x.jugador === nombre);
+  if(r){
+    document.getElementById("trigoProd").textContent = Number(r.trigoProd).toFixed(4);
+    document.getElementById("hierroProd").textContent = Number(r.hierroProd).toFixed(4);
+    alert(`Producción concluida. Trigo producido: ${r.trigoProd.toFixed(4)}, Hierro producido: ${r.hierroProd.toFixed(4)}`);
+  }
+});
+
+function actualizarRecursos(j){
+  document.getElementById("trigo").textContent = Number(j.trigo).toFixed(4);
+  document.getElementById("hierro").textContent = Number(j.hierro).toFixed(4);
+  document.getElementById("trigoProd").textContent = Number(j.trigoProd||0).toFixed(4);
+  document.getElementById("hierroProd").textContent = Number(j.hierroProd||0).toFixed(4);
+  document.getElementById("entregasRealizadas").textContent = j.entregas || 0;
 }
 </script>
 </body>
