@@ -13,178 +13,140 @@ let salas = {};
 io.on("connection", socket => {
   console.log("🔗 Usuario conectado:", socket.id);
 
-  // === LOGIN ADMIN ===
+  // ADMIN LOGIN
   socket.on("loginAdmin", ({ roomId, password }, cb) => {
-    if (!salas[roomId]) {
-      salas[roomId] = {
-        adminPassword: password,
-        jugadores: {},
-        fase: "inicio",
-        historial: []
-      };
+    if(!salas[roomId]){
+      salas[roomId] = { adminPassword: password, jugadores: {}, fase: "inicio", historial: [] };
       console.log("🆕 Sala creada:", roomId);
-      cb({ success: true });
-    } else if (salas[roomId].adminPassword === password) {
-      cb({ success: true });
-    } else cb({ success: false, message: "Contraseña incorrecta" });
+      cb({ success:true });
+    } else if(salas[roomId].adminPassword === password){
+      cb({ success:true });
+    } else cb({ success:false, message:"Contraseña incorrecta"});
 
     socket.join(roomId);
     actualizar(roomId);
   });
 
-  // === CREAR JUGADOR ===
+  // CREAR JUGADOR
   socket.on("crearJugador", ({ roomId, nombre, password, trigo, hierro }, cb) => {
     const sala = salas[roomId];
-    if (!sala) return cb({ success: false, message: "Sala no encontrada" });
-
-    sala.jugadores[nombre] = {
-      password,
-      trigo: parseFloat(trigo) || 0,
-      hierro: parseFloat(hierro) || 0,
-      entregas: 0,
-      proceso: null,
-      trigoProd: 0,
-      hierroProd: 0
-    };
-
-    console.log(`👤 Jugador creado: ${nombre} (${roomId}) con contraseña: ${password}`);
+    if(!sala) return cb({ success:false, message:"Sala no encontrada"});
+    sala.jugadores[nombre] = { password, trigo:parseFloat(trigo)||0, hierro:parseFloat(hierro)||0, entregas:0, proceso:null, trigoProd:0, hierroProd:0 };
+    console.log(`👤 Jugador creado: ${nombre} (${roomId})`);
     actualizar(roomId);
-    cb({ success: true });
+    cb({ success:true });
   });
 
-  // === LOGIN JUGADOR ===
+  // LOGIN JUGADOR
   socket.on("loginJugador", ({ roomId, nombre, password }, cb) => {
     const sala = salas[roomId];
-    if (!sala || !sala.jugadores[nombre])
-      return cb({ success: false, message: "Sala o jugador no encontrado" });
-    if (sala.jugadores[nombre].password !== password)
-      return cb({ success: false, message: "Contraseña incorrecta" });
-
+    if(!sala || !sala.jugadores[nombre]) return cb({ success:false, message:"Sala o jugador no encontrado"});
+    if(sala.jugadores[nombre].password !== password) return cb({ success:false, message:"Contraseña incorrecta"});
     socket.join(roomId);
     socket.data = { roomId, nombre };
-    cb({ success: true, jugador: sala.jugadores[nombre], fase: sala.fase });
+    cb({ success:true, jugador:sala.jugadores[nombre], fase:sala.fase });
     actualizar(roomId);
   });
 
-  // === ABRIR/CERRAR FASE DE ENTREGAS ===
-  socket.on("setFase", ({ roomId, fase }, cb) => {
+  // CAMBIO DE FASE
+  socket.on("setFase", ({ roomId, fase }) => {
     const sala = salas[roomId];
-    if (!sala) return;
+    if(!sala) return;
     sala.fase = fase;
     console.log(`⚙️ Fase cambiada a ${fase} en ${roomId}`);
     actualizar(roomId);
-    cb && cb({ success: true });
   });
 
-  // === ENTREGA ===
+  // ENTREGA
   socket.on("entregar", ({ roomId, from, to, trigo, hierro }, cb) => {
     const sala = salas[roomId];
-    if (!sala || sala.fase !== "entregas")
-      return cb({ success: false, message: "No se pueden hacer entregas ahora" });
+    if(!sala || sala.fase !== "entregas") return cb({ success:false, message:"No se pueden hacer entregas ahora" });
 
-    const jugadorFrom = sala.jugadores[from];
-    const jugadorTo = sala.jugadores[to];
-    trigo = parseFloat(trigo) || 0;
-    hierro = parseFloat(hierro) || 0;
+    const jFrom = sala.jugadores[from];
+    const jTo = sala.jugadores[to];
+    trigo = parseFloat(trigo)||0;
+    hierro = parseFloat(hierro)||0;
 
-    if (!jugadorFrom || !jugadorTo)
-      return cb({ success: false, message: "Jugador no encontrado" });
+    if(!jFrom || !jTo) return cb({ success:false, message:"Jugador no encontrado" });
+    if(jFrom.trigo < trigo || jFrom.hierro < hierro) return cb({ success:false, message:"Recursos insuficientes" });
 
-    if (jugadorFrom.trigo < trigo || jugadorFrom.hierro < hierro)
-      return cb({ success: false, message: "Recursos insuficientes" });
+    jFrom.trigo -= trigo;
+    jFrom.hierro -= hierro;
+    jTo.trigo += trigo;
+    jTo.hierro += hierro;
 
-    jugadorFrom.trigo -= trigo;
-    jugadorFrom.hierro -= hierro;
-    jugadorTo.trigo += trigo;
-    jugadorTo.hierro += hierro;
-
-    jugadorFrom.entregas++;
-    sala.historial.push({
-      from,
-      to,
-      trigo,
-      hierro,
-      timestamp: new Date().toLocaleTimeString()
-    });
+    jFrom.entregas++;
+    sala.historial.push({ from, to, trigo, hierro, timestamp:new Date().toLocaleTimeString() });
 
     actualizar(roomId);
-    cb({ success: true });
+    cb({ success:true });
   });
 
-  // === SELECCIONAR PROCESO ===
+  // ELEGIR PROCESO
   socket.on("elegirProceso", ({ roomId, nombre, proceso }, cb) => {
     const sala = salas[roomId];
-    if (!sala || sala.fase !== "produccion")
-      return cb({ success: false, message: "No se puede elegir proceso ahora" });
-
-    const jugador = sala.jugadores[nombre];
-    if (!jugador) return cb({ success: false, message: "Jugador no encontrado" });
-    if (jugador.proceso) return cb({ success: false, message: "Ya elegiste proceso" });
-
-    jugador.proceso = proceso;
+    if(!sala || sala.fase !== "produccion") return cb({ success:false, message:"No se puede elegir proceso ahora" });
+    const j = sala.jugadores[nombre];
+    if(!j) return cb({ success:false, message:"Jugador no encontrado" });
+    if(j.proceso) return cb({ success:false, message:"Ya elegiste proceso" });
+    j.proceso = proceso;
     actualizar(roomId);
-    cb({ success: true });
+    cb({ success:true });
   });
 
-  // === CONCLUIR PRODUCCIÓN ===
-  socket.on("concluirProduccion", ({ roomId }, cb) => {
+  // CONCLUIR PRODUCCIÓN
+  socket.on("concluirProduccion", ({ roomId }) => {
     const sala = salas[roomId];
-    if (!sala) return;
+    if(!sala) return;
 
-    for (let nombre in sala.jugadores) {
+    for(let nombre in sala.jugadores){
       const j = sala.jugadores[nombre];
-      if (!j.proceso) j.proceso = 3;
+      if(!j.proceso) j.proceso = 3;
 
-      // --- Insumos actuales tras todas las entregas ---
       const trigoInsumo = j.trigo;
       const hierroInsumo = j.hierro;
 
-      let trigoProd = 0;
-      let hierroProd = 0;
+      let trigoProd = 0, hierroProd = 0;
 
-      switch (j.proceso) {
+      switch(j.proceso){
         case 1:
-          trigoProd = 575 * Math.min(trigoInsumo / 280, hierroInsumo / 12);
+          trigoProd = 575 * Math.min(trigoInsumo/280, hierroInsumo/12);
           hierroProd = 0;
           j.trigo = trigoProd;
           j.hierro = 0;
           break;
         case 2:
           trigoProd = 0;
-          hierroProd = 20 * Math.min(trigoInsumo / 120, hierroInsumo / 8);
+          hierroProd = 20 * Math.min(trigoInsumo/120, hierroInsumo/8);
           j.trigo = 0;
           j.hierro = hierroProd;
           break;
         case 3:
         default:
-          trigoProd = trigoInsumo / 2;
-          hierroProd = hierroInsumo / 2;
+          trigoProd = trigoInsumo/2;
+          hierroProd = hierroInsumo/2;
           j.trigo = trigoProd;
           j.hierro = hierroProd;
       }
 
-      // Guardamos los productos por separado para mostrar
       j.trigoProd = trigoProd;
       j.hierroProd = hierroProd;
     }
 
     sala.fase = "fin";
     actualizar(roomId);
-    cb && cb({ success: true });
   });
 
-  socket.on("disconnect", () => {
-    console.log("❎ Desconectado:", socket.id);
-  });
+  socket.on("disconnect", () => console.log("❎ Desconectado:", socket.id));
 });
 
-// Función para actualizar todas las consolas
-function actualizar(roomId) {
+// FUNCION ACTUALIZAR
+function actualizar(roomId){
   const sala = salas[roomId];
-  if (!sala) return;
+  if(!sala) return;
   io.to(roomId).emit("updatePlayers", sala.jugadores);
   io.to(roomId).emit("updateHistorial", sala.historial);
   io.to(roomId).emit("updateFase", sala.fase);
 }
 
-server.listen(3000, () => console.log("🚀 Servidor escuchando en puerto 3000"));
+server.listen(3000, ()=>console.log("🚀 Servidor escuchando en puerto 3000"));
