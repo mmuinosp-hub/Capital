@@ -27,7 +27,9 @@
 
   <div id="entregasDiv">
     <h3>Realizar Entrega</h3>
-    <label>Receptor: <input id="receptor" /></label>
+    <label>Receptor: 
+      <select id="receptor"></select>
+    </label>
     <label>Trigo: <input type="number" id="trigoEntregado" /></label>
     <label>Hierro: <input type="number" id="hierroEntregado" /></label>
     <button id="entregarBtn">Entregar</button>
@@ -85,6 +87,18 @@ document.getElementById("procesoBtn").onclick = () => {
 socket.on("updatePlayers", jugadores => {
   if(jugadores[nombre]) {
     actualizarRecursos(jugadores[nombre]);
+  }
+
+  // Actualizamos menú de receptores
+  const receptorSelect = document.getElementById("receptor");
+  receptorSelect.innerHTML = "";
+  for(let jNombre in jugadores){
+    if(jNombre !== nombre){
+      const option = document.createElement("option");
+      option.value = jNombre;
+      option.textContent = jNombre;
+      receptorSelect.appendChild(option);
+    }
   }
 });
 
