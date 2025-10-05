@@ -6,7 +6,7 @@
 <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
-<h1>Consola Jugador</h1>
+<h1>Consola del Jugador</h1>
 
 <div id="login">
   <input id="roomId" placeholder="Room ID"><br>
@@ -24,7 +24,7 @@
   <select id="to"></select><br><br>
   <label>Trigo:</label><input id="cantidadTrigo" type="number" min="0" value="0"><br>
   <label>Hierro:</label><input id="cantidadHierro" type="number" min="0" value="0"><br><br>
-  <button id="btnEntrega" onclick="entregar()">Enviar</button>
+  <button onclick="entregar()">Enviar</button>
 
   <h2>Jugadores</h2>
   <table border="1">
@@ -41,51 +41,58 @@
 
 <div id="produccion" style="display:none;">
   <h3>Elegir proceso</h3>
-  <button id="proc1" onclick="elegirProceso(1)">Proceso 1: Trigo</button>
-  <button id="proc2" onclick="elegirProceso(2)">Proceso 2: Hierro</button>
-  <button id="proc3" onclick="elegirProceso(3)">Proceso 3: Default</button>
+  <button id="p1" onclick="elegirProceso(1)">Proceso 1: Trigo</button>
+  <button id="p2" onclick="elegirProceso(2)">Proceso 2: Hierro</button>
+  <button id="p3" onclick="elegirProceso(3)">Proceso 3: Default</button>
 </div>
 
 <script>
 const socket = io();
-let roomId, nombre, currentPlayer;
+let roomId, nombre;
 
 function login() {
-  roomId = roomIdInput.value;
-  nombre = nombreInput.value;
-  const password = passwordInput.value;
-  socket.emit("loginPlayer", { roomId, nombre, password }, res => {
+  roomId = document.getElementById("roomId").value.trim();
+  nombre = document.getElementById("nombre").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  socket.emit("loginPlayer", { roomId, nombre, password }, (res) => {
     if (res.success) {
-      currentPlayer = res.data;
       document.getElementById("login").style.display = "none";
       document.getElementById("juego").style.display = "block";
-      updateRecursos(currentPlayer);
-    } else alert(res.message);
+      updateRecursos(res.data);
+    } else {
+      alert(res.message);
+    }
   });
 }
 
 function updateRecursos(p) {
-  document.getElementById("recursos").innerText = `Trigo: ${p.trigo} | Hierro: ${p.hierro} | Entregas: ${p.entregas}/5`;
+  document.getElementById("recursos").innerText =
+    `Trigo: ${p.trigo.toFixed(1)} | Hierro: ${p.hierro.toFixed(1)} | Entregas: ${p.entregas}/5`;
 }
 
 function entregar() {
   const to = document.getElementById("to").value;
-  const trigo = parseInt(document.getElementById("cantidadTrigo").value) || 0;
-  const hierro = parseInt(document.getElementById("cantidadHierro").value) || 0;
+  const trigo = parseFloat(document.getElementById("cantidadTrigo").value) || 0;
+  const hierro = parseFloat(document.getElementById("cantidadHierro").value) || 0;
 
   if (trigo > 0)
-    socket.emit("entrega", { roomId, from: nombre, to, recurso: "trigo", cantidad: trigo }, r => { if (!r.success) alert(r.message); });
+    socket.emit("entrega", { roomId, from: nombre, to, recurso: "trigo", cantidad: trigo }, (res) => {
+      if (!res.success) alert(res.message);
+    });
   if (hierro > 0)
-    socket.emit("entrega", { roomId, from: nombre, to, recurso: "hierro", cantidad: hierro }, r => { if (!r.success) alert(r.message); });
+    socket.emit("entrega", { roomId, from: nombre, to, recurso: "hierro", cantidad: hierro }, (res) => {
+      if (!res.success) alert(res.message);
+    });
 }
 
 function elegirProceso(p) {
-  socket.emit("elegirProceso", { roomId, jugador: nombre, proceso: p }, res => {
+  socket.emit("elegirProceso", { roomId, jugador: nombre, proceso: p }, (res) => {
     if (res.success) {
-      alert("Proceso elegido: " + p);
-      document.getElementById("proc1").disabled = true;
-      document.getElementById("proc2").disabled = true;
-      document.getElementById("proc3").disabled = true;
+      alert("Has elegido el proceso " + p);
+      document.getElementById("p1").disabled = true;
+      document.getElementById("p2").disabled = true;
+      document.getElementById("p3").disabled = true;
     } else alert(res.message);
   });
 }
@@ -96,7 +103,7 @@ function renderTabla(players) {
   Object.keys(players).forEach(n => {
     const p = players[n];
     const row = document.createElement("tr");
-    row.innerHTML = `<td>${n}</td><td>${p.trigo}</td><td>${p.hierro}</td><td>${p.entregas}/5</td>`;
+    row.innerHTML = `<td>${n}</td><td>${p.trigo.toFixed(1)}</td><td>${p.hierro.toFixed(1)}</td><td>${p.entregas}/5</td>`;
     tbody.appendChild(row);
   });
 }
@@ -111,19 +118,38 @@ function renderHistorial(historial) {
   });
 }
 
-socket.on("updatePlayers", players => {
+socket.on("updatePlayers", (players) => {
   renderTabla(players);
   if (players[nombre]) updateRecursos(players[nombre]);
   const sel = document.getElementById("to");
   sel.innerHTML = "";
-  Object.keys(players).forEach(p => { if (p !== nombre) { const o = document.createElement("option"); o.value = p; o.text = p; sel.appendChild(o); } });
+  Object.keys(players).forEach(p => {
+    if (p !== nombre) {
+      const o = document.createElement("option");
+      o.value = p;
+      o.text = p;
+      sel.appendChild(o);
+    }
+  });
 });
-socket.on("faseActual", f => {
-  if (f === "produccion") { document.getElementById("juego").style.display = "none"; document.getElementById("produccion").style.display = "block"; }
-  else { document.getElementById("produccion").style.display = "none"; document.getElementById("juego").style.display = "block"; }
+
+socket.on("faseActual", (fase) => {
+  if (fase === "produccion") {
+    document.getElementById("juego").style.display = "none";
+    document.getElementById("produccion").style.display = "block";
+  } else {
+    document.getElementById("produccion").style.display = "none";
+    document.getElementById("juego").style.display = "block";
+  }
 });
-socket.on("produccionJugador", prod => { alert(`Producción: Trigo ${prod.trigoProd}, Hierro ${prod.hierroProd}`); });
-socket.on("updateHistorial", h => renderHistorial(h));
+
+socket.on("updateHistorial", (h) => renderHistorial(h));
+
+socket.on("produccionJugador", (prod) => {
+  if (prod.jugador === nombre) {
+    alert(`Producción obtenida: Trigo ${prod.trigoProd.toFixed(1)}, Hierro ${prod.hierroProd.toFixed(1)}`);
+  }
+});
 </script>
 </body>
 </html>
