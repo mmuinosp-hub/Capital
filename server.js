@@ -60,6 +60,8 @@ io.on("connection", (socket) => {
         proceso: null,
         trigoProd: 0,
         hierroProd: 0,
+        trigoActual: parseFloat(trigo),
+        hierroActual: parseFloat(hierro),
       };
       io.to(sala).emit("actualizarEstado", data);
       console.log(`👤 Jugador creado: ${nombre} (${sala})`);
@@ -87,11 +89,11 @@ io.on("connection", (socket) => {
     if (emisor && receptor && emisor.entregas > 0) {
       trigo = parseFloat(trigo) || 0;
       hierro = parseFloat(hierro) || 0;
-      if (trigo <= emisor.trigo && hierro <= emisor.hierro) {
-        emisor.trigo -= trigo;
-        emisor.hierro -= hierro;
-        receptor.trigo += trigo;
-        receptor.hierro += hierro;
+      if (trigo <= emisor.trigoActual && hierro <= emisor.hierroActual) {
+        emisor.trigoActual -= trigo;
+        emisor.hierroActual -= hierro;
+        receptor.trigoActual += trigo;
+        receptor.hierroActual += hierro;
         emisor.entregas -= 1;
         data.historial.push({
           de,
@@ -120,42 +122,49 @@ io.on("connection", (socket) => {
     if (!data) return;
 
     if (!data.produccionAbierta) {
+      // Abrir producción
       data.produccionAbierta = true;
     } else {
+      // Cerrar producción y aplicar cálculos
       data.produccionAbierta = false;
 
-      // Aplicar producción usando las cantidades finales tras entregas
       for (const nombre in data.jugadores) {
         const j = data.jugadores[nombre];
+
+        // Determinar proceso aplicado
+        const procesoAplicado = j.proceso || 3;
 
         let trigoNuevo = 0;
         let hierroNuevo = 0;
 
-        // Si no eligió proceso, usar Proceso 3
-        const proceso = j.proceso || 3;
-
-        if (proceso === 1) {
-          const factor = Math.min(j.trigo / 280, j.hierro / 12);
+        if (procesoAplicado === 1) {
+          const factor = Math.min(j.trigoActual / 280, j.hierroActual / 12);
           trigoNuevo = 575 * factor;
           hierroNuevo = 0;
-        } else if (proceso === 2) {
-          const factor = Math.min(j.trigo / 120, j.hierro / 8);
+        } else if (procesoAplicado === 2) {
+          const factor = Math.min(j.trigoActual / 120, j.hierroActual / 8);
           trigoNuevo = 0;
           hierroNuevo = 20 * factor;
         } else { // proceso 3
-          trigoNuevo = j.trigo / 2;
-          hierroNuevo = j.hierro / 2;
+          trigoNuevo = j.trigoActual / 2;
+          hierroNuevo = j.hierroActual / 2;
         }
 
-        // Guardamos la producción y actualizamos recursos
+        // Guardar producción
         j.trigoProd = trigoNuevo;
         j.hierroProd = hierroNuevo;
+
+        // Actualizar recursos del jugador
         j.trigo = trigoNuevo;
         j.hierro = hierroNuevo;
 
-        // Reiniciamos entregas y proceso para siguiente ronda
+        // Guardar proceso aplicado
+        j.proceso = procesoAplicado;
+
+        // Reiniciar entregas y cantidades actuales para siguiente ronda
         j.entregas = 5;
-        j.proceso = null;
+        j.trigoActual = trigoNuevo;
+        j.hierroActual = hierroNuevo;
       }
     }
 
