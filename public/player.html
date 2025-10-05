@@ -1,140 +1,96 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<title>Jugador - Capitalismo simulado</title>
+<meta charset="UTF-8">
+<title>Jugador</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-  body{font-family:Arial, sans-serif;margin:16px}
-  table{border-collapse:collapse;width:100%}
-  th,td{border:1px solid #ccc;padding:6px;text-align:center}
-  input,select,button{margin:6px}
+body { font-family: Arial; margin: 20px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
-<h1>Consola Jugador</h1>
+<h2>Jugador</h2>
+<input id="sala" placeholder="Sala">
+<input id="nombre" placeholder="Nombre">
+<input id="password" type="password" placeholder="Contraseña">
+<button onclick="entrar()">Entrar</button>
 
-<div>
-  Sala: <input id="roomId" /> 
-  Jugador: <input id="nombre" /> 
-  Contraseña: <input id="password" type="password" />
-  <button id="loginBtn">Entrar</button>
-</div>
+<h3>Entregas</h3>
+<select id="destino"></select>
+<input id="trigoEnv" type="number" placeholder="Trigo a entregar">
+<input id="hierroEnv" type="number" placeholder="Hierro a entregar">
+<button onclick="entregar()">Entregar</button>
 
-<div id="panel" style="display:none">
-  <h2>Jugador: <span id="miNombre"></span></h2>
+<h3>Producción</h3>
+<select id="proceso">
+  <option value="1">Proceso 1</option>
+  <option value="2">Proceso 2</option>
+  <option value="3">Proceso 3</option>
+</select>
+<button onclick="elegirProceso()">Elegir proceso</button>
 
-  <p>Recursos disponibles: Trigo: <span id="trigo">0</span> | Hierro: <span id="hierro">0</span> | Entregas realizadas: <span id="entregasRealizadas">0</span></p>
+<h3>Jugadores</h3>
+<table>
+<thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead>
+<tbody id="jugadores"></tbody>
+</table>
 
-  <div id="entregarDiv">
-    <h3>Realizar entrega</h3>
-    Receptor: <select id="receptor"></select>
-    Trigo: <input id="trigoEntregado" type="number" />
-    Hierro: <input id="hierroEntregado" type="number" />
-    <button id="entregarBtn">Entregar</button>
-  </div>
+<h3>Historial de entregas</h3>
+<table>
+<thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+<tbody id="historial"></tbody>
+</table>
 
-  <div id="produccionDiv">
-    <h3>Elegir proceso (solo en fase producción)</h3>
-    <select id="proceso">
-      <option value="1">Proceso 1 (solo trigo)</option>
-      <option value="2">Proceso 2 (solo hierro)</option>
-      <option value="3">Proceso 3 (mitad de cada insumo)</option>
-    </select>
-    <button id="elegirBtn">Elegir</button>
-  </div>
-
-  <h3>Mi producción (última)</h3>
-  <p>Trigo producido: <span id="trigoProd">0</span> | Hierro producido: <span id="hierroProd">0</span></p>
-
-  <h3>Historial de entregas</h3>
-  <table id="histTable">
-    <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-    <tbody></tbody>
-  </table>
-</div>
+<h3>Tu producción</h3>
+<p>Trigo producido: <span id="trigoProd">0</span></p>
+<p>Hierro producido: <span id="hierroProd">0</span></p>
 
 <script>
 const socket = io();
-let roomId, nombre;
+let sala = "";
+let nombre = "";
 
-document.getElementById("loginBtn").onclick = () => {
-  roomId = document.getElementById("roomId").value.trim();
-  nombre = document.getElementById("nombre").value.trim();
-  const pass = document.getElementById("password").value;
-  if(!roomId || !nombre){ alert("Sala y nombre requeridos"); return; }
-  socket.emit("loginJugador", { roomId, nombre, password: pass }, res => {
-    if(res.success){
-      document.getElementById("panel").style.display = "block";
-      document.getElementById("miNombre").textContent = nombre;
-      actualizarRecursos(res.jugador);
-    } else alert(res.message || "error");
-  });
-};
-
-document.getElementById("entregarBtn").onclick = () => {
-  const to = document.getElementById("receptor").value;
-  const trigo = parseFloat(document.getElementById("trigoEntregado").value) || 0;
-  const hierro = parseFloat(document.getElementById("hierroEntregado").value) || 0;
-  socket.emit("entregar", { roomId, from: nombre, to, trigo, hierro }, res => {
-    if(!res.success) alert(res.message);
-    else {
-      document.getElementById("trigoEntregado").value = "";
-      document.getElementById("hierroEntregado").value = "";
-    }
-  });
-};
-
-document.getElementById("elegirBtn").onclick = () => {
-  const proc = Number(document.getElementById("proceso").value);
-  socket.emit("elegirProceso", { roomId, nombre, proceso: proc }, res => {
-    if(!res.success) alert(res.message);
-    else alert("Proceso enviado: " + proc);
-  });
-};
-
-socket.on("updatePlayers", jugadores => {
-  const mi = jugadores[nombre];
-  if(mi) actualizarRecursos(mi);
-
-  // llenar receptor con nombres (excepto yo)
-  const sel = document.getElementById("receptor");
-  sel.innerHTML = "";
-  for(const n in jugadores){
-    if(n === nombre) continue;
-    const opt = document.createElement("option");
-    opt.value = n; opt.textContent = n;
-    sel.appendChild(opt);
-  }
-});
-
-socket.on("updateHistorial", historial => {
-  const tbody = document.querySelector("#histTable tbody");
-  tbody.innerHTML = "";
-  historial.forEach(e => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${e.from}</td><td>${e.to}</td><td>${e.trigo}</td><td>${e.hierro}</td><td>${e.timestamp}</td>`;
-    tbody.appendChild(tr);
-  });
-});
-
-socket.on("produccionResultados", resultados => {
-  // mostrar mi propio resultado si está
-  const r = resultados.find(x => x.jugador === nombre);
-  if(r){
-    document.getElementById("trigoProd").textContent = Number(r.trigoProd).toFixed(4);
-    document.getElementById("hierroProd").textContent = Number(r.hierroProd).toFixed(4);
-    alert(`Producción concluida. Trigo producido: ${r.trigoProd.toFixed(4)}, Hierro producido: ${r.hierroProd.toFixed(4)}`);
-  }
-});
-
-function actualizarRecursos(j){
-  document.getElementById("trigo").textContent = Number(j.trigo).toFixed(4);
-  document.getElementById("hierro").textContent = Number(j.hierro).toFixed(4);
-  document.getElementById("trigoProd").textContent = Number(j.trigoProd||0).toFixed(4);
-  document.getElementById("hierroProd").textContent = Number(j.hierroProd||0).toFixed(4);
-  document.getElementById("entregasRealizadas").textContent = j.entregas || 0;
+function entrar() {
+  sala = document.getElementById("sala").value;
+  nombre = document.getElementById("nombre").value;
+  const password = document.getElementById("password").value;
+  socket.emit("entrarJugador", { sala, nombre, password });
 }
+
+function entregar() {
+  const para = document.getElementById("destino").value;
+  const trigo = document.getElementById("trigoEnv").value;
+  const hierro = document.getElementById("hierroEnv").value;
+  socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
+}
+
+function elegirProceso() {
+  const proceso = parseInt(document.getElementById("proceso").value);
+  socket.emit("elegirProceso", { sala, nombre, proceso });
+}
+
+socket.on("actualizarEstado", (data) => {
+  const tbody = document.getElementById("jugadores");
+  tbody.innerHTML = "";
+  const sel = document.getElementById("destino");
+  sel.innerHTML = "";
+  for (const [n, j] of Object.entries(data.jugadores)) {
+    tbody.innerHTML += `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td></tr>`;
+    if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
+    if (n === nombre) {
+      document.getElementById("trigoProd").textContent = j.trigoProd.toFixed(2);
+      document.getElementById("hierroProd").textContent = j.hierroProd.toFixed(2);
+    }
+  }
+
+  const hist = document.getElementById("historial");
+  hist.innerHTML = "";
+  for (const h of data.historial) {
+    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
+  }
+});
 </script>
 </body>
 </html>
