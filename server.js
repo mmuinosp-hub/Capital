@@ -66,7 +66,7 @@ io.on("connection", socket => {
     actualizar(roomId);
   });
 
-  // === CAMBIAR FASE ===
+  // === ABRIR/CERRAR FASE DE ENTREGAS ===
   socket.on("setFase", ({ roomId, fase }, cb) => {
     const sala = salas[roomId];
     if (!sala) return;
@@ -119,43 +119,54 @@ io.on("connection", socket => {
   });
 
   // === CONCLUIR PRODUCCIÓN ===
-socket.on("concluirProduccion", ({ roomId }, cb) => {
-  const sala = salas[roomId];
-  if (!sala) return;
+  socket.on("concluirProduccion", ({ roomId }, cb) => {
+    const sala = salas[roomId];
+    if (!sala) return;
 
-  for (let nombre in sala.jugadores) {
-    const j = sala.jugadores[nombre];
-    if (!j.proceso) j.proceso = 3;
+    for (let nombre in sala.jugadores) {
+      const j = sala.jugadores[nombre];
+      if (!j.proceso) j.proceso = 3;
 
-    let trigoProd = 0, hierroProd = 0;
+      // Usar recursos actuales tras las entregas
+      const trigoDisp = j.trigo;
+      const hierroDisp = j.hierro;
 
-    switch (j.proceso) {
-      case 1:
-        trigoProd = 575 * Math.min(j.trigo / 280, j.hierro / 12);
-        hierroProd = 0;
-        break;
-      case 2:
-        trigoProd = 0;
-        hierroProd = 20 * Math.min(j.trigo / 120, j.hierro / 8);
-        break;
-      case 3:
-      default:
-        trigoProd = j.trigo / 2;
-        hierroProd = j.hierro / 2;
+      let trigoProd = 0, hierroProd = 0;
+
+      switch (j.proceso) {
+        case 1:
+          trigoProd = 575 * Math.min(trigoDisp / 280, hierroDisp / 12);
+          hierroProd = 0;
+          break;
+        case 2:
+          trigoProd = 0;
+          hierroProd = 20 * Math.min(trigoDisp / 120, hierroDisp / 8);
+          break;
+        case 3:
+        default:
+          trigoProd = trigoDisp / 2;
+          hierroProd = hierroDisp / 2;
+      }
+
+      j.trigoProd = trigoProd;
+      j.hierroProd = hierroProd;
+
+      // Reemplazamos los recursos por la producción
+      j.trigo = trigoProd;
+      j.hierro = hierroProd;
     }
 
-    j.trigoProd = trigoProd;
-    j.hierroProd = hierroProd;
+    sala.fase = "fin";
+    actualizar(roomId);
+    cb && cb({ success: true });
+  });
 
-    // Actualizar recursos del jugador
-    j.trigo += trigoProd;
-    j.hierro += hierroProd;
-  }
-
-  sala.fase = "fin";
-  actualizar(roomId);
-  cb && cb({ success: true });
+  socket.on("disconnect", () => {
+    console.log("❎ Desconectado:", socket.id);
+  });
 });
+
+// Función para actualizar todas las consolas
 function actualizar(roomId) {
   const sala = salas[roomId];
   if (!sala) return;
@@ -165,4 +176,3 @@ function actualizar(roomId) {
 }
 
 server.listen(3000, () => console.log("🚀 Servidor escuchando en puerto 3000"));
-
