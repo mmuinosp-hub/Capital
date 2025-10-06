@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Historial de Entregas</title></head>
+<body>
+<a href="/">🏠 Inicio</a> | <a href="/historial_produccion.html">Historial de Producción</a> | <a href="/admin.html">Admin</a> | <a href="/player.html">Jugador</a>
+<h2>Consulta del Historial de Entregas</h2>
+<input id="sala" placeholder="Sala">
+<button onclick="ver()">Ver historial</button>
+<div id="resultado"></div>
+
+<script>
+function ver() {
+  const s = document.getElementById('sala').value.trim();
+  if (!s) return alert("Introduce la sala");
+  fetch(`/historialEntregas/${s}`).then(r => r.text()).then(html => {
+    document.getElementById("resultado").innerHTML = html;
+  });
+}
+</script>
+</body>
+</html>
