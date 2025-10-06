@@ -13,7 +13,7 @@ function generarId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
-// === Endpoints para descarga de historiales ===
+// Endpoints para descargar historiales
 app.get("/historialEntregas/:sala", (req, res) => {
   const sala = req.params.sala;
   const room = salas[sala];
@@ -66,8 +66,8 @@ io.on("connection", (socket) => {
       password,
       trigoInsumo: parseFloat(trigo) || 0,
       hierroInsumo: parseFloat(hierro) || 0,
-      trigoProd: parseFloat(trigo) || 0,
-      hierroProd: parseFloat(hierro) || 0,
+      trigoProd: null,
+      hierroProd: null,
       trigo: parseFloat(trigo) || 0,
       hierro: parseFloat(hierro) || 0,
       entregasDisponibles: 5,
@@ -161,6 +161,8 @@ io.on("connection", (socket) => {
         j.hierroProd = hierroProd;
         j.trigo = trigoProd;
         j.hierro = hierroProd;
+        j.entregasDisponibles = 5;
+        j.proceso = null;
 
         room.historialProduccion.push({
           jugador: nombre,
@@ -171,9 +173,6 @@ io.on("connection", (socket) => {
           hierroProd,
           fecha: new Date().toLocaleString()
         });
-
-        j.entregasDisponibles = 5;
-        j.proceso = null;
       }
     }
 
@@ -184,12 +183,12 @@ io.on("connection", (socket) => {
     const room = salas[sala];
     if (!room) return;
     for (const j of Object.values(room.jugadores)) {
-      j.trigoInsumo = j.trigoProd;
-      j.hierroInsumo = j.hierroProd;
+      j.trigoInsumo = j.trigo;
+      j.hierroInsumo = j.hierro;
       j.trigo = j.trigoInsumo;
       j.hierro = j.hierroInsumo;
-      j.trigoProd = j.trigoInsumo;
-      j.hierroProd = j.hierroInsumo;
+      j.trigoProd = null;
+      j.hierroProd = null;
       j.proceso = null;
       j.entregasDisponibles = 5;
     }
