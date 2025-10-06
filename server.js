@@ -13,10 +13,26 @@ function generarId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
-// === Conexión de clientes ===
+// === Endpoints para descarga de historiales ===
+app.get("/historialEntregas/:sala", (req, res) => {
+  const sala = req.params.sala;
+  const room = salas[sala];
+  if (!room) return res.status(404).send("Sala no encontrada");
+  res.setHeader("Content-Disposition", `attachment; filename=historialEntregas_${sala}.json`);
+  res.json(room.historialEntregas);
+});
+
+app.get("/historialProduccion/:sala", (req, res) => {
+  const sala = req.params.sala;
+  const room = salas[sala];
+  if (!room) return res.status(404).send("Sala no encontrada");
+  res.setHeader("Content-Disposition", `attachment; filename=historialProduccion_${sala}.json`);
+  res.json(room.historialProduccion);
+});
+
+// === Socket.IO ===
 io.on("connection", (socket) => {
 
-  // Crear sala
   socket.on("crearSala", ({ sala, password }) => {
     if (salas[sala]) return socket.emit("salaExiste");
     salas[sala] = {
@@ -32,7 +48,6 @@ io.on("connection", (socket) => {
     socket.emit("salaCreada", sala);
   });
 
-  // Entrar como admin
   socket.on("entrarAdmin", ({ sala, password }) => {
     const room = salas[sala];
     if (!room) return socket.emit("error", "Sala no existe");
@@ -42,7 +57,6 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // Crear jugador
   socket.on("crearJugador", ({ sala, nombre, password, trigo, hierro }) => {
     const room = salas[sala];
     if (!room) return socket.emit("error", "Sala no existe");
@@ -62,7 +76,6 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // Entrar como jugador
   socket.on("entrarJugador", ({ sala, nombre, password }) => {
     const room = salas[sala];
     if (!room) return socket.emit("error", "Sala no existe");
@@ -73,7 +86,6 @@ io.on("connection", (socket) => {
     socket.emit("actualizarEstado", room);
   });
 
-  // Enviar entrega
   socket.on("enviarEntrega", ({ sala, de, para, trigo, hierro }) => {
     const room = salas[sala];
     if (!room || !room.entregasAbiertas) return;
@@ -96,16 +108,13 @@ io.on("connection", (socket) => {
 
     jDe.entregasDisponibles--;
 
-    const entrega = {
-      de, para, trigo, hierro, fecha: new Date().toLocaleString()
-    };
+    const entrega = { de, para, trigo, hierro, fecha: new Date().toLocaleString() };
     room.historial.push(entrega);
     room.historialEntregas.push(entrega);
 
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // Elegir proceso de producción
   socket.on("elegirProceso", ({ sala, nombre, proceso }) => {
     const room = salas[sala];
     if (!room || !room.produccionAbierta) return;
@@ -115,7 +124,6 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // Toggle entregas
   socket.on("toggleEntregas", (sala) => {
     const room = salas[sala];
     if (!room) return;
@@ -123,13 +131,11 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // Toggle producción
   socket.on("toggleProduccion", (sala) => {
     const room = salas[sala];
     if (!room) return;
     room.produccionAbierta = !room.produccionAbierta;
 
-    // Si se cierra la producción, aplicar cálculos
     if (!room.produccionAbierta) {
       for (const nombre in room.jugadores) {
         const j = room.jugadores[nombre];
@@ -146,7 +152,7 @@ io.on("connection", (socket) => {
           const factor = Math.min(trigo / 120, hierro / 8);
           trigoProd = 0;
           hierroProd = 20 * factor;
-        } else { // proceso 3
+        } else {
           trigoProd = trigo / 2;
           hierroProd = hierro / 2;
         }
@@ -156,7 +162,6 @@ io.on("connection", (socket) => {
         j.trigo = trigoProd;
         j.hierro = hierroProd;
 
-        // Guardar historial de producción
         room.historialProduccion.push({
           jugador: nombre,
           trigoInsumo: trigo,
@@ -175,7 +180,6 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // Nueva sesión: mantiene producción como insumo
   socket.on("reiniciarSesion", (sala) => {
     const room = salas[sala];
     if (!room) return;
@@ -192,6 +196,7 @@ io.on("connection", (socket) => {
     room.historial = [];
     io.to(sala).emit("actualizarEstado", room);
   });
+
 });
 
 server.listen(3000, () => console.log("Servidor iniciado en http://localhost:3000"));
