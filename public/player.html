@@ -1,47 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Jugador - Capitalismo Simulado</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; background: #fafafa; }
+h2, h3 { color: #333; }
+input, select, button { margin: 4px; padding: 5px; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; background: white; }
+th, td { border: 1px solid #999; padding: 6px; text-align: center; }
+th { background: #eee; }
+</style>
+</head>
+<body>
+
+<h2>Jugador</h2>
+
+<!-- Login -->
+<input id="sala" placeholder="Sala">
+<input id="nombre" placeholder="Nombre">
+<input id="password" type="password" placeholder="Contraseña">
+<button onclick="entrar()">Entrar</button>
+
+<hr>
+
+<!-- Entregas -->
+<h3>Entregas</h3>
+<select id="destino"></select>
+<input id="trigoEnv" type="number" placeholder="Trigo a entregar" min="0" step="any">
+<input id="hierroEnv" type="number" placeholder="Hierro a entregar" min="0" step="any">
+<button onclick="entregar()">Entregar</button>
+
+<!-- Producción -->
+<h3>Producción</h3>
+<select id="proceso">
+  <option value="1">Proceso 1: usa trigo+hierro para producir trigo</option>
+  <option value="2">Proceso 2: usa trigo+hierro para producir hierro</option>
+  <option value="3">Proceso 3: conserva la mitad de cada recurso</option>
+</select>
+<button onclick="elegirProceso()">Elegir proceso</button>
+
+<!-- Tabla de jugadores -->
+<h3>Jugadores</h3>
+<table>
+<thead>
+  <tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr>
+</thead>
+<tbody id="jugadores"></tbody>
+</table>
+
+<!-- Historial -->
+<h3>Historial de entregas</h3>
+<table>
+<thead>
+  <tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>
+</thead>
+<tbody id="historial"></tbody>
+</table>
+
+<!-- Producción individual -->
+<h3>Tu producción</h3>
+<p>Trigo producido: <span id="trigoProd">0</span></p>
+<p>Hierro producido: <span id="hierroProd">0</span></p>
+
 <script>
 const socket = io();
 let sala = "";
 let nombre = "";
+let jugadoresData = {};
 
+// Entrar como jugador
 function entrar() {
-  sala = document.getElementById("sala").value;
-  nombre = document.getElementById("nombre").value;
-  const password = document.getElementById("password").value;
+  sala = document.getElementById("sala").value.trim();
+  nombre = document.getElementById("nombre").value.trim();
+  const password = document.getElementById("password").value.trim();
+  if (!sala || !nombre || !password) return alert("Completa todos los campos");
   socket.emit("entrarJugador", { sala, nombre, password });
 }
 
+// Enviar entrega con validación
 function entregar() {
   const para = document.getElementById("destino").value;
   const trigo = parseFloat(document.getElementById("trigoEnv").value) || 0;
   const hierro = parseFloat(document.getElementById("hierroEnv").value) || 0;
 
-  const filaPropia = jugadoresData[nombre];
-  if (!filaPropia) return;
+  const jugador = jugadoresData[nombre];
+  if (!jugador) return alert("No se encontró tu información todavía.");
 
-  if (trigo > filaPropia.trigo || hierro > filaPropia.hierro) {
+  if (trigo > jugador.trigo || hierro > jugador.hierro) {
     alert("❌ No puedes entregar más de lo que tienes.");
     return;
   }
 
+  if (para === nombre) {
+    alert("No puedes entregarte a ti mismo.");
+    return;
+  }
+
   socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
+
+  // limpiar campos
+  document.getElementById("trigoEnv").value = "";
+  document.getElementById("hierroEnv").value = "";
 }
 
+// Elegir proceso
 function elegirProceso() {
   const proceso = parseInt(document.getElementById("proceso").value);
   socket.emit("elegirProceso", { sala, nombre, proceso });
 }
 
-let jugadoresData = {};
-
+// Actualizar interfaz
 socket.on("actualizarEstado", (data) => {
-  jugadoresData = data.jugadores;
+  jugadoresData = data.jugadores || {};
+
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
   const sel = document.getElementById("destino");
   sel.innerHTML = "";
-  for (const [n, j] of Object.entries(data.jugadores)) {
-    tbody.innerHTML += `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td></tr>`;
+
+  for (const [n, j] of Object.entries(jugadoresData)) {
+    tbody.innerHTML += `
+      <tr>
+        <td>${n}</td>
+        <td>${j.trigo.toFixed(2)}</td>
+        <td>${j.hierro.toFixed(2)}</td>
+        <td>${j.entregas}</td>
+      </tr>`;
     if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
+
     if (n === nombre) {
       document.getElementById("trigoProd").textContent = j.trigoProd.toFixed(2);
       document.getElementById("hierroProd").textContent = j.hierroProd.toFixed(2);
@@ -51,9 +139,22 @@ socket.on("actualizarEstado", (data) => {
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
   for (const h of data.historial) {
-    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
+    hist.innerHTML += `<tr>
+      <td>${h.de}</td>
+      <td>${h.para}</td>
+      <td>${h.trigo}</td>
+      <td>${h.hierro}</td>
+      <td>${h.hora}</td>
+    </tr>`;
   }
+});
+
+socket.on("jugadorEntrado", info => {
+  alert(`Has entrado en la sala ${info.sala} como ${info.nombre}`);
 });
 
 socket.on("error", msg => alert(msg));
 </script>
+
+</body>
+</html>
