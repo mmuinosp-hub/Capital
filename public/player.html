@@ -16,7 +16,6 @@ input, button, select { margin: 3px; padding: 4px; }
 <body>
 <h2>Jugador</h2>
 
-<!-- Login -->
 <input id="sala" placeholder="Sala">
 <input id="nombre" placeholder="Nombre">
 <input id="password" type="password" placeholder="Contraseña">
@@ -36,10 +35,13 @@ input, button, select { margin: 3px; padding: 4px; }
 </select>
 <button onclick="elegirProceso()">Elegir proceso</button>
 
-<!-- Producción personal -->
 <h3>Tu producción</h3>
 <p>Trigo producido: <span id="trigoProd">0</span></p>
 <p>Hierro producido: <span id="hierroProd">0</span></p>
+
+<h3>Estado del juego</h3>
+<p>Entregas: <span id="estadoEntregas">?</span></p>
+<p>Producción: <span id="estadoProduccion">?</span></p>
 
 <h3>Jugadores</h3>
 <p id="msgProduccion" class="notice"></p>
@@ -52,14 +54,13 @@ input, button, select { margin: 3px; padding: 4px; }
 
 <h3>Historial de entregas</h3>
 <table>
-<thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+<thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Fecha</th></tr></thead>
 <tbody id="historial"></tbody>
 </table>
 
 <script>
 const socket = io();
-let sala = "";
-let nombre = "";
+let sala = "", nombre = "";
 
 function entrar() {
   sala = document.getElementById("sala").value;
@@ -84,9 +85,10 @@ socket.on("actualizarEstado", (data) => {
   const yo = data.jugadores[nombre];
   if (!yo) return;
 
-  // Actualizar mis producciones personales
   document.getElementById("trigoProd").textContent = yo.trigoProd.toFixed(2);
   document.getElementById("hierroProd").textContent = yo.hierroProd.toFixed(2);
+  document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "ABIERTAS" : "CERRADAS";
+  document.getElementById("estadoProduccion").textContent = data.produccionAbierta ? "ABIERTA" : "CERRADA";
 
   const tbody = document.getElementById("jugadores");
   const tabla = document.getElementById("tablaJugadores");
@@ -94,36 +96,28 @@ socket.on("actualizarEstado", (data) => {
   const sel = document.getElementById("destino");
   const hist = document.getElementById("historial");
 
-  // Limpiar
   tbody.innerHTML = "";
   sel.innerHTML = "";
   hist.innerHTML = "";
 
-  // Actualizar lista de jugadores (para envíos)
   for (const [n, j] of Object.entries(data.jugadores)) {
     if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
-  }
-
-  // Actualizar historial
-  for (const h of data.historial) {
-    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
-  }
-
-  // Mostrar tabla de jugadores
-  msg.textContent = "";
-  tabla.style.display = "table";
-  for (const [n, j] of Object.entries(data.jugadores)) {
     tbody.innerHTML += `<tr>
       <td>${n}</td>
       <td>${j.trigo.toFixed(2)}</td>
       <td>${j.hierro.toFixed(2)}</td>
-      <td>${j.entregas}</td>
+      <td>${j.entregasDisponibles}</td>
     </tr>`;
   }
 
-  // Si producción abierta, avisar que los procesos y productos no se muestran
+  for (const h of data.historial) {
+    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.fecha}</td></tr>`;
+  }
+
   if (data.produccionAbierta) {
-    msg.textContent = "La producción está en curso. No se muestran los procesos ni los productos de los demás jugadores.";
+    msg.textContent = "La producción está en curso. No se muestran procesos ni productos de los demás.";
+  } else {
+    msg.textContent = "";
   }
 });
 
