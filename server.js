@@ -1,7 +1,6 @@
-import express from "express";
-import http from "http";
-import { Server } from "socket.io";
-
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -10,37 +9,40 @@ app.use(express.static("public"));
 
 const salas = {};
 
-// === CREAR SALA ===
+function generarId() {
+  return Math.random().toString(36).substring(2, 10);
+}
+
+// === Conexión de clientes ===
 io.on("connection", (socket) => {
+
+  // Crear sala
   socket.on("crearSala", ({ sala, password }) => {
-    if (salas[sala]) {
-      socket.emit("salaExiste");
-      return;
-    }
+    if (salas[sala]) return socket.emit("salaExiste");
     salas[sala] = {
-      password,
-      admin: socket.id,
+      adminPassword: password,
       jugadores: {},
       entregasAbiertas: false,
       produccionAbierta: false,
       historial: [],
+      historialEntregas: [],
+      historialProduccion: []
     };
     socket.join(sala);
     socket.emit("salaCreada", sala);
   });
 
-  // === ADMIN ENTRA ===
+  // Entrar como admin
   socket.on("entrarAdmin", ({ sala, password }) => {
-    if (!salas[sala]) return socket.emit("error", "Sala no existe");
-    if (salas[sala].password !== password)
-      return socket.emit("error", "Contraseña incorrecta");
+    const room = salas[sala];
+    if (!room) return socket.emit("error", "Sala no existe");
+    if (room.adminPassword !== password) return socket.emit("error", "Contraseña incorrecta");
     socket.join(sala);
-    salas[sala].admin = socket.id;
     socket.emit("adminEntrado", sala);
-    socket.emit("actualizarEstado", salas[sala]);
+    io.to(sala).emit("actualizarEstado", room);
   });
 
-  // === CREAR JUGADOR ===
+  // Crear jugador
   socket.on("crearJugador", ({ sala, nombre, password, trigo, hierro }) => {
     const room = salas[sala];
     if (!room) return socket.emit("error", "Sala no existe");
@@ -50,44 +52,37 @@ io.on("connection", (socket) => {
       password,
       trigoInsumo: parseFloat(trigo) || 0,
       hierroInsumo: parseFloat(hierro) || 0,
-      trigo: parseFloat(trigo) || 0,
-      hierro: parseFloat(hierro) || 0,
       trigoProd: parseFloat(trigo) || 0,
       hierroProd: parseFloat(hierro) || 0,
-      entregas: 0,
-      proceso: null,
+      trigo: parseFloat(trigo) || 0,
+      hierro: parseFloat(hierro) || 0,
+      entregasDisponibles: 5,
+      proceso: null
     };
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // === JUGADOR ENTRA ===
+  // Entrar como jugador
   socket.on("entrarJugador", ({ sala, nombre, password }) => {
     const room = salas[sala];
     if (!room) return socket.emit("error", "Sala no existe");
     const jugador = room.jugadores[nombre];
     if (!jugador) return socket.emit("error", "Jugador no existe");
-    if (jugador.password !== password)
-      return socket.emit("error", "Contraseña incorrecta");
+    if (jugador.password !== password) return socket.emit("error", "Contraseña incorrecta");
     socket.join(sala);
     socket.emit("actualizarEstado", room);
   });
 
-  // === ENTREGAS ===
+  // Enviar entrega
   socket.on("enviarEntrega", ({ sala, de, para, trigo, hierro }) => {
     const room = salas[sala];
-    if (!room) return;
-    if (!room.entregasAbiertas)
-      return socket.emit("error", "Las entregas están cerradas");
+    if (!room || !room.entregasAbiertas) return;
     const jDe = room.jugadores[de];
     const jPara = room.jugadores[para];
     if (!jDe || !jPara) return;
 
-    trigo = parseFloat(trigo) || 0;
-    hierro = parseFloat(hierro) || 0;
-    if (trigo < 0 || hierro < 0) return;
-
-    if (jDe.trigo < trigo || jDe.hierro < hierro)
-      return socket.emit("error", "No tienes suficientes recursos");
+    trigo = Math.min(parseFloat(trigo) || 0, jDe.trigo);
+    hierro = Math.min(parseFloat(hierro) || 0, jDe.hierro);
 
     jDe.trigo -= trigo;
     jDe.hierro -= hierro;
@@ -99,20 +94,18 @@ io.on("connection", (socket) => {
     jPara.trigoInsumo = jPara.trigo;
     jPara.hierroInsumo = jPara.hierro;
 
-    jDe.entregas++;
+    jDe.entregasDisponibles--;
 
-    room.historial.push({
-      de,
-      para,
-      trigo,
-      hierro,
-      hora: new Date().toLocaleTimeString(),
-    });
+    const entrega = {
+      de, para, trigo, hierro, fecha: new Date().toLocaleString()
+    };
+    room.historial.push(entrega);
+    room.historialEntregas.push(entrega);
 
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // === PROCESO ELEGIDO ===
+  // Elegir proceso de producción
   socket.on("elegirProceso", ({ sala, nombre, proceso }) => {
     const room = salas[sala];
     if (!room || !room.produccionAbierta) return;
@@ -122,7 +115,7 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // === ADMIN: TOGGLE ENTREGAS ===
+  // Toggle entregas
   socket.on("toggleEntregas", (sala) => {
     const room = salas[sala];
     if (!room) return;
@@ -130,74 +123,75 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // === ADMIN: TOGGLE PRODUCCION ===
+  // Toggle producción
   socket.on("toggleProduccion", (sala) => {
     const room = salas[sala];
     if (!room) return;
     room.produccionAbierta = !room.produccionAbierta;
 
-    // Si se abre la producción, aplicar cálculos
-    if (room.produccionAbierta) {
-      for (const jugador of Object.values(room.jugadores)) {
-        let { trigoInsumo, hierroInsumo, proceso } = jugador;
+    // Si se cierra la producción, aplicar cálculos
+    if (!room.produccionAbierta) {
+      for (const nombre in room.jugadores) {
+        const j = room.jugadores[nombre];
+        const trigo = j.trigoInsumo;
+        const hierro = j.hierroInsumo;
+        const proceso = j.proceso || 3;
 
-        if (trigoInsumo === undefined) trigoInsumo = jugador.trigo;
-        if (hierroInsumo === undefined) hierroInsumo = jugador.hierro;
-
-        let prodTrigo = 0;
-        let prodHierro = 0;
-
-        switch (proceso) {
-          case 1:
-            prodTrigo = trigoInsumo + hierroInsumo * 0.1;
-            prodHierro = hierroInsumo * 0.9;
-            break;
-          case 2:
-            prodHierro = hierroInsumo + trigoInsumo * 0.1;
-            prodTrigo = trigoInsumo * 0.9;
-            break;
-          case 3:
-            prodTrigo = trigoInsumo * 0.5;
-            prodHierro = hierroInsumo * 0.5;
-            break;
-          default:
-            prodTrigo = trigoInsumo;
-            prodHierro = hierroInsumo;
+        let trigoProd = 0, hierroProd = 0;
+        if (proceso === 1) {
+          const factor = Math.min(trigo / 280, hierro / 12);
+          trigoProd = 575 * factor;
+          hierroProd = 0;
+        } else if (proceso === 2) {
+          const factor = Math.min(trigo / 120, hierro / 8);
+          trigoProd = 0;
+          hierroProd = 20 * factor;
+        } else { // proceso 3
+          trigoProd = trigo / 2;
+          hierroProd = hierro / 2;
         }
 
-        jugador.trigoProd = prodTrigo;
-        jugador.hierroProd = prodHierro;
-        jugador.trigo = prodTrigo;
-        jugador.hierro = prodHierro;
+        j.trigoProd = trigoProd;
+        j.hierroProd = hierroProd;
+        j.trigo = trigoProd;
+        j.hierro = hierroProd;
+
+        // Guardar historial de producción
+        room.historialProduccion.push({
+          jugador: nombre,
+          trigoInsumo: trigo,
+          hierroInsumo: hierro,
+          proceso,
+          trigoProd,
+          hierroProd,
+          fecha: new Date().toLocaleString()
+        });
+
+        j.entregasDisponibles = 5;
+        j.proceso = null;
       }
     }
 
     io.to(sala).emit("actualizarEstado", room);
   });
 
-  // === ADMIN: NUEVA SESIÓN (mantener producción) ===
+  // Nueva sesión: mantiene producción como insumo
   socket.on("reiniciarSesion", (sala) => {
     const room = salas[sala];
     if (!room) return;
-
-    for (const jugador of Object.values(room.jugadores)) {
-      jugador.trigoInsumo =
-        jugador.trigoProd ?? jugador.trigoInsumo ?? jugador.trigo;
-      jugador.hierroInsumo =
-        jugador.hierroProd ?? jugador.hierroInsumo ?? jugador.hierro;
-
-      jugador.trigo = jugador.trigoInsumo;
-      jugador.hierro = jugador.hierroInsumo;
-
-      jugador.entregas = 0;
-      jugador.proceso = null;
-      jugador.trigoProd = jugador.trigoInsumo;
-      jugador.hierroProd = jugador.hierroInsumo;
+    for (const j of Object.values(room.jugadores)) {
+      j.trigoInsumo = j.trigoProd;
+      j.hierroInsumo = j.hierroProd;
+      j.trigo = j.trigoInsumo;
+      j.hierro = j.hierroInsumo;
+      j.trigoProd = j.trigoInsumo;
+      j.hierroProd = j.hierroInsumo;
+      j.proceso = null;
+      j.entregasDisponibles = 5;
     }
-
     room.historial = [];
     io.to(sala).emit("actualizarEstado", room);
   });
 });
 
-server.listen(3000, () => console.log("Servidor en puerto 3000"));
+server.listen(3000, () => console.log("Servidor iniciado en http://localhost:3000"));
