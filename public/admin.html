@@ -47,7 +47,13 @@ input, button, select { margin: 3px; padding: 4px; }
 <h3>Jugadores</h3>
 <table>
 <thead>
-<tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th><th>Prod Trigo</th><th>Prod Hierro</th></tr>
+<tr>
+  <th>Jugador</th>
+  <th>Trigo disponible</th>
+  <th>Hierro disponible</th>
+  <th>Entregas</th>
+  <th>Proceso</th>
+</tr>
 </thead>
 <tbody id="jugadores"></tbody>
 </table>
@@ -104,17 +110,20 @@ socket.on("actualizarEstado", (data) => {
   tbody.innerHTML = "";
   for (const [n, j] of Object.entries(data.jugadores)) {
     tbody.innerHTML += `<tr>
-      <td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td>
-      <td>${j.entregasDisponibles}</td><td>${j.proceso ?? "-"}</td>
-      <td>${j.trigoProd !== null ? j.trigoProd.toFixed(2) : "-"}</td>
-      <td>${j.hierroProd !== null ? j.hierroProd.toFixed(2) : "-"}</td>
+      <td>${n}</td>
+      <td>${j.trigo.toFixed(2)}</td>
+      <td>${j.hierro.toFixed(2)}</td>
+      <td>${j.entregasDisponibles}</td>
+      <td>${j.proceso ?? "-"}</td>
     </tr>`;
   }
 
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
   for (const h of data.historial) {
-    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.fecha}</td></tr>`;
+    hist.innerHTML += `<tr>
+      <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.fecha}</td>
+    </tr>`;
   }
 });
 </script>
