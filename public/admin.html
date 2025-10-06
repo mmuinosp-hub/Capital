@@ -40,7 +40,6 @@ input, button, select { margin: 3px; padding: 4px; }
 <button onclick="descargarHistorialEntregas()">Descargar historial entregas</button>
 <button onclick="descargarHistorialProduccion()">Descargar historial producción</button>
 
-
 <h3>Estado del juego</h3>
 <p>Entregas: <span id="estadoEntregas">?</span></p>
 <p>Producción: <span id="estadoProduccion">?</span></p>
@@ -71,14 +70,11 @@ function crearSala() {
   socket.emit("crearSala", { sala: s, password: pass });
 }
 
-socket.on("salaCreada", s => alert("Sala creada: " + s));
-socket.on("salaExiste", () => alert("La sala ya existe"));
-
 function entrar() {
-  const pass = document.getElementById("password").value;
   const s = document.getElementById("sala").value;
+  const pass = document.getElementById("password").value;
   sala = s;
-  socket.emit("entrarAdmin", { sala: s, password: pass });
+  socket.emit("entrarAdmin", { sala, password: pass });
 }
 
 function crearJugador() {
@@ -89,22 +85,16 @@ function crearJugador() {
   socket.emit("crearJugador", { sala, nombre, password, trigo, hierro });
 }
 
-function descargarHistorialEntregas() {
-  if (!sala) return alert("Ingresa una sala");
-  window.open(`/historialEntregas/${sala}`, "_blank");
-}
-
-function descargarHistorialProduccion() {
-  if (!sala) return alert("Ingresa una sala");
-  window.open(`/historialProduccion/${sala}`, "_blank");
-}
-
-  
 function toggleEntregas() { socket.emit("toggleEntregas", sala); }
 function toggleProduccion() { socket.emit("toggleProduccion", sala); }
 function reiniciarSesion() { socket.emit("reiniciarSesion", sala); }
+function descargarHistorialEntregas() { if (!sala) return alert("Ingresa una sala"); window.open(`/historialEntregas/${sala}`, "_blank"); }
+function descargarHistorialProduccion() { if (!sala) return alert("Ingresa una sala"); window.open(`/historialProduccion/${sala}`, "_blank"); }
 
+socket.on("salaCreada", s => alert("Sala creada: " + s));
+socket.on("salaExiste", () => alert("La sala ya existe"));
 socket.on("adminEntrado", s => alert("Entraste como admin en: " + s));
+socket.on("error", msg => alert(msg));
 
 socket.on("actualizarEstado", (data) => {
   document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "ABIERTAS" : "CERRADAS";
@@ -122,5 +112,10 @@ socket.on("actualizarEstado", (data) => {
 
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
-  for (const
-
+  for (const h of data.historial) {
+    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.fecha}</td></tr>`;
+  }
+});
+</script>
+</body>
+</html>
