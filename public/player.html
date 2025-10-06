@@ -36,8 +36,8 @@ input, button, select { margin: 3px; padding: 4px; }
 <button onclick="elegirProceso()">Elegir proceso</button>
 
 <h3>Tu producción</h3>
-<p>Trigo producido: <span id="trigoProd">0</span></p>
-<p>Hierro producido: <span id="hierroProd">0</span></p>
+<p>Trigo producido: <span id="trigoProd">-</span></p>
+<p>Hierro producido: <span id="hierroProd">-</span></p>
 
 <h3>Estado del juego</h3>
 <p>Entregas: <span id="estadoEntregas">?</span></p>
@@ -85,40 +85,32 @@ socket.on("actualizarEstado", (data) => {
   const yo = data.jugadores[nombre];
   if (!yo) return;
 
-  document.getElementById("trigoProd").textContent = yo.trigoProd.toFixed(2);
-  document.getElementById("hierroProd").textContent = yo.hierroProd.toFixed(2);
+  document.getElementById("trigoProd").textContent = yo.trigoProd !== null ? yo.trigoProd.toFixed(2) : "-";
+  document.getElementById("hierroProd").textContent = yo.hierroProd !== null ? yo.hierroProd.toFixed(2) : "-";
   document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "ABIERTAS" : "CERRADAS";
   document.getElementById("estadoProduccion").textContent = data.produccionAbierta ? "ABIERTA" : "CERRADA";
 
   const tbody = document.getElementById("jugadores");
-  const tabla = document.getElementById("tablaJugadores");
-  const msg = document.getElementById("msgProduccion");
   const sel = document.getElementById("destino");
   const hist = document.getElementById("historial");
+  const msg = document.getElementById("msgProduccion");
 
   tbody.innerHTML = "";
   sel.innerHTML = "";
   hist.innerHTML = "";
 
   for (const [n, j] of Object.entries(data.jugadores)) {
-    if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
     tbody.innerHTML += `<tr>
-      <td>${n}</td>
-      <td>${j.trigo.toFixed(2)}</td>
-      <td>${j.hierro.toFixed(2)}</td>
-      <td>${j.entregasDisponibles}</td>
+      <td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregasDisponibles}</td>
     </tr>`;
+    if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
   }
 
   for (const h of data.historial) {
     hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.fecha}</td></tr>`;
   }
 
-  if (data.produccionAbierta) {
-    msg.textContent = "La producción está en curso. No se muestran procesos ni productos de los demás.";
-  } else {
-    msg.textContent = "";
-  }
+  msg.textContent = data.produccionAbierta ? "Producción en curso. No se muestran procesos ni productos de los demás." : "";
 });
 
 socket.on("error", msg => alert(msg));
