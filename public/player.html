@@ -2,13 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Jugador - Capitalismo Simulado</title>
+<title>Jugador</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
 table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+h2, h3 { margin-top: 20px; }
 input, button, select { margin: 3px; padding: 4px; }
+.notice { color: gray; font-style: italic; }
 </style>
 </head>
 <body>
@@ -22,30 +24,29 @@ input, button, select { margin: 3px; padding: 4px; }
 
 <h3>Entregas</h3>
 <select id="destino"></select>
-<input id="trigoEnv" type="number" placeholder="Trigo a entregar" min="0" step="0.01">
-<input id="hierroEnv" type="number" placeholder="Hierro a entregar" min="0" step="0.01">
+<input id="trigoEnv" type="number" placeholder="Trigo a entregar" min="0">
+<input id="hierroEnv" type="number" placeholder="Hierro a entregar" min="0">
 <button onclick="entregar()">Entregar</button>
 
 <h3>Producción</h3>
 <select id="proceso">
-  <option value="1">Proceso 1 (Trigo)</option>
-  <option value="2">Proceso 2 (Hierro)</option>
-  <option value="3">Proceso 3 (Mitad de ambos)</option>
+  <option value="1">Proceso 1</option>
+  <option value="2">Proceso 2</option>
+  <option value="3">Proceso 3</option>
 </select>
 <button onclick="elegirProceso()">Elegir proceso</button>
 
-<h3>Jugadores</h3>
-<table>
+<!-- Producción personal -->
+<h3>Tu producción</h3>
+<p>Trigo producido: <span id="trigoProd">0</span></p>
+<p>Hierro producido: <span id="hierroProd">0</span></p>
+
+<!-- Tabla visible solo tras cierre -->
+<h3>Jugadores (visible tras cierre de producción)</h3>
+<p id="msgProduccion" class="notice"></p>
+<table id="tablaJugadores">
 <thead>
-<tr>
-  <th>Jugador</th>
-  <th>Insumo Trigo</th>
-  <th>Insumo Hierro</th>
-  <th>Entregas</th>
-  <th>Proceso</th>
-  <th>Prod Trigo</th>
-  <th>Prod Hierro</th>
-</tr>
+<tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr>
 </thead>
 <tbody id="jugadores"></tbody>
 </table>
@@ -56,16 +57,11 @@ input, button, select { margin: 3px; padding: 4px; }
 <tbody id="historial"></tbody>
 </table>
 
-<h3>Tu producción</h3>
-<p>Trigo producido: <span id="trigoProd">0</span></p>
-<p>Hierro producido: <span id="hierroProd">0</span></p>
-
 <script>
 const socket = io();
 let sala = "";
 let nombre = "";
 
-// Entrar jugador
 function entrar() {
   sala = document.getElementById("sala").value;
   nombre = document.getElementById("nombre").value;
@@ -73,53 +69,57 @@ function entrar() {
   socket.emit("entrarJugador", { sala, nombre, password });
 }
 
-// Enviar entrega
 function entregar() {
   const para = document.getElementById("destino").value;
-  const trigo = parseFloat(document.getElementById("trigoEnv").value) || 0;
-  const hierro = parseFloat(document.getElementById("hierroEnv").value) || 0;
-  if (trigo < 0 || hierro < 0) return alert("No puedes enviar valores negativos");
+  const trigo = document.getElementById("trigoEnv").value;
+  const hierro = document.getElementById("hierroEnv").value;
   socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
 }
 
-// Elegir proceso
 function elegirProceso() {
   const proceso = parseInt(document.getElementById("proceso").value);
   socket.emit("elegirProceso", { sala, nombre, proceso });
 }
 
-// Actualizar interfaz
 socket.on("actualizarEstado", (data) => {
+  const yo = data.jugadores[nombre];
+  if (!yo) return;
+
+  // Actualizar mis producciones personales
+  document.getElementById("trigoProd").textContent = yo.trigoProd.toFixed(2);
+  document.getElementById("hierroProd").textContent = yo.hierroProd.toFixed(2);
+
   const tbody = document.getElementById("jugadores");
-  tbody.innerHTML = "";
+  const tabla = document.getElementById("tablaJugadores");
+  const msg = document.getElementById("msgProduccion");
   const sel = document.getElementById("destino");
+  const hist = document.getElementById("historial");
+
+  // Limpiar
+  tbody.innerHTML = "";
   sel.innerHTML = "";
+  hist.innerHTML = "";
 
+  // Actualizar lista de jugadores (para envíos)
   for (const [n, j] of Object.entries(data.jugadores)) {
-    tbody.innerHTML += `
-      <tr>
-        <td>${n}</td>
-        <td>${(j.trigoInsumo ?? 0).toFixed(2)}</td>
-        <td>${(j.hierroInsumo ?? 0).toFixed(2)}</td>
-        <td>${j.entregas}</td>
-        <td>${j.proceso ?? "-"}</td>
-        <td>${(j.trigoProd ?? 0).toFixed(2)}</td>
-        <td>${(j.hierroProd ?? 0).toFixed(2)}</td>
-      </tr>`;
-
     if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
-    if (n === nombre) {
-      document.getElementById("trigoProd").textContent = j.trigoProd.toFixed(2);
-      document.getElementById("hierroProd").textContent = j.hierroProd.toFixed(2);
-    }
   }
 
-  const hist = document.getElementById("historial");
-  hist.innerHTML = "";
+  // Mostrar historial
   for (const h of data.historial) {
-    hist.innerHTML += `<tr>
-      <td>${h.de}</td><td>${h.para}</td>
-      <td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
+    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
+  }
+
+  // Mostrar tabla general solo si la producción está cerrada
+  if (!data.produccionAbierta) {
+    msg.textContent = "";
+    tabla.style.display = "table";
+    for (const [n, j] of Object.entries(data.jugadores)) {
+      tbody.innerHTML += `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td></tr>`;
+    }
+  } else {
+    msg.textContent = "La producción está en curso. No puedes ver los resultados de los demás jugadores.";
+    tabla.style.display = "none";
   }
 });
 
