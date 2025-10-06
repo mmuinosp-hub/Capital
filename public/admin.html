@@ -106,7 +106,8 @@ socket.on("actualizarEstado", (data) => {
     tbody.innerHTML += `<tr>
       <td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td>
       <td>${j.entregasDisponibles}</td><td>${j.proceso ?? "-"}</td>
-      <td>${j.trigoProd.toFixed(2)}</td><td>${j.hierroProd.toFixed(2)}</td>
+      <td>${j.trigoProd !== null ? j.trigoProd.toFixed(2) : "-"}</td>
+      <td>${j.hierroProd !== null ? j.hierroProd.toFixed(2) : "-"}</td>
     </tr>`;
   }
 
