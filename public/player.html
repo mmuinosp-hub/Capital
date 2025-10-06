@@ -41,12 +41,11 @@ input, button, select { margin: 3px; padding: 4px; }
 <p>Trigo producido: <span id="trigoProd">0</span></p>
 <p>Hierro producido: <span id="hierroProd">0</span></p>
 
-<!-- Tabla visible solo tras cierre -->
-<h3>Jugadores (visible tras cierre de producción)</h3>
+<h3>Jugadores</h3>
 <p id="msgProduccion" class="notice"></p>
 <table id="tablaJugadores">
 <thead>
-<tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr>
+<tr><th>Jugador</th><th>Trigo disponible</th><th>Hierro disponible</th><th>Entregas</th></tr>
 </thead>
 <tbody id="jugadores"></tbody>
 </table>
@@ -105,21 +104,26 @@ socket.on("actualizarEstado", (data) => {
     if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
   }
 
-  // Mostrar historial
+  // Actualizar historial
   for (const h of data.historial) {
     hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
   }
 
-  // Mostrar tabla general solo si la producción está cerrada
-  if (!data.produccionAbierta) {
-    msg.textContent = "";
-    tabla.style.display = "table";
-    for (const [n, j] of Object.entries(data.jugadores)) {
-      tbody.innerHTML += `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td></tr>`;
-    }
-  } else {
-    msg.textContent = "La producción está en curso. No puedes ver los resultados de los demás jugadores.";
-    tabla.style.display = "none";
+  // Mostrar tabla de jugadores
+  msg.textContent = "";
+  tabla.style.display = "table";
+  for (const [n, j] of Object.entries(data.jugadores)) {
+    tbody.innerHTML += `<tr>
+      <td>${n}</td>
+      <td>${j.trigo.toFixed(2)}</td>
+      <td>${j.hierro.toFixed(2)}</td>
+      <td>${j.entregas}</td>
+    </tr>`;
+  }
+
+  // Si producción abierta, avisar que los procesos y productos no se muestran
+  if (data.produccionAbierta) {
+    msg.textContent = "La producción está en curso. No se muestran los procesos ni los productos de los demás jugadores.";
   }
 });
 
