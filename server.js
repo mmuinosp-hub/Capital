@@ -1,3 +1,5 @@
+
+
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -199,3 +201,57 @@ io.on("connection", (socket) => {
           const factor = Math.min((j.trigoInsumo || 0) / 280, (j.hierroInsumo || 0) / 12);
           // si factor=0 -> no hay insumos suficientes => producirá 0
           trigoProd = 575 * factor;
+          hierroProd = 0;
+        } else if (procesoAplicado === 2) {
+          // 120 trigo + 8 hierro -> 20 hierro
+          const factor = Math.min((j.trigoInsumo || 0) / 120, (j.hierroInsumo || 0) / 8);
+          trigoProd = 0;
+          hierroProd = 20 * factor;
+        } else { // proceso 3: reducir a la mitad los materiales disponibles
+          trigoProd = (j.trigoInsumo || 0) / 2;
+          hierroProd = (j.hierroInsumo || 0) / 2;
+        }
+
+        // Aplicar penalización si corresponde (penalización grave: mitad de la producción)
+        if (j.penalizado) {
+          trigoProd = trigoProd / 2;
+          hierroProd = hierroProd / 2;
+        }
+
+        // Guardar producción
+        j.trigoProd = Number(trigoProd);
+        j.hierroProd = Number(hierroProd);
+
+        // Actualizar recursos del jugador: después de la producción quedan solo los productos
+        j.trigo = j.trigoProd;
+        j.hierro = j.hierroProd;
+
+        // Guardar proceso aplicado
+        j.proceso = procesoAplicado;
+
+        // Reiniciar entregas para siguiente ronda
+        j.entregas = 5;
+
+        // Después de aplicar la penalización, se mantiene la marca (si quieres que la penalización
+        // afecte solo a esta ronda, en la apertura de producción ya reiniciamos `penalizado=false`)
+      }
+    }
+
+    io.to(sala).emit("actualizarEstado", data);
+  });
+
+  // Elegir proceso de producción
+  socket.on("elegirProceso", ({ sala, nombre, proceso }) => {
+    const data = salas[sala];
+    if (data && data.produccionAbierta && data.jugadores[nombre] && data.jugadores[nombre].proceso === null) {
+      data.jugadores[nombre].proceso = proceso;
+      io.to(sala).emit("actualizarEstado", data);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔴 Usuario desconectado:", socket.id);
+  });
+});
+
+server.listen(3000, () => console.log("Servidor iniciado en http://localhost:3000"));
