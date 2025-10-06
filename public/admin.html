@@ -6,8 +6,10 @@
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+h2, h3 { margin-top: 20px; }
+input, button, select { margin: 3px; padding: 4px; }
 </style>
 </head>
 <body>
@@ -25,20 +27,32 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 <input id="password" type="password" placeholder="Contraseña">
 <button onclick="entrar()">Entrar</button>
 
+<!-- Crear Jugador -->
 <h3>Crear jugador</h3>
 <input id="jugador" placeholder="Nombre jugador">
 <input id="passJugador" placeholder="Contraseña jugador">
-<input id="trigoIni" type="number" placeholder="Trigo inicial">
-<input id="hierroIni" type="number" placeholder="Hierro inicial">
+<input id="trigoIni" type="number" placeholder="Trigo inicial" min="0">
+<input id="hierroIni" type="number" placeholder="Hierro inicial" min="0">
 <button onclick="crearJugador()">Crear</button>
 
+<!-- Control -->
 <h3>Control del juego</h3>
 <button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
 <button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
 
 <h3>Jugadores</h3>
 <table>
-<thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th><th>Prod Trigo</th><th>Prod Hierro</th></tr></thead>
+<thead>
+<tr>
+  <th>Jugador</th>
+  <th>Insumo Trigo</th>
+  <th>Insumo Hierro</th>
+  <th>Entregas</th>
+  <th>Proceso</th>
+  <th>Prod Trigo</th>
+  <th>Prod Hierro</th>
+</tr>
+</thead>
 <tbody id="jugadores"></tbody>
 </table>
 
@@ -60,22 +74,17 @@ function crearSala() {
   sala = nuevaSala;
   socket.emit("crearSala", { sala: nuevaSala, password: pass });
 }
+socket.on("salaCreada", s => alert("Sala creada: " + s));
+socket.on("salaExiste", () => alert("La sala ya existe"));
 
-socket.on("salaCreada", s => {
-  alert("Sala creada: " + s);
-});
-
-socket.on("salaExiste", () => {
-  alert("La sala ya existe");
-});
-
-// Entrar como administrador
+// Entrar admin
 function entrar() {
   const pass = document.getElementById("password").value;
   const s = document.getElementById("sala").value;
   sala = s;
   socket.emit("entrarAdmin", { sala: s, password: pass });
 }
+socket.on("adminEntrado", s => alert("Entraste como admin en: " + s));
 
 // Crear jugador
 function crearJugador() {
@@ -86,27 +95,32 @@ function crearJugador() {
   socket.emit("crearJugador", { sala, nombre, password, trigo, hierro });
 }
 
-// Control de juego
+// Control
 function toggleEntregas() { socket.emit("toggleEntregas", sala); }
 function toggleProduccion() { socket.emit("toggleProduccion", sala); }
-
-socket.on("adminEntrado", s => alert("Entraste como admin en: " + s));
 
 socket.on("actualizarEstado", (data) => {
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
   for (const [nombre, j] of Object.entries(data.jugadores)) {
     tbody.innerHTML += `<tr>
-      <td>${nombre}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td>
-      <td>${j.entregas}</td><td>${j.proceso ?? "-"}</td>
-      <td>${j.trigoProd.toFixed(2)}</td><td>${j.hierroProd.toFixed(2)}</td>
+      <td>${nombre}</td>
+      <td>${(j.trigoInsumo ?? 0).toFixed(2)}</td>
+      <td>${(j.hierroInsumo ?? 0).toFixed(2)}</td>
+      <td>${j.entregas}</td>
+      <td>${j.proceso ?? "-"}</td>
+      <td>${j.trigoProd.toFixed(2)}</td>
+      <td>${j.hierroProd.toFixed(2)}</td>
     </tr>`;
   }
 
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
   for (const h of data.historial) {
-    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
+    hist.innerHTML += `<tr>
+      <td>${h.de}</td><td>${h.para}</td>
+      <td>${h.trigo}</td><td>${h.hierro}</td>
+      <td>${h.hora}</td></tr>`;
   }
 });
 
