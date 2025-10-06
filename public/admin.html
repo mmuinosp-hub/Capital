@@ -37,6 +37,9 @@ input, button, select { margin: 3px; padding: 4px; }
 <button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
 <button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
 <button onclick="reiniciarSesion()">Nueva sesión</button>
+<button onclick="descargarHistorialEntregas()">Descargar historial entregas</button>
+<button onclick="descargarHistorialProduccion()">Descargar historial producción</button>
+
 
 <h3>Estado del juego</h3>
 <p>Entregas: <span id="estadoEntregas">?</span></p>
@@ -86,6 +89,17 @@ function crearJugador() {
   socket.emit("crearJugador", { sala, nombre, password, trigo, hierro });
 }
 
+function descargarHistorialEntregas() {
+  if (!sala) return alert("Ingresa una sala");
+  window.open(`/historialEntregas/${sala}`, "_blank");
+}
+
+function descargarHistorialProduccion() {
+  if (!sala) return alert("Ingresa una sala");
+  window.open(`/historialProduccion/${sala}`, "_blank");
+}
+
+  
 function toggleEntregas() { socket.emit("toggleEntregas", sala); }
 function toggleProduccion() { socket.emit("toggleProduccion", sala); }
 function reiniciarSesion() { socket.emit("reiniciarSesion", sala); }
@@ -109,3 +123,4 @@ socket.on("actualizarEstado", (data) => {
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
   for (const
+
