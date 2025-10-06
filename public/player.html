@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Jugador</title>
+<title>Jugador - Capitalismo Simulado</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
@@ -16,6 +16,7 @@ input, button, select { margin: 3px; padding: 4px; }
 <body>
 <h2>Jugador</h2>
 
+<!-- Inicio de sesión -->
 <input id="sala" placeholder="Sala">
 <input id="nombre" placeholder="Nombre">
 <input id="password" type="password" placeholder="Contraseña">
@@ -58,27 +59,43 @@ input, button, select { margin: 3px; padding: 4px; }
 <tbody id="historial"></tbody>
 </table>
 
+<!-- 🔽 NUEVA SECCIÓN: Descarga de historiales -->
+<h3>Descargar historiales</h3>
+<button onclick="descargarHistorialEntregas()">Descargar historial de entregas</button>
+<button onclick="descargarHistorialProduccion()">Descargar historial de producción</button>
+
 <script>
 const socket = io();
 let sala = "", nombre = "";
 
 function entrar() {
-  sala = document.getElementById("sala").value;
-  nombre = document.getElementById("nombre").value;
-  const password = document.getElementById("password").value;
+  sala = document.getElementById("sala").value.trim();
+  nombre = document.getElementById("nombre").value.trim();
+  const password = document.getElementById("password").value.trim();
+  if (!sala || !nombre || !password) return alert("Completa todos los campos.");
   socket.emit("entrarJugador", { sala, nombre, password });
 }
 
 function entregar() {
   const para = document.getElementById("destino").value;
-  const trigo = document.getElementById("trigoEnv").value;
-  const hierro = document.getElementById("hierroEnv").value;
+  const trigo = parseFloat(document.getElementById("trigoEnv").value) || 0;
+  const hierro = parseFloat(document.getElementById("hierroEnv").value) || 0;
   socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
 }
 
 function elegirProceso() {
   const proceso = parseInt(document.getElementById("proceso").value);
   socket.emit("elegirProceso", { sala, nombre, proceso });
+}
+
+function descargarHistorialEntregas() {
+  if (!sala) return alert("Primero entra en una sala.");
+  window.open(`/historialEntregas/${sala}`, "_blank");
+}
+
+function descargarHistorialProduccion() {
+  if (!sala) return alert("Primero entra en una sala.");
+  window.open(`/historialProduccion/${sala}`, "_blank");
 }
 
 socket.on("actualizarEstado", (data) => {
