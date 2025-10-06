@@ -16,6 +16,16 @@ input, button, select { margin: 3px; padding: 4px; }
 <body>
 <h2>Administrador</h2>
 
+<nav>
+  <a href="/">🏠 Inicio</a> |
+  <a href="/admin.html">Admin</a> |
+  <a href="/player.html">Jugador</a> |
+  <a href="/historial_entregas.html">Entregas</a> |
+  <a href="/historial_produccion.html">Producción</a>
+</nav>
+<hr>
+
+  
 <h3>Crear sala</h3>
 <input id="salaCrear" placeholder="Nombre de sala">
 <input id="passwordCrear" type="password" placeholder="Contraseña admin">
@@ -129,3 +139,4 @@ socket.on("actualizarEstado", (data) => {
 </script>
 </body>
 </html>
+
