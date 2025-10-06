@@ -133,6 +133,33 @@ io.on("connection", (socket) => {
     }
   });
 
+
+  
+socket.on("reiniciarSesion", (sala) => {
+  const room = salas[sala];
+  if (!room) return;
+
+  for (const jugador of Object.values(room.jugadores)) {
+    jugador.trigoInsumo = jugador.trigoProd ?? jugador.trigoInsumo ?? jugador.trigo;
+    jugador.hierroInsumo = jugador.hierroProd ?? jugador.hierroInsumo ?? jugador.hierro;
+
+    jugador.trigo = jugador.trigoInsumo;
+    jugador.hierro = jugador.hierroInsumo;
+
+    jugador.entregas = 0;
+    jugador.proceso = null;
+    jugador.trigoProd = jugador.trigoInsumo;
+    jugador.hierroProd = jugador.hierroInsumo;
+  }
+
+  room.historial = []; // Limpiar historial
+
+  io.to(sala).emit("actualizarEstado", room);
+});
+
+
+
+  
   // Abrir/Cerrar producción
   socket.on("toggleProduccion", (sala) => {
     const data = salas[sala];
@@ -193,3 +220,4 @@ io.on("connection", (socket) => {
 });
 
 server.listen(3000, () => console.log("Servidor iniciado en http://localhost:3000"));
+
