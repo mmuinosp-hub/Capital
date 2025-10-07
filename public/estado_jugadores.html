@@ -2,15 +2,13 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Estado de jugadores - Capitalismo Simulado</title>
+<title>Estado de jugadores</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-h2, h3 { margin-bottom: 5px; }
+body { font-family: Arial; margin: 20px; }
 table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
-nav a { margin-right: 10px; }
-button { margin: 4px; padding: 6px 10px; }
+button { margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -23,104 +21,66 @@ button { margin: 4px; padding: 6px 10px; }
 </nav>
 
 <h2>Estado de jugadores</h2>
+<h3>Sala: <span id="nombreSala"></span></h3>
 
-<div id="panelInicio">
-  <h3>Ver estado de una sala</h3>
-  <input id="sala" placeholder="Nombre de la sala">
+<div>
+  <input id="sala" placeholder="Sala">
   <button onclick="entrar()">Entrar</button>
 </div>
 
-<div id="panelEstado" style="display:none;">
-  <h3 id="tituloSala"></h3>
-  <div><b>Entregas:</b> <span id="estadoEntregas">-</span> | 
-       <b>Producción:</b> <span id="estadoProduccion">-</span></div>
-  <button onclick="verHistorialCompleto()">Ver historial de todas las sesiones</button>
-  <button onclick="salir()">Salir</button>
-
-  <h3>Jugadores en la sesión actual</h3>
+<div id="contenidoSala" style="display:none;">
+  <h3>Jugadores - Sesión actual</h3>
   <table>
-    <thead>
-      <tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr>
-    </thead>
-    <tbody id="tabla"></tbody>
+    <thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead>
+    <tbody id="tablaJugadores"></tbody>
   </table>
-</div>
 
-<div id="panelHistorial" style="display:none;">
-  <h3>Historial completo de todas las sesiones</h3>
-  <button onclick="cerrarHistorial()">Volver a la sesión actual</button>
-  <table>
-    <thead>
-      <tr><th>Sesión</th><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr>
-    </thead>
-    <tbody id="tablaHistorial"></tbody>
-  </table>
+  <button onclick="verHistorial()">Ver todas las sesiones</button>
+  <div id="historialCompleto" style="display:none;">
+    <h3>Historial completo</h3>
+    <table>
+      <thead><tr><th>Sesión</th><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead>
+      <tbody id="tablaHistorial"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
 const socket = io();
 let sala = "";
 
-// ==== Entrar como observador ====
 function entrar() {
-  sala = document.getElementById("sala").value.trim();
-  if (!sala) return alert("Ingresa el nombre de la sala");
-  socket.emit("entrarObservador", sala);
+  sala = document.getElementById("sala").value;
+  if (!sala) return alert("Ingresa nombre de sala");
+  document.getElementById("nombreSala").textContent = sala;
+  document.getElementById("contenidoSala").style.display = "block";
 }
 
-socket.on("observadorEntrado", s => {
-  sala = s;
-  document.getElementById("panelInicio").style.display = "none";
-  document.getElementById("panelEstado").style.display = "block";
-  document.getElementById("tituloSala").textContent = "Sala: " + sala;
-});
-
-function salir() {
-  sala = "";
-  document.getElementById("panelInicio").style.display = "block";
-  document.getElementById("panelEstado").style.display = "none";
-  document.getElementById("tabla").innerHTML = "";
-}
-
-// ==== Actualizar estado ====
-socket.on("actualizarEstado", data => {
-  if (!data) return;
-  document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "Abiertas" : "Cerradas";
-  document.getElementById("estadoProduccion").textContent = data.produccionAbierta ? "Abierta" : "Cerrada";
-
-  const tbody = document.getElementById("tabla");
-  tbody.innerHTML = "";
-  for (const [nombre, j] of Object.entries(data.jugadores || {})) {
-    tbody.innerHTML += `<tr>
-      <td>${nombre}</td>
-      <td>${j.trigo.toFixed(2)}</td>
-      <td>${j.hierro.toFixed(2)}</td>
-      <td>${j.entregas}</td>
-    </tr>`;
-  }
-});
-
-// ==== Ver historial completo ====
-function verHistorialCompleto() {
+function verHistorial() {
   socket.emit("getHistorialCompleto", sala);
 }
 
-socket.on("historialCompleto", data => {
-  document.getElementById("panelEstado").style.display = "none";
-  document.getElementById("panelHistorial").style.display = "block";
-  const t = document.getElementById("tablaHistorial");
-  t.innerHTML = "";
-  for (const h of data) {
-    t.innerHTML += `<tr>
-      <td>${h.sesion}</td><td>${h.jugador}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.entregas}</td>
+socket.on("actualizarEstado", data => {
+  if (!data) return;
+  const tbody = document.getElementById("tablaJugadores");
+  tbody.innerHTML = "";
+  for (const [nombre, j] of Object.entries(data.jugadores)) {
+    tbody.innerHTML += `<tr>
+      <td>${nombre}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td>
     </tr>`;
   }
 });
 
-function cerrarHistorial() {
-  document.getElementById("panelHistorial").style.display = "none";
-  document.getElementById("panelEstado").style.display = "block";
-}
+socket.on("historialCompleto", data => {
+  const tbody = document.getElementById("tablaHistorial");
+  tbody.innerHTML = "";
+  for (const h of data) {
+    tbody.innerHTML += `<tr>
+      <td>${h.sesion}</td><td>${h.jugador}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.entregas}</td>
+    </tr>`;
+  }
+  document.getElementById("historialCompleto").style.display = "block";
+});
 </script>
 </body>
 </html>
