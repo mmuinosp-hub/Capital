@@ -8,6 +8,7 @@
 body { font-family: Arial; margin: 20px; }
 table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+nav a { margin-right: 10px; }
 </style>
 </head>
 <body>
@@ -20,7 +21,6 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<div id="login">
 <h3>Crear Sala</h3>
 <input id="salaCrear" placeholder="Nombre de la sala">
 <input id="passwordCrear" type="password" placeholder="Contraseña admin">
@@ -30,40 +30,35 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 <input id="sala" placeholder="Sala">
 <input id="password" type="password" placeholder="Contraseña">
 <button onclick="entrar()">Entrar</button>
+
+<div id="salaActiva" style="display:none;">
+  <h3>Sala: <span id="nombreSala"></span></h3>
+
+  <h3>Crear Jugador</h3>
+  <input id="jugador" placeholder="Nombre jugador">
+  <input id="passJugador" placeholder="Contraseña jugador">
+  <input id="trigoIni" type="number" placeholder="Trigo inicial">
+  <input id="hierroIni" type="number" placeholder="Hierro inicial">
+  <button onclick="crearJugador()">Crear</button>
+
+  <h3>Control del juego</h3>
+  <p>Entregas abiertas: <span id="estadoEntregas"></span></p>
+  <p>Producción abierta: <span id="estadoProduccion"></span></p>
+  <button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
+  <button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
+
+  <h3>Jugadores</h3>
+  <table>
+    <thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead>
+    <tbody id="jugadores"></tbody>
+  </table>
 </div>
-
-<div id="salaAdmin" style="display:none;">
-<h3>Sala: <span id="nombreSala"></span></h3>
-
-<h3>Crear jugador</h3>
-<input id="jugador" placeholder="Nombre jugador">
-<input id="passJugador" placeholder="Contraseña jugador">
-<input id="trigoIni" type="number" placeholder="Trigo inicial">
-<input id="hierroIni" type="number" placeholder="Hierro inicial">
-<button onclick="crearJugador()">Crear</button>
-
-<h3>Control del juego</h3>
-<p>Entregas abiertas: <span id="estadoEntregas"></span></p>
-<p>Producción abierta: <span id="estadoProduccion"></span></p>
-<button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
-<button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
-
-<h3>Jugadores</h3>
-<table>
-<thead><tr><th>Jugador</th><th>Trigo insumo</th><th>Hierro insumo</th><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th></tr></thead>
-<tbody id="jugadores"></tbody>
-</table>
-
-<h3>Historial de entregas</h3>
-<table>
-<thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-<tbody id="historial"></tbody>
-</table>
 
 <script>
 const socket = io();
 let sala = "";
 
+// Crear sala
 function crearSala() {
   const nuevaSala = document.getElementById("salaCrear").value;
   const pass = document.getElementById("passwordCrear").value;
@@ -75,6 +70,7 @@ function crearSala() {
 socket.on("salaCreada", s => alert("Sala creada: " + s));
 socket.on("salaExiste", () => alert("La sala ya existe"));
 
+// Entrar como administrador
 function entrar() {
   const pass = document.getElementById("password").value;
   const s = document.getElementById("sala").value;
@@ -82,6 +78,12 @@ function entrar() {
   socket.emit("entrarAdmin", { sala: s, password: pass });
 }
 
+socket.on("adminEntrado", s => {
+  document.getElementById("salaActiva").style.display = "block";
+  document.getElementById("nombreSala").textContent = s;
+});
+
+// Crear jugador
 function crearJugador() {
   const nombre = document.getElementById("jugador").value;
   const password = document.getElementById("passJugador").value;
@@ -90,36 +92,21 @@ function crearJugador() {
   socket.emit("crearJugador", { sala, nombre, password, trigo, hierro });
 }
 
+// Control de juego
 function toggleEntregas() { socket.emit("toggleEntregas", sala); }
 function toggleProduccion() { socket.emit("toggleProduccion", sala); }
 
-socket.on("adminEntrado", s => {
-  alert("Entraste como admin en: " + s);
-  document.getElementById("login").style.display = "none";
-  document.getElementById("salaAdmin").style.display = "block";
-  document.getElementById("nombreSala").textContent = s;
-});
-
 socket.on("actualizarEstado", (data) => {
-  const estadoEntregas = document.getElementById("estadoEntregas");
-  const estadoProduccion = document.getElementById("estadoProduccion");
-  estadoEntregas.textContent = data.entregasAbiertas ? "Sí" : "No";
-  estadoProduccion.textContent = data.produccionAbierta ? "Sí" : "No";
+  document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "Sí" : "No";
+  document.getElementById("estadoProduccion").textContent = data.produccionAbierta ? "Sí" : "No";
 
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
   for (const [nombre, j] of Object.entries(data.jugadores)) {
     tbody.innerHTML += `<tr>
-      <td>${nombre}</td><td>${j.trigoInsumo.toFixed(2)}</td><td>${j.hierroInsumo.toFixed(2)}</td>
-      <td>${j.proceso ?? "-"}</td><td>${j.trigoProd !== null ? j.trigoProd.toFixed(2) : "-"}</td>
-      <td>${j.hierroProd !== null ? j.hierroProd.toFixed(2) : "-"}</td>
+      <td>${nombre}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td>
+      <td>${j.entregas}</td><td>${j.proceso ?? "-"}</td>
     </tr>`;
-  }
-
-  const hist = document.getElementById("historial");
-  hist.innerHTML = "";
-  for (const h of data.historial) {
-    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
   }
 });
 
