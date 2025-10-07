@@ -52,8 +52,11 @@ button { margin-top: 5px; }
     <p>Producción abierta: <span id="produccionAbierta"></span></p>
     <button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
     <button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
-    <button onclick="nuevaSesion()">Nueva sesión</button>
+    <button onclick="nuevaSesion()" id="btnNuevaSesion" style="display:none;">Nueva sesión</button>
   </section>
+
+
+
 
   <!-- Crear jugador -->
   <section style="margin-top:10px; background:#f9f9f9; padding:10px; border-radius:6px;">
@@ -168,6 +171,8 @@ socket.on("adminEntrado", s => {
 
 socket.on("actualizarEstado", (data) => {
   if (!data.jugadores || !salaActual) return;
+  document.getElementById("btnNuevaSesion").style.display = data.produccionAbierta ? "none" : "inline-block";
+
 
   // Estado fases
   document.getElementById("entregasAbiertas").textContent = data.entregasAbiertas ? "Sí" : "No";
@@ -192,3 +197,4 @@ socket.on("error", msg => mostrarMensaje(msg, "error"));
 </script>
 </body>
 </html>
+
