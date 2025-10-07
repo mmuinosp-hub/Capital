@@ -7,7 +7,6 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
-// Función simple para generar IDs únicos
 function generarId() {
   return Math.random().toString(36).substring(2, 10);
 }
@@ -41,7 +40,7 @@ io.on("connection", (socket) => {
     if (data && data.adminPassword === password) {
       socket.join(sala);
       socket.emit("adminEntrado", sala);
-      io.to(sala).emit("actualizarEstado", data);
+      socket.emit("actualizarEstado", data);
     } else {
       socket.emit("error", "Sala o contraseña incorrecta");
     }
@@ -51,11 +50,10 @@ io.on("connection", (socket) => {
   socket.on("crearJugador", ({ sala, nombre, password, trigo, hierro }) => {
     const data = salas[sala];
     if (data) {
-      const id = generarId();
       const t = parseFloat(trigo);
       const h = parseFloat(hierro);
       data.jugadores[nombre] = {
-        id,
+        id: generarId(),
         password,
         trigo: t,
         hierro: h,
@@ -90,8 +88,8 @@ io.on("connection", (socket) => {
     const emisor = data.jugadores[de];
     const receptor = data.jugadores[para];
     if (emisor && receptor && emisor.entregas > 0) {
-      trigo = Math.min(parseFloat(trigo)||0, emisor.trigo);
-      hierro = Math.min(parseFloat(hierro)||0, emisor.hierro);
+      trigo = Math.min(parseFloat(trigo) || 0, emisor.trigo);
+      hierro = Math.min(parseFloat(hierro) || 0, emisor.hierro);
       emisor.trigo -= trigo;
       emisor.hierro -= hierro;
       receptor.trigo += trigo;
@@ -107,23 +105,21 @@ io.on("connection", (socket) => {
   // Abrir/Cerrar entregas
   socket.on("toggleEntregas", (sala) => {
     const data = salas[sala];
-    if (data) {
-      data.entregasAbiertas = !data.entregasAbiertas;
-      if (!data.entregasAbiertas) {
-        for (const j of Object.values(data.jugadores)) {
-          j.trigoInsumo = j.trigo;
-          j.hierroInsumo = j.hierro;
-        }
+    if (!data) return;
+    data.entregasAbiertas = !data.entregasAbiertas;
+    if (!data.entregasAbiertas) {
+      for (const j of Object.values(data.jugadores)) {
+        j.trigoInsumo = j.trigo;
+        j.hierroInsumo = j.hierro;
       }
-      io.to(sala).emit("actualizarEstado", data);
     }
+    io.to(sala).emit("actualizarEstado", data);
   });
 
   // Abrir/Cerrar producción
   socket.on("toggleProduccion", (sala) => {
     const data = salas[sala];
     if (!data) return;
-
     if (!data.produccionAbierta) {
       // Abrir producción
       data.produccionAbierta = true;
@@ -133,12 +129,11 @@ io.on("connection", (socket) => {
         j.hierroProd = null;
       }
     } else {
-      // Cerrar producción y calcular resultados
+      // Cerrar producción
       data.produccionAbierta = false;
-      for (const [nombre,j] of Object.entries(data.jugadores)) {
+      for (const [nombre, j] of Object.entries(data.jugadores)) {
         const p = j.proceso || 3;
         let trigoProd = 0, hierroProd = 0;
-
         if (p === 1) {
           const factor = Math.min(j.trigoInsumo / 280, j.hierroInsumo / 12);
           trigoProd = 575 * factor;
@@ -149,14 +144,11 @@ io.on("connection", (socket) => {
           trigoProd = j.trigoInsumo / 2;
           hierroProd = j.hierroInsumo / 2;
         }
-
         j.trigoProd = trigoProd;
         j.hierroProd = hierroProd;
-
         j.trigo = trigoProd;
         j.hierro = hierroProd;
         j.entregas = 5;
-
         data.historialProduccion.push({
           jugador: nombre,
           trigoInsumo: j.trigoInsumo,
@@ -170,10 +162,10 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", data);
   });
 
-  // Elegir proceso de producción
+  // Elegir proceso
   socket.on("elegirProceso", ({ sala, nombre, proceso }) => {
     const data = salas[sala];
-    if (data && data.produccionAbierta && data.jugadores[nombre] && data.jugadores[nombre].proceso===null) {
+    if (data && data.produccionAbierta && data.jugadores[nombre] && data.jugadores[nombre].proceso === null) {
       data.jugadores[nombre].proceso = proceso;
       io.to(sala).emit("actualizarEstado", data);
     }
@@ -199,7 +191,6 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("🔴 Usuario desconectado:", socket.id);
   });
-
 });
 
 server.listen(3000, () => console.log("Servidor iniciado en http://localhost:3000"));
