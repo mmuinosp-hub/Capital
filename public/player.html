@@ -117,26 +117,22 @@ socket.on("actualizarEstado", (data) => {
   document.getElementById("hierroDisp").textContent = jugador.hierro.toFixed(2);
   document.getElementById("entregasDisp").textContent = jugador.entregas;
 
-  // Formulario entregas visible solo si entregas abiertas
   document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block" : "none";
-
-  // Formulario elección de proceso visible solo si producción abierta
   document.getElementById("formProceso").style.display = data.produccionAbierta ? "block" : "none";
 
-  const trigoIn = jugador.trigoInsumo;
-  const hierroIn = jugador.hierroInsumo;
+  // Usar recursos actuales para recalcular producciones posibles dinámicamente
+  const trigoIn = jugador.trigo;
+  const hierroIn = jugador.hierro;
   const factor1 = Math.min(trigoIn/280, hierroIn/12);
   const factor2 = Math.min(trigoIn/120, hierroIn/8);
 
-  // Tabla de producciones siempre visible
-  document.getElementById("p1Trigo").textContent = data.produccionAbierta && jugador.proceso===1 ? jugador.trigoProd.toFixed(2) : (575*factor1).toFixed(2);
-  document.getElementById("p1Hierro").textContent = data.produccionAbierta && jugador.proceso===1 ? jugador.hierroProd.toFixed(2) : 0;
-  document.getElementById("p2Trigo").textContent = data.produccionAbierta && jugador.proceso===2 ? jugador.trigoProd.toFixed(2) : 0;
-  document.getElementById("p2Hierro").textContent = data.produccionAbierta && jugador.proceso===2 ? jugador.hierroProd.toFixed(2) : (20*factor2).toFixed(2);
-  document.getElementById("p3Trigo").textContent = data.produccionAbierta && jugador.proceso===3 ? jugador.trigoProd.toFixed(2) : (trigoIn/2).toFixed(2);
-  document.getElementById("p3Hierro").textContent = data.produccionAbierta && jugador.proceso===3 ? jugador.hierroProd.toFixed(2) : (hierroIn/2).toFixed(2);
+  document.getElementById("p1Trigo").textContent = (575*factor1).toFixed(2);
+  document.getElementById("p1Hierro").textContent = 0;
+  document.getElementById("p2Trigo").textContent = 0;
+  document.getElementById("p2Hierro").textContent = (20*factor2).toFixed(2);
+  document.getElementById("p3Trigo").textContent = (trigoIn/2).toFixed(2);
+  document.getElementById("p3Hierro").textContent = (hierroIn/2).toFixed(2);
 
-  // Mostrar proceso elegido y producción obtenida
   if(jugador.proceso !== null) {
     document.getElementById("procesoUtilizado").textContent = jugador.proceso;
     document.getElementById("trigoProd").textContent = jugador.trigoProd.toFixed(2);
@@ -147,7 +143,6 @@ socket.on("actualizarEstado", (data) => {
     document.getElementById("hierroProd").textContent = "0";
   }
 
-  // Historial del jugador
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
   for(const h of data.historial.filter(e => e.de===nombre || e.para===nombre)) {
@@ -156,7 +151,6 @@ socket.on("actualizarEstado", (data) => {
     </tr>`;
   }
 
-  // Destinatarios en desplegable
   const sel = document.getElementById("destino");
   sel.innerHTML = "";
   for(const [n, j] of Object.entries(data.jugadores)) {
