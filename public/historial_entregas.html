@@ -2,17 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Histórico de Entregas</title>
+<title>Historial Completo de Entregas</title>
+<script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
-h2 { margin-bottom: 10px; }
-table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
-
-<h2>Histórico de Entregas</h2>
+<h2>Historial Completo de Entregas</h2>
 
 <nav>
   <a href="/">Inicio</a> | 
@@ -21,32 +20,30 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<div id="contenido"></div>
+<table>
+<thead><tr><th>Sala</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+<tbody id="tablaHistorial"></tbody>
+</table>
 
 <script>
-async function cargarHistorial() {
-  const sala = prompt("Ingrese el nombre de la sala:");
-  const resp = await fetch(`/api/sesiones_entregas?sala=${sala}`);
-  const data = await resp.json();
+const socket = io();
 
-  const cont = document.getElementById("contenido");
-  cont.innerHTML = "";
+socket.emit("pedirHistorialCompleto");
 
-  data.sesiones.forEach((sesion, idx) => {
-    cont.innerHTML += `<h3>Sesión ${idx+1} - ${sesion.fecha}</h3>`;
-    let tabla = "<table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>";
-    for (const h of sesion.historial) {
-      tabla += `<tr>
-        <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td>
-      </tr>`;
-    }
-    tabla += "</tbody></table>";
-    cont.innerHTML += tabla;
-  });
-}
-
-cargarHistorial();
+socket.on("historialCompletoEntregas", (historial) => {
+  const tbody = document.getElementById("tablaHistorial");
+  tbody.innerHTML = "";
+  for (const h of historial) {
+    tbody.innerHTML += `<tr>
+      <td>${h.sala}</td>
+      <td>${h.de}</td>
+      <td>${h.para}</td>
+      <td>${h.trigo}</td>
+      <td>${h.hierro}</td>
+      <td>${h.hora}</td>
+    </tr>`;
+  }
+});
 </script>
 </body>
 </html>
-
