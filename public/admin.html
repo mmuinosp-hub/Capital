@@ -20,6 +20,7 @@ input, button { margin: 3px; }
 </nav>
 
 <h2>Administrador</h2>
+<h3>Sala: <span id="nombreSala"></span></h3>
 
 <div>
   <h3>Crear sala</h3>
@@ -67,11 +68,14 @@ input, button { margin: 3px; }
 const socket = io();
 let sala = "";
 
+document.getElementById("nombreSala").textContent = sessionStorage.getItem("sala") || "-";
+
 function crearSala() {
   const nuevaSala = document.getElementById("salaCrear").value;
   const pass = document.getElementById("passwordCrear").value;
   if (!nuevaSala || !pass) return alert("Ingresa sala y contraseña");
   sala = nuevaSala;
+  sessionStorage.setItem("sala", sala);
   socket.emit("crearSala", { sala: nuevaSala, password: pass });
 }
 
@@ -79,6 +83,8 @@ function entrar() {
   const pass = document.getElementById("password").value;
   const s = document.getElementById("sala").value;
   sala = s;
+  sessionStorage.setItem("sala", sala);
+  document.getElementById("nombreSala").textContent = sala;
   socket.emit("entrarAdmin", { sala: s, password: pass });
 }
 
