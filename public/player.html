@@ -20,6 +20,7 @@ input, button, select { margin: 3px; }
 </nav>
 
 <h2>Jugador</h2>
+<h3>Sala: <span id="nombreSala"></span></h3>
 
 <div>
   <input id="sala" placeholder="Sala">
@@ -67,10 +68,15 @@ input, button, select { margin: 3px; }
 const socket = io();
 let sala = "", nombre = "";
 
+document.getElementById("nombreSala").textContent = sessionStorage.getItem("sala") || "-";
+
 function entrar() {
   sala = document.getElementById("sala").value;
   nombre = document.getElementById("nombre").value;
   const password = document.getElementById("password").value;
+  sessionStorage.setItem("sala", sala);
+  sessionStorage.setItem("nombre", nombre);
+  document.getElementById("nombreSala").textContent = sala;
   socket.emit("entrarJugador", { sala, nombre, password });
 }
 
@@ -98,11 +104,9 @@ socket.on("actualizarEstado", (data) => {
   document.getElementById("miHierro").textContent = j.hierro.toFixed(2);
   document.getElementById("misEntregas").textContent = j.entregas;
 
-  // Mostrar/ocultar formularios según estado
   document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block" : "none";
   document.getElementById("formProduccion").style.display = data.produccionAbierta ? "block" : "none";
 
-  // Actualizar historial de mis entregas
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
   for (const h of data.historial.filter(x => x.de===nombre || x.para===nombre)) {
@@ -111,11 +115,9 @@ socket.on("actualizarEstado", (data) => {
     </tr>`;
   }
 
-  // Mostrar producción
   document.getElementById("trigoProd").textContent = j.trigoProd !== null ? j.trigoProd.toFixed(2) : "-";
   document.getElementById("hierroProd").textContent = j.hierroProd !== null ? j.hierroProd.toFixed(2) : "-";
 
-  // Destinos de entrega
   const sel = document.getElementById("destino");
   sel.innerHTML = "";
   for (const n of Object.keys(data.jugadores)) {
