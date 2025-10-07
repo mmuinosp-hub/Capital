@@ -5,47 +5,40 @@
 <title>Entregas realizadas</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; }
-th, td { border: 1px solid #aaa; padding: 5px; text-align: center; }
-nav a { margin-right: 10px; }
+body { font-family: Arial, sans-serif; margin: 20px; }
+nav a { margin: 0 10px; text-decoration: none; color: #006; }
+table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
 <nav>
   <a href="/">Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
-  <a href="/estado_jugadores.html">Estado de jugadores</b> | 
-  <a href="/entregas_realizadas.html">Entregas realizadas</a> | 
+  <a href="/estado_jugadores.html">Estado de jugadores</a> | 
+  <a href="/entregas_realizadas.html">Entregas realizadas</a>
   <a href="/historial_entregas.html">Historial de Entregas</a> | 
   <a href="/historial_produccion.html">Historial de Producción</a>
 </nav>
-<hr>
 
-<h2>Entregas realizadas</h2>
+<h2>Historial de entregas</h2>
 
-<input id="sala" placeholder="Sala">
-<button onclick="entrar()">Ver</button>
-
-<div id="tabla"></div>
+<table>
+<thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+<tbody id="historial"></tbody>
+</table>
 
 <script>
 const socket = io();
-let sala;
-
-function entrar() {
-  sala = document.getElementById("sala").value.trim();
-  if (!sala) return alert("Introduce una sala");
-  socket.emit("entrarAdmin", { sala, password: "" });
-}
+const sala = localStorage.getItem("sala");
+if (sala) socket.emit("solicitarEstado", sala);
 
 socket.on("actualizarEstado", (data) => {
-  let html = "<table><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th></tr>";
+  const tbody = document.getElementById("historial");
+  tbody.innerHTML = "";
   for (const h of data.historial) {
-    html += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td></tr>`;
+    tbody.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
   }
-  html += "</table>";
-  document.getElementById("tabla").innerHTML = html;
 });
 </script>
 </body>
