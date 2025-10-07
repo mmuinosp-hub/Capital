@@ -2,16 +2,17 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Entregas Realizadas</title>
+<title>Entregas realizadas - Capitalismo Simulado</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
 table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+nav a { margin-right: 10px; }
 </style>
 </head>
 <body>
-<h2>Entregas Realizadas</h2>
+<h2>Entregas realizadas</h2>
 
 <nav>
   <a href="/">Inicio</a> | 
@@ -31,16 +32,13 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 const socket = io();
 let sala = "";
 
-function setSala(s) {
-  sala = s;
-  document.getElementById("nombreSala").textContent = sala;
-}
+// Pedir sala para mostrar información
+sala = prompt("Introduce la sala:");
 
-// Actualiza tabla con el historial de entregas de la sesión actual
+socket.emit("entrarJugador", { sala, nombre:"_entregas", password:"" });
+
 socket.on("actualizarEstado", (data) => {
-  if (!sala && Object.keys(data.jugadores).length > 0) {
-    setSala(Object.keys(data.jugadores)[0]);
-  }
+  document.getElementById("nombreSala").textContent = sala;
   const tbody = document.getElementById("tablaEntregas");
   tbody.innerHTML = "";
   for (const h of data.historial) {
