@@ -53,6 +53,13 @@ input { margin: 4px; padding: 6px; }
     <button onclick="nuevaSesion()">Nueva sesión</button>
   </div>
 
+  <h3>Crear jugador</h3>
+  <input id="jugador" placeholder="Nombre del jugador">
+  <input id="passJugador" type="password" placeholder="Contraseña del jugador">
+  <input id="trigoIni" type="number" step="any" placeholder="Trigo inicial">
+  <input id="hierroIni" type="number" step="any" placeholder="Hierro inicial">
+  <button onclick="crearJugador()">Crear jugador</button>
+
   <table>
     <thead>
       <tr>
@@ -98,7 +105,22 @@ function iniciarPanel(s) {
   document.getElementById("login").style.display = "none";
   document.getElementById("panel").style.display = "block";
   document.getElementById("salaNombre").textContent = s;
+  sala = s;
   socket.emit("solicitarEstado", s);
+}
+
+// Crear jugador
+function crearJugador() {
+  const nombre = document.getElementById("jugador").value.trim();
+  const password = document.getElementById("passJugador").value;
+  const trigo = parseFloat(document.getElementById("trigoIni").value) || 0;
+  const hierro = parseFloat(document.getElementById("hierroIni").value) || 0;
+  if (!nombre || !password) return alert("Completa todos los campos del jugador.");
+  socket.emit("crearJugador", { sala, nombre, password, trigo, hierro });
+  document.getElementById("jugador").value = "";
+  document.getElementById("passJugador").value = "";
+  document.getElementById("trigoIni").value = "";
+  document.getElementById("hierroIni").value = "";
 }
 
 socket.on("actualizarEstado", (data) => {
