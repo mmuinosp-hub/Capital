@@ -1,227 +1,206 @@
 const express = require("express");
-const fs = require("fs");
-const path = require("path");
+const http = require("http");
+const { Server } = require("socket.io");
 const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http);
+const server = http.createServer(app);
+const io = new Server(server);
 
-const DATOS_FILE = path.join(__dirname, "datos.json");
+app.use(express.static("public"));
 
-app.use(express.static(path.join(__dirname, "public")));
-
-// ====== Cargar datos existentes ======
-let salas = {};
-if (fs.existsSync(DATOS_FILE)) {
-  try {
-    const raw = fs.readFileSync(DATOS_FILE);
-    salas = JSON.parse(raw);
-  } catch (e) {
-    console.error("Error leyendo datos.json:", e);
-    salas = {};
-  }
+// Generar ID único
+function generarId() {
+  return Math.random().toString(36).substring(2, 10);
 }
 
-// ====== Guardar datos ======
-function guardarDatos() {
-  fs.writeFileSync(DATOS_FILE, JSON.stringify(salas, null, 2));
-}
+// Salas
+const salas = {};
 
-// ====== Función para crear sala nueva ======
-function crearSala(nombre) {
-  if (!salas[nombre]) {
-    salas[nombre] = {
-      jugadores: {},
-      entregasAbiertas: false,
-      produccionAbierta: false,
-      sesionActual: 1,
-      historialSesiones: [],
-      entregasSesion: []
-    };
-    guardarDatos();
-  }
-}
-
-// ====== Función para enviar estado a clientes ======
-function getEstadoSala(nombre) {
-  const s = salas[nombre];
-  if (!s) return null;
-  return {
-    sala: nombre,
-    entregasAbiertas: s.entregasAbiertas,
-    produccionAbierta: s.produccionAbierta,
-    jugadores: s.jugadores,
-    historial: s.entregasSesion
-  };
-}
-
-// ===== SOCKET.IO =====
 io.on("connection", (socket) => {
+  console.log("🟢 Usuario conectado:", socket.id);
 
-  // === Crear sala ===
-  socket.on("crearSala", (nombre) => {
-    crearSala(nombre);
-    socket.emit("salaCreada", nombre);
+  // Crear sala
+  socket.on("crearSala", ({ sala, password }) => {
+    if (!salas[sala]) {
+      salas[sala] = {
+        adminPassword: password,
+        jugadores: {},
+        entregasAbiertas: true,
+        produccionAbierta: false,
+        historial: [],
+        sesiones: []
+      };
+      socket.emit("salaCreada", sala);
+      console.log(`🆕 Sala creada: ${sala}`);
+    } else {
+      socket.emit("salaExiste");
+    }
   });
 
-  // === Entrar admin ===
-  socket.on("entrarAdmin", (nombre) => {
-    if (!salas[nombre]) return socket.emit("error", "Sala no existe");
-    socket.join(nombre);
-    socket.emit("adminEntrado", nombre);
-    socket.emit("actualizarEstado", getEstadoSala(nombre));
+  // Entrar como administrador
+  socket.on("entrarAdmin", ({ sala, password }) => {
+    const data = salas[sala];
+    if (data && data.adminPassword === password) {
+      socket.join(sala);
+      socket.emit("adminEntrado", sala);
+      io.to(sala).emit("actualizarEstado", data);
+    } else {
+      socket.emit("error", "Sala o contraseña incorrecta");
+    }
   });
 
-  // === Entrar jugador ===
-  socket.on("entrarJugador", ({ sala, jugador }) => {
-    if (!salas[sala]) return socket.emit("error", "Sala no existe");
-    if (!salas[sala].jugadores[jugador]) return socket.emit("error", "Jugador no existe");
-    socket.join(sala);
-    socket.emit("jugadorEntrado", { sala, jugador });
-    socket.emit("actualizarEstado", getEstadoSala(sala));
+  // Crear jugador
+  socket.on("crearJugador", ({ sala, nombre, password, trigo, hierro }) => {
+    const data = salas[sala];
+    if (data && !data.jugadores[nombre]) {
+      const t = parseFloat(trigo) || 0;
+      const h = parseFloat(hierro) || 0;
+      data.jugadores[nombre] = {
+        id: generarId(),
+        password,
+        trigo: t,
+        hierro: h,
+        entregas: 5,
+        proceso: null,
+        trigoProd: null,
+        hierroProd: null,
+        trigoInsumo: t,
+        hierroInsumo: h
+      };
+      io.to(sala).emit("actualizarEstado", data);
+      console.log(`👤 Jugador creado: ${nombre} (${sala})`);
+    }
   });
 
-  // === Crear jugador ===
-  socket.on("crearJugador", ({ sala, nombre }) => {
-    if (!salas[sala]) return;
-    salas[sala].jugadores[nombre] = { 
-      trigo: 100, 
-      hierro: 100, 
-      entregas: 0, 
-      proceso: "-", 
-      produccionTrigo: 0, 
-      produccionHierro: 0 
-    };
-    guardarDatos();
-    io.to(sala).emit("actualizarEstado", getEstadoSala(sala));
+  // Entrar como jugador
+  socket.on("entrarJugador", ({ sala, nombre, password }) => {
+    const data = salas[sala];
+    if (data && data.jugadores[nombre] && data.jugadores[nombre].password === password) {
+      socket.join(sala);
+      socket.emit("jugadorEntrado", { sala, nombre });
+      io.to(sala).emit("actualizarEstado", data);
+    } else {
+      socket.emit("error", "Sala o jugador no encontrado o contraseña incorrecta");
+    }
   });
 
-  // === Entregar ===
-  socket.on("entregar", ({ sala, de, para, trigo, hierro }) => {
-    const room = salas[sala];
-    if (!room || !room.entregasAbiertas) return;
-    const j1 = room.jugadores[de];
-    const j2 = room.jugadores[para];
-    if (!j1 || !j2) return;
-    if (j1.trigo < trigo || j1.hierro < hierro) return;
-
-    j1.trigo -= trigo;
-    j1.hierro -= hierro;
-    j2.trigo += trigo;
-    j2.hierro += hierro;
-    j1.entregas++;
-
-    const registro = {
-      sesion: room.sesionActual,
-      de,
-      para,
-      trigo,
-      hierro,
-      hora: new Date().toLocaleTimeString()
-    };
-    room.entregasSesion.push(registro);
-    guardarDatos();
-    io.to(sala).emit("actualizarEstado", getEstadoSala(sala));
+  // Enviar entrega
+  socket.on("enviarEntrega", ({ sala, de, para, trigo, hierro }) => {
+    const data = salas[sala];
+    if (!data || !data.entregasAbiertas) return;
+    const emisor = data.jugadores[de];
+    const receptor = data.jugadores[para];
+    if (emisor && receptor && emisor.entregas > 0) {
+      trigo = Math.min(parseFloat(trigo) || 0, emisor.trigo);
+      hierro = Math.min(parseFloat(hierro) || 0, emisor.hierro);
+      if (trigo + hierro > 0) {
+        emisor.trigo -= trigo;
+        emisor.hierro -= hierro;
+        receptor.trigo += trigo;
+        receptor.hierro += hierro;
+        emisor.entregas -= 1;
+        data.historial.push({
+          de, para, trigo, hierro,
+          hora: new Date().toLocaleTimeString()
+        });
+        io.to(sala).emit("actualizarEstado", data);
+      }
+    }
   });
 
-  // === Elegir proceso ===
-  socket.on("elegirProceso", ({ sala, jugador, proceso }) => {
-    const room = salas[sala];
-    if (!room || !room.produccionAbierta) return;
-    const j = room.jugadores[jugador];
-    if (!j) return;
-    j.proceso = proceso;
-    guardarDatos();
-    io.to(sala).emit("actualizarEstado", getEstadoSala(sala));
+  // Abrir/Cerrar entregas
+  socket.on("toggleEntregas", (sala) => {
+    const data = salas[sala];
+    if (!data) return;
+    data.entregasAbiertas = !data.entregasAbiertas;
+    if (!data.entregasAbiertas) {
+      // Fijar insumos
+      for (const j of Object.values(data.jugadores)) {
+        j.trigoInsumo = j.trigo;
+        j.hierroInsumo = j.hierro;
+      }
+    }
+    io.to(sala).emit("actualizarEstado", data);
   });
 
-  // === Abrir/Cerrar entregas ===
-  socket.on("abrirEntregas", (sala) => {
-    if (!salas[sala]) return;
-    salas[sala].entregasAbiertas = true;
-    guardarDatos();
-    io.to(sala).emit("actualizarEstado", getEstadoSala(sala));
-  });
-  socket.on("cerrarEntregas", (sala) => {
-    if (!salas[sala]) return;
-    salas[sala].entregasAbiertas = false;
-    guardarDatos();
-    io.to(sala).emit("actualizarEstado", getEstadoSala(sala));
+  // Abrir/Cerrar producción
+  socket.on("toggleProduccion", (sala) => {
+    const data = salas[sala];
+    if (!data) return;
+
+    if (!data.produccionAbierta) {
+      data.produccionAbierta = true;
+    } else {
+      data.produccionAbierta = false;
+
+      // Calcular producción
+      for (const j of Object.values(data.jugadores)) {
+        const proceso = j.proceso || 3;
+
+        if (proceso === 1) {
+          const factor = Math.min(j.trigoInsumo / 280, j.hierroInsumo / 12);
+          j.trigoProd = 575 * factor;
+          j.hierroProd = 0;
+        } else if (proceso === 2) {
+          const factor = Math.min(j.trigoInsumo / 120, j.hierroInsumo / 8);
+          j.trigoProd = 0;
+          j.hierroProd = 20 * factor;
+        } else { // proceso 3
+          j.trigoProd = j.trigoInsumo / 2;
+          j.hierroProd = j.hierroInsumo / 2;
+        }
+
+        // Actualizar recursos
+        j.trigo = j.trigoProd;
+        j.hierro = j.hierroProd;
+
+        // Reiniciar
+        j.entregas = 5;
+        j.proceso = null;
+      }
+
+      // Guardar sesión
+      const sesion = {
+        jugadores: JSON.parse(JSON.stringify(data.jugadores)),
+        historial: [...data.historial],
+        fecha: new Date().toLocaleString()
+      };
+      data.sesiones.push(sesion);
+    }
+
+    io.to(sala).emit("actualizarEstado", data);
   });
 
-  // === Abrir/Cerrar producción ===
-  socket.on("abrirProduccion", (sala) => {
-    if (!salas[sala]) return;
-    salas[sala].produccionAbierta = true;
-    guardarDatos();
-    io.to(sala).emit("actualizarEstado", getEstadoSala(sala));
-  });
-  socket.on("cerrarProduccion", (sala) => {
-    if (!salas[sala]) return;
-    salas[sala].produccionAbierta = false;
-    guardarDatos();
-    io.to(sala).emit("actualizarEstado", getEstadoSala(sala));
+  // Elegir proceso
+  socket.on("elegirProceso", ({ sala, nombre, proceso }) => {
+    const data = salas[sala];
+    if (data && data.produccionAbierta && data.jugadores[nombre] && data.jugadores[nombre].proceso === null) {
+      data.jugadores[nombre].proceso = proceso;
+      io.to(sala).emit("actualizarEstado", data);
+    }
   });
 
-  // === Nueva sesión ===
+  // Nueva sesión
   socket.on("nuevaSesion", (sala) => {
-    const room = salas[sala];
-    if (!room) return;
-    // Archivar sesión actual
-    room.historialSesiones.push({
-      sesion: room.sesionActual,
-      jugadores: JSON.parse(JSON.stringify(room.jugadores)),
-      entregas: [...room.entregasSesion]
-    });
-    // Crear sesión nueva
-    room.sesionActual++;
-    room.entregasSesion = [];
-    room.entregasAbiertas = false;
-    room.produccionAbierta = false;
-    guardarDatos();
-    io.to(sala).emit("actualizarEstado", getEstadoSala(sala));
-  });
-
-  // === Obtener historial completo ===
-  socket.on("getHistorialCompleto", (sala) => {
-    const room = salas[sala];
-    if (!room) return;
-    const data = [];
-    for (const sesion of room.historialSesiones) {
-      for (const [nombre, j] of Object.entries(sesion.jugadores)) {
-        data.push({
-          sesion: sesion.sesion,
-          jugador: nombre,
-          trigo: j.trigo.toFixed(2),
-          hierro: j.hierro.toFixed(2),
-          entregas: j.entregas
-        });
-      }
+    const data = salas[sala];
+    if (!data) return;
+    // Mantener producción como recursos iniciales
+    for (const j of Object.values(data.jugadores)) {
+      j.trigoInsumo = j.trigo;
+      j.hierroInsumo = j.hierro;
+      j.entregas = 5;
+      j.proceso = null;
+      j.trigoProd = null;
+      j.hierroProd = null;
     }
-    socket.emit("historialCompleto", data);
+    data.entregasAbiertas = true;
+    data.produccionAbierta = false;
+    data.historial = [];
+    io.to(sala).emit("actualizarEstado", data);
   });
 
-  // === Obtener entregas completas ===
-  socket.on("getEntregasCompletas", (sala) => {
-    const room = salas[sala];
-    if (!room) return;
-    const data = [];
-    for (const sesion of room.historialSesiones) {
-      for (const e of sesion.entregas) {
-        data.push({
-          sesion: sesion.sesion,
-          de: e.de,
-          para: e.para,
-          trigo: e.trigo,
-          hierro: e.hierro,
-          hora: e.hora
-        });
-      }
-    }
-    socket.emit("entregasCompletas", data);
+  socket.on("disconnect", () => {
+    console.log("🔴 Usuario desconectado:", socket.id);
   });
-
 });
 
-// ===== Servidor =====
-const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Servidor activo en puerto ${PORT}`));
+server.listen(3000, () => console.log("Servidor iniciado en http://localhost:3000"));
