@@ -1,210 +1,164 @@
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Jugador - Capitalismo Simulado</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+body { font-family: Arial; margin: 20px; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+nav a { margin-right: 10px; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">Inicio</a> |
+  <a href="/player.html">Jugador</a> |
+  <a href="/estado_jugadores.html">Estado de jugadores</a> |
+  <a href="/entregas_realizadas.html">Entregas realizadas</a>
+</nav>
 
-app.use(express.static("public"));
+<h2>Jugador</h2>
 
-// Función simple para generar IDs únicos
-function generarId() {
-  return Math.random().toString(36).substring(2, 10);
+<div>
+  <label>Sala: <input id="sala" placeholder="Sala"></label>
+  <label>Nombre: <input id="nombre" placeholder="Nombre"></label>
+  <label>Contraseña: <input id="password" type="password"></label>
+  <button onclick="entrar()">Entrar</button>
+</div>
+
+<h3>Tus recursos</h3>
+<p>Trigo: <span id="trigo">0</span></p>
+<p>Hierro: <span id="hierro">0</span></p>
+<p>Entregas restantes: <span id="entregas">0</span></p>
+
+<div id="formEntregas" style="margin-top:10px;">
+  <h3>Hacer entrega</h3>
+  <label>Destinatario: 
+    <select id="destino"></select>
+  </label>
+  <label>Trigo: <input id="trigoEnv" type="number" min="0"></label>
+  <label>Hierro: <input id="hierroEnv" type="number" min="0"></label>
+  <button onclick="entregar()">Entregar</button>
+</div>
+
+<div id="formProduccion" style="margin-top:10px;">
+  <h3>Elegir proceso de producción</h3>
+  <select id="proceso">
+    <option value="1">Proceso 1 (280 trigo + 12 hierro → 575 trigo)</option>
+    <option value="2">Proceso 2 (120 trigo + 8 hierro → 20 hierro)</option>
+    <option value="3">Proceso 3 (Reducir a la mitad los recursos)</option>
+  </select>
+  <button onclick="elegirProceso()">Elegir proceso</button>
+</div>
+
+<h3>Producciones posibles según insumos actuales</h3>
+<table>
+<thead>
+<tr>
+<th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th>
+</tr>
+</thead>
+<tbody id="producciones"></tbody>
+</table>
+
+<h3>Tu producción actual</h3>
+<p>Proceso usado: <span id="procesoUsado">-</span></p>
+<p>Trigo producido: <span id="trigoProd">0</span></p>
+<p>Hierro producido: <span id="hierroProd">0</span></p>
+
+<h3>Tus entregas</h3>
+<table>
+<thead>
+<tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>
+</thead>
+<tbody id="historial"></tbody>
+</table>
+
+<script>
+const socket = io();
+let sala = "";
+let nombre = "";
+
+// Entrar en la sala
+function entrar() {
+  sala = document.getElementById("sala").value;
+  nombre = document.getElementById("nombre").value;
+  const password = document.getElementById("password").value;
+  socket.emit("entrarJugador", { sala, nombre, password });
 }
 
-const salas = {};
+// Hacer entrega
+function entregar() {
+  const para = document.getElementById("destino").value;
+  const trigo = document.getElementById("trigoEnv").value;
+  const hierro = document.getElementById("hierroEnv").value;
+  socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
+}
 
-io.on("connection", (socket) => {
-  console.log("🟢 Usuario conectado:", socket.id);
+// Elegir proceso de producción
+function elegirProceso() {
+  const proceso = parseInt(document.getElementById("proceso").value);
+  socket.emit("elegirProceso", { sala, nombre, proceso });
+}
 
-  // Crear sala
-  socket.on("crearSala", ({ sala, password }) => {
-    if (!salas[sala]) {
-      salas[sala] = {
-        adminPassword: password,
-        jugadores: {},
-        entregasAbiertas: true,
-        produccionAbierta: false,
-        historial: [],
-      };
-      socket.emit("salaCreada", sala);
-      console.log(`🆕 Sala creada: ${sala}`);
-    } else {
-      socket.emit("salaExiste");
-    }
-  });
-
-  // Entrar como administrador
-  socket.on("entrarAdmin", ({ sala, password }) => {
-    const data = salas[sala];
-    if (data && data.adminPassword === password) {
-      socket.join(sala);
-      socket.emit("adminEntrado", sala);
-      io.to(sala).emit("actualizarEstado", data);
-    } else {
-      socket.emit("error", "Sala o contraseña incorrecta");
-    }
-  });
-
-  // Crear jugador
-  socket.on("crearJugador", ({ sala, nombre, password, trigo, hierro }) => {
-    const data = salas[sala];
-    if (data && !data.jugadores[nombre]) {
-      const id = generarId();
-      const t = parseFloat(trigo);
-      const h = parseFloat(hierro);
-      data.jugadores[nombre] = {
-        id,
-        password,
-        trigo: t,
-        hierro: h,
-        entregas: 5,
-        proceso: null,
-        trigoProd: 0,
-        hierroProd: 0,
-        trigoInsumo: t,
-        hierroInsumo: h,
-      };
-      io.to(sala).emit("actualizarEstado", data);
-      console.log(`👤 Jugador creado: ${nombre} (${sala})`);
-    }
-  });
-
-  // Entrar como jugador
-  socket.on("entrarJugador", ({ sala, nombre, password }) => {
-    const data = salas[sala];
-    if (data && data.jugadores[nombre] && (data.jugadores[nombre].password === password || nombre === "__viewer__")) {
-      socket.join(sala);
-      if (nombre !== "__viewer__") socket.emit("jugadorEntrado", { sala, nombre });
-      io.to(sala).emit("actualizarEstado", data);
-    } else {
-      socket.emit("error", "Sala o jugador no encontrado o contraseña incorrecta");
-    }
-  });
-
-  // Enviar entrega
-  socket.on("enviarEntrega", ({ sala, de, para, trigo, hierro }) => {
-    const data = salas[sala];
-    if (!data || !data.entregasAbiertas) return;
-    const emisor = data.jugadores[de];
-    const receptor = data.jugadores[para];
-    if (emisor && receptor && emisor.entregas > 0) {
-      trigo = Math.min(parseFloat(trigo) || 0, emisor.trigo);
-      hierro = Math.min(parseFloat(hierro) || 0, emisor.hierro);
-      if (trigo > 0 || hierro > 0) {
-        emisor.trigo -= trigo;
-        emisor.hierro -= hierro;
-        receptor.trigo += trigo;
-        receptor.hierro += hierro;
-        emisor.entregas -= 1;
-        data.historial.push({
-          de,
-          para,
-          trigo,
-          hierro,
-          hora: new Date().toLocaleTimeString(),
-        });
-        io.to(sala).emit("actualizarEstado", data);
-      }
-    }
-  });
-
-  // Abrir/Cerrar entregas
-  socket.on("toggleEntregas", (sala) => {
-    const data = salas[sala];
-    if (data) {
-      data.entregasAbiertas = !data.entregasAbiertas;
-      if (!data.entregasAbiertas) {
-        // fijar insumos para producción
-        for (const nombre in data.jugadores) {
-          const j = data.jugadores[nombre];
-          j.trigoInsumo = j.trigo;
-          j.hierroInsumo = j.hierro;
-        }
-      }
-      io.to(sala).emit("actualizarEstado", data);
-    }
-  });
-
-  // Abrir/Cerrar producción
-  socket.on("toggleProduccion", (sala) => {
-    const data = salas[sala];
-    if (!data) return;
-
-    if (!data.produccionAbierta) {
-      data.produccionAbierta = true;
-    } else {
-      data.produccionAbierta = false;
-
-      for (const nombre in data.jugadores) {
-        const j = data.jugadores[nombre];
-        const procesoAplicado = j.proceso || 3;
-
-        if (procesoAplicado === 1) {
-          const factor = Math.min(j.trigoInsumo / 280, j.hierroInsumo / 12);
-          j.trigoProd = 575 * factor;
-          j.hierroProd = 0;
-        } else if (procesoAplicado === 2) {
-          const factor = Math.min(j.trigoInsumo / 120, j.hierroInsumo / 8);
-          j.trigoProd = 0;
-          j.hierroProd = 20 * factor;
-        } else { // proceso 3
-          j.trigoProd = j.trigoInsumo / 2;
-          j.hierroProd = j.hierroInsumo / 2;
-        }
-
-        // actualizar insumos
-        j.trigoInsumo = j.trigo;
-        j.hierroInsumo = j.hierro;
-
-        // Reiniciar entregas y proceso
-        j.trigo = j.trigoProd;
-        j.hierro = j.hierroProd;
-        j.entregas = 5;
-        j.proceso = procesoAplicado;
-      }
-    }
-
-    io.to(sala).emit("actualizarEstado", data);
-  });
-
-  // Elegir proceso de producción
-  socket.on("elegirProceso", ({ sala, nombre, proceso }) => {
-    const data = salas[sala];
-    if (data && data.produccionAbierta && data.jugadores[nombre] && data.jugadores[nombre].proceso === null) {
-      data.jugadores[nombre].proceso = proceso;
-      io.to(sala).emit("actualizarEstado", data);
-    }
-  });
-
-  // Nueva sesión
-  socket.on("nuevaSesion", (sala) => {
-    const data = salas[sala];
-    if (!data) return;
-
-    for (const nombre in data.jugadores) {
-      const j = data.jugadores[nombre];
-      // Asignar productos anteriores como recursos
-      j.trigo = j.trigoProd;
-      j.hierro = j.hierroProd;
-      j.trigoInsumo = j.trigo;
-      j.hierroInsumo = j.hierro;
-
-      j.entregas = 5;
-      j.proceso = null;
-      j.trigoProd = 0;
-      j.hierroProd = 0;
-    }
-
-    data.entregasAbiertas = true;
-    data.produccionAbierta = false;
-    data.historial = [];
-    io.to(sala).emit("actualizarEstado", data);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("🔴 Usuario desconectado:", socket.id);
-  });
+socket.on("jugadorEntrado", (data) => {
+  console.log("Jugador entró:", data);
 });
 
-server.listen(3000, () => console.log("Servidor iniciado en http://localhost:3000"));
+socket.on("actualizarEstado", (data) => {
+  const j = data.jugadores[nombre];
+  if (!j) return;
+
+  // Mostrar recursos propios
+  document.getElementById("trigo").textContent = j.trigo.toFixed(2);
+  document.getElementById("hierro").textContent = j.hierro.toFixed(2);
+  document.getElementById("entregas").textContent = j.entregas;
+
+  // Mostrar formulario de entregas solo si están abiertas
+  document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block" : "none";
+  // Mostrar formulario de producción solo si están abiertas
+  document.getElementById("formProduccion").style.display = data.produccionAbierta ? "block" : "none";
+
+  // Destinatarios para entregas
+  const sel = document.getElementById("destino");
+  sel.innerHTML = "";
+  for (const n in data.jugadores) {
+    if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
+  }
+
+  // Producciones posibles
+  const tbody = document.getElementById("producciones");
+  tbody.innerHTML = "";
+  const trigoInsumo = j.trigo;
+  const hierroInsumo = j.hierro;
+
+  // Proceso 1
+  let factor1 = Math.min(trigoInsumo / 280, hierroInsumo / 12);
+  tbody.innerHTML += `<tr><td>1</td><td>${(575*factor1).toFixed(2)}</td><td>0</td></tr>`;
+
+  // Proceso 2
+  let factor2 = Math.min(trigoInsumo / 120, hierroInsumo / 8);
+  tbody.innerHTML += `<tr><td>2</td><td>0</td><td>${(20*factor2).toFixed(2)}</td></tr>`;
+
+  // Proceso 3
+  tbody.innerHTML += `<tr><td>3</td><td>${(trigoInsumo/2).toFixed(2)}</td><td>${(hierroInsumo/2).toFixed(2)}</td></tr>`;
+
+  // Mostrar producción realizada
+  document.getElementById("procesoUsado").textContent = j.proceso || "-";
+  document.getElementById("trigoProd").textContent = j.trigoProd.toFixed(2);
+  document.getElementById("hierroProd").textContent = j.hierroProd.toFixed(2);
+
+  // Historial propio de entregas
+  const hist = document.getElementById("historial");
+  hist.innerHTML = "";
+  for (const h of data.historial.filter(e => e.de === nombre || e.para === nombre)) {
+    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
+  }
+});
+
+socket.on("error", msg => alert(msg));
+</script>
+</body>
+</html>
