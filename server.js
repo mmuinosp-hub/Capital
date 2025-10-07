@@ -152,22 +152,35 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("nuevaSesion", (sala) => {
-    const data = salas[sala];
-    if (!data) return;
-    for (const j of Object.values(data.jugadores)) {
-      j.trigo = j.trigoProd;
-      j.hierro = j.hierroProd;
-      j.trigoInsumo = j.trigo;
-      j.hierroInsumo = j.hierro;
-      j.entregas = 5;
-      j.proceso = null;
-      j.trigoProd = 0;
-      j.hierroProd = 0;
-    }
-    data.historial = [];
-    io.to(sala).emit("actualizarEstado", data);
-  });
+socket.on("nuevaSesion", (sala) => {
+  const data = salas[sala];
+  if (!data) return;
+
+  for (const nombre in data.jugadores) {
+    const j = data.jugadores[nombre];
+    
+    // Asignar productos de la sesión anterior como recursos iniciales
+    j.trigo = j.trigoProd;
+    j.hierro = j.hierroProd;
+
+    // Reiniciar insumos para la producción
+    j.trigoInsumo = j.trigo;
+    j.hierroInsumo = j.hierro;
+
+    // Reiniciar estado de entregas y producción
+    j.entregas = 5;
+    j.proceso = null;
+    j.trigoProd = 0;
+    j.hierroProd = 0;
+  }
+
+  data.entregasAbiertas = true;
+  data.produccionAbierta = false;
+  data.historial = [];
+
+  io.to(sala).emit("actualizarEstado", data);
+});
+
 
   socket.on("disconnect", () => {
     console.log("🔴 Usuario desconectado:", socket.id);
@@ -175,3 +188,4 @@ io.on("connection", (socket) => {
 });
 
 server.listen(3000, () => console.log("Servidor iniciado en http://localhost:3000"));
+
