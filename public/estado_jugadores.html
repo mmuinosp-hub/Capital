@@ -2,16 +2,17 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Estado de jugadores</title>
+<title>Estado de Jugadores</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
 table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
-button { margin-top: 5px; }
 </style>
 </head>
 <body>
+
+<h2>Estado de Jugadores</h2>
 
 <nav>
   <a href="/">Inicio</a> | 
@@ -20,66 +21,30 @@ button { margin-top: 5px; }
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<h2>Estado de jugadores</h2>
 <h3>Sala: <span id="nombreSala"></span></h3>
 
-<div>
-  <input id="sala" placeholder="Sala">
-  <button onclick="entrar()">Entrar</button>
-</div>
+<table>
+<thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead>
+<tbody id="jugadores"></tbody>
+</table>
 
-<div id="contenidoSala" style="display:none;">
-  <h3>Jugadores - Sesión actual</h3>
-  <table>
-    <thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead>
-    <tbody id="tablaJugadores"></tbody>
-  </table>
-
-  <button onclick="verHistorial()">Ver todas las sesiones</button>
-  <div id="historialCompleto" style="display:none;">
-    <h3>Historial completo</h3>
-    <table>
-      <thead><tr><th>Sesión</th><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead>
-      <tbody id="tablaHistorial"></tbody>
-    </table>
-  </div>
-</div>
+<p><a href="/historial_estado.html">Ver histórico de sesiones pasadas</a></p>
 
 <script>
 const socket = io();
-let sala = "";
+let sala = prompt("Ingrese el nombre de la sala:");
 
-function entrar() {
-  sala = document.getElementById("sala").value;
-  if (!sala) return alert("Ingresa nombre de sala");
-  document.getElementById("nombreSala").textContent = sala;
-  document.getElementById("contenidoSala").style.display = "block";
-}
+document.getElementById("nombreSala").textContent = sala;
 
-function verHistorial() {
-  socket.emit("getHistorialCompleto", sala);
-}
-
-socket.on("actualizarEstado", data => {
+socket.on("actualizarEstado", (data) => {
   if (!data) return;
-  const tbody = document.getElementById("tablaJugadores");
+  const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
   for (const [nombre, j] of Object.entries(data.jugadores)) {
     tbody.innerHTML += `<tr>
       <td>${nombre}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td>
     </tr>`;
   }
-});
-
-socket.on("historialCompleto", data => {
-  const tbody = document.getElementById("tablaHistorial");
-  tbody.innerHTML = "";
-  for (const h of data) {
-    tbody.innerHTML += `<tr>
-      <td>${h.sesion}</td><td>${h.jugador}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.entregas}</td>
-    </tr>`;
-  }
-  document.getElementById("historialCompleto").style.display = "block";
 });
 </script>
 </body>
