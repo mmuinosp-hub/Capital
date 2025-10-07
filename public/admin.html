@@ -82,7 +82,7 @@ button { margin-top: 5px; }
 const socket = io();
 let salaActual = "";
 
-// Mostrar mensajes rápidos
+// Mostrar mensajes
 function mostrarMensaje(msg, tipo="info") { alert(msg); }
 
 // Crear sala
@@ -133,22 +133,22 @@ function nuevaSesion() { socket.emit("nuevaSesion", salaActual); }
 // Socket events
 socket.on("salaCreada", s => {
   salaActual = s;
-  mostrarMensaje("Sala creada: " + s);
   document.getElementById("crearSalaSec").classList.add("hidden");
   document.getElementById("panel").classList.remove("hidden");
   document.getElementById("nombreSala").textContent = s;
+  mostrarMensaje("Sala creada: " + s);
 });
 
 socket.on("adminEntrado", s => {
   salaActual = s;
-  mostrarMensaje("Entraste como admin en: " + s);
   document.getElementById("entrarSalaSec").classList.add("hidden");
   document.getElementById("panel").classList.remove("hidden");
   document.getElementById("nombreSala").textContent = s;
+  mostrarMensaje("Entraste como admin en: " + s);
 });
 
 socket.on("actualizarEstado", (data) => {
-  if (!data.jugadores) return;
+  if (!data.jugadores || !salaActual) return; // <--- prevenir render prematuro
 
   // Estado fases
   document.getElementById("entregasAbiertas").textContent = data.entregasAbiertas ? "Sí" : "No";
