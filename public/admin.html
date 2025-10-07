@@ -65,7 +65,7 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
 <script>
 const socket = io();
 
-// Mostrar mensajes temporales
+// Mensajes temporales
 function mostrarMensaje(texto, tipo="ok") {
   const msg = document.getElementById("mensaje");
   msg.textContent = texto;
@@ -89,7 +89,6 @@ function crearSala() {
   const sala = document.getElementById("salaCrear").value.trim();
   const pass = document.getElementById("passwordCrear").value.trim();
   if (!sala || !pass) return mostrarMensaje("Completa todos los campos", "error");
-
   document.getElementById("btnCrear").disabled = true;
   socket.emit("crearSala", { sala, password: pass });
 }
@@ -99,7 +98,6 @@ function entrar() {
   const sala = document.getElementById("sala").value.trim();
   const pass = document.getElementById("password").value.trim();
   if (!sala || !pass) return mostrarMensaje("Completa todos los campos", "error");
-
   document.getElementById("btnEntrar").disabled = true;
   socket.emit("entrarAdmin", { sala, password: pass });
 }
@@ -114,7 +112,11 @@ function crearJugador() {
   if (!nombre || !password) return mostrarMensaje("Nombre y contraseña requeridos", "error");
   if (isNaN(trigo) || isNaN(hierro) || trigo < 0 || hierro < 0) return mostrarMensaje("Valores inválidos", "error");
 
-  socket.emit("crearJugador", { sala: document.getElementById("nombreSala").textContent, nombre, password, trigo, hierro });
+  socket.emit("crearJugador", { 
+    sala: document.getElementById("nombreSala").textContent, 
+    nombre, password, trigo, hierro 
+  });
+
   mostrarMensaje("Jugador creado correctamente");
   document.getElementById("jugador").value = "";
   document.getElementById("passJugador").value = "";
@@ -158,13 +160,12 @@ socket.on("actualizarEstado", (data) => {
   }
 });
 
-socket.on("error", msg => mostrarMensaje(msg, "error"));
-
 // Control del juego
 function toggleEntregas() { socket.emit("toggleEntregas", document.getElementById("nombreSala").textContent); }
 function toggleProduccion() { socket.emit("toggleProduccion", document.getElementById("nombreSala").textContent); }
 function nuevaSesion() { socket.emit("nuevaSesion", document.getElementById("nombreSala").textContent); }
 
+socket.on("error", msg => mostrarMensaje(msg, "error"));
 </script>
 </body>
 </html>
