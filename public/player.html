@@ -2,19 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Jugador - Capitalismo Simulado</title>
+<title>Jugador</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; margin-top:10px;}
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
-nav a { margin-right: 10px; }
-.process-table { margin-top: 10px; width: 50%; }
 </style>
 </head>
 <body>
-<h2>Jugador</h2>
-
 <nav>
   <a href="/">Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
@@ -22,23 +18,20 @@ nav a { margin-right: 10px; }
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<p>Sala: <span id="nombreSala"></span></p>
+<h2>Jugador</h2>
+<input id="sala" placeholder="Sala">
+<input id="nombre" placeholder="Nombre">
+<input id="password" type="password" placeholder="Contraseña">
+<button onclick="entrar()">Entrar</button>
 
-<div id="loginDiv">
-  <input id="sala" placeholder="Sala">
-  <input id="nombre" placeholder="Nombre">
-  <input id="password" type="password" placeholder="Contraseña">
-  <button onclick="entrar()">Entrar</button>
-</div>
+<div id="contenedorJugador" style="display:none;">
+  <h3>Sala: <span id="nombreSala"></span></h3>
+  <p>Trigo disponible: <span id="trigoDisp">0</span></p>
+  <p>Hierro disponible: <span id="hierroDisp">0</span></p>
+  <p>Entregas restantes: <span id="entregasRest">0</span></p>
 
-<div id="jugadorDiv" style="display:none;">
-  <h3>Recursos disponibles</h3>
-  <p>Trigo: <span id="trigoDisp">0</span></p>
-  <p>Hierro: <span id="hierroDisp">0</span></p>
-  <p>Entregas restantes: <span id="entregasDisp">0</span></p>
-
-  <div id="formEntregas" style="display:none;">
-    <h3>Entregas</h3>
+  <div id="formEntregas">
+    <h3>Realizar entrega</h3>
     <select id="destino"></select>
     <input id="trigoEnv" type="number" placeholder="Trigo a entregar">
     <input id="hierroEnv" type="number" placeholder="Hierro a entregar">
@@ -46,28 +39,23 @@ nav a { margin-right: 10px; }
   </div>
 
   <div id="formProduccion">
-    <h3>Producciones posibles</h3>
-    <table class="process-table">
-      <thead><tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th></tr></thead>
-      <tbody>
-        <tr><td>1</td><td id="p1Trigo">0</td><td id="p1Hierro">0</td></tr>
-        <tr><td>2</td><td id="p2Trigo">0</td><td id="p2Hierro">0</td></tr>
-        <tr><td>3</td><td id="p3Trigo">0</td><td id="p3Hierro">0</td></tr>
-      </tbody>
-    </table>
-
-    <div id="formProceso" style="display:none;">
-      <select id="proceso">
-        <option value="1">Proceso 1</option>
-        <option value="2">Proceso 2</option>
-        <option value="3">Proceso 3</option>
-      </select>
-      <button onclick="elegirProceso()">Elegir proceso</button>
-    </div>
+    <h3>Escoger proceso de producción</h3>
+    <select id="proceso">
+      <option value="1">Proceso 1: 280T +12H → 575T</option>
+      <option value="2">Proceso 2: 120T +8H → 20H</option>
+      <option value="3">Proceso 3: materiales /2</option>
+    </select>
+    <button onclick="elegirProceso()">Elegir proceso</button>
   </div>
 
-  <h3>Tu producción</h3>
-  <p>Proceso utilizado: <span id="procesoUtilizado">-</span></p>
+  <h3>Producciones posibles con tus insumos actuales</h3>
+  <table>
+    <thead><tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th></tr></thead>
+    <tbody id="produccionesPosibles"></tbody>
+  </table>
+
+  <h3>Tu producción realizada</h3>
+  <p>Proceso usado: <span id="procesoUsado">-</span></p>
   <p>Trigo producido: <span id="trigoProd">0</span></p>
   <p>Hierro producido: <span id="hierroProd">0</span></p>
 
@@ -80,14 +68,12 @@ nav a { margin-right: 10px; }
 
 <script>
 const socket = io();
-let sala = "";
-let nombre = "";
+let sala = "", nombre = "";
 
 function entrar() {
   sala = document.getElementById("sala").value;
   nombre = document.getElementById("nombre").value;
   const password = document.getElementById("password").value;
-  if(!sala || !nombre) return alert("Introduce sala y nombre");
   socket.emit("entrarJugador", { sala, nombre, password });
 }
 
@@ -103,58 +89,51 @@ function elegirProceso() {
   socket.emit("elegirProceso", { sala, nombre, proceso });
 }
 
-socket.on("jugadorEntrado", () => {
-  document.getElementById("loginDiv").style.display = "none";
-  document.getElementById("jugadorDiv").style.display = "block";
+function actualizarProducciones(j) {
+  const tbody = document.getElementById("produccionesPosibles");
+  tbody.innerHTML = "";
+  // proceso 1
+  let factor = Math.min(j.trigo / 280, j.hierro / 12);
+  tbody.innerHTML += `<tr><td>1</td><td>${(575*factor).toFixed(2)}</td><td>0.00</td></tr>`;
+  // proceso 2
+  factor = Math.min(j.trigo / 120, j.hierro / 8);
+  tbody.innerHTML += `<tr><td>2</td><td>0.00</td><td>${(20*factor).toFixed(2)}</td></tr>`;
+  // proceso 3
+  tbody.innerHTML += `<tr><td>3</td><td>${(j.trigo/2).toFixed(2)}</td><td>${(j.hierro/2).toFixed(2)}</td></tr>`;
+}
+
+socket.on("jugadorEntrado", ({ sala: s, nombre: n }) => {
+  document.getElementById("contenedorJugador").style.display="block";
+  document.getElementById("nombreSala").textContent = s;
 });
 
 socket.on("actualizarEstado", (data) => {
-  const jugador = data.jugadores[nombre];
-  if (!jugador) return;
+  const j = data.jugadores[nombre];
+  if (!j) return;
+  document.getElementById("trigoDisp").textContent = j.trigo.toFixed(2);
+  document.getElementById("hierroDisp").textContent = j.hierro.toFixed(2);
+  document.getElementById("entregasRest").textContent = j.entregas;
 
-  document.getElementById("nombreSala").textContent = sala;
-  document.getElementById("trigoDisp").textContent = jugador.trigo.toFixed(2);
-  document.getElementById("hierroDisp").textContent = jugador.hierro.toFixed(2);
-  document.getElementById("entregasDisp").textContent = jugador.entregas;
+  document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block":"none";
+  document.getElementById("formProduccion").style.display = data.produccionAbierta ? "block":"none";
 
-  document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block" : "none";
-  document.getElementById("formProceso").style.display = data.produccionAbierta ? "block" : "none";
+  actualizarProducciones(j);
 
-  // Usar recursos actuales para recalcular producciones posibles dinámicamente
-  const trigoIn = jugador.trigo;
-  const hierroIn = jugador.hierro;
-  const factor1 = Math.min(trigoIn/280, hierroIn/12);
-  const factor2 = Math.min(trigoIn/120, hierroIn/8);
+  document.getElementById("procesoUsado").textContent = j.proceso ?? "-";
+  document.getElementById("trigoProd").textContent = j.trigoProd.toFixed(2);
+  document.getElementById("hierroProd").textContent = j.hierroProd.toFixed(2);
 
-  document.getElementById("p1Trigo").textContent = (575*factor1).toFixed(2);
-  document.getElementById("p1Hierro").textContent = 0;
-  document.getElementById("p2Trigo").textContent = 0;
-  document.getElementById("p2Hierro").textContent = (20*factor2).toFixed(2);
-  document.getElementById("p3Trigo").textContent = (trigoIn/2).toFixed(2);
-  document.getElementById("p3Hierro").textContent = (hierroIn/2).toFixed(2);
-
-  if(jugador.proceso !== null) {
-    document.getElementById("procesoUtilizado").textContent = jugador.proceso;
-    document.getElementById("trigoProd").textContent = jugador.trigoProd.toFixed(2);
-    document.getElementById("hierroProd").textContent = jugador.hierroProd.toFixed(2);
-  } else {
-    document.getElementById("procesoUtilizado").textContent = "-";
-    document.getElementById("trigoProd").textContent = "0";
-    document.getElementById("hierroProd").textContent = "0";
+  const sel = document.getElementById("destino");
+  sel.innerHTML = "";
+  for (const n2 of Object.keys(data.jugadores)) {
+    if (n2 !== nombre) sel.innerHTML += `<option value="${n2}">${n2}</option>`;
   }
 
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
-  for(const h of data.historial.filter(e => e.de===nombre || e.para===nombre)) {
-    hist.innerHTML += `<tr>
-      <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td>
-    </tr>`;
-  }
-
-  const sel = document.getElementById("destino");
-  sel.innerHTML = "";
-  for(const [n, j] of Object.entries(data.jugadores)) {
-    if(n!==nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
+  for (const h of data.historial) {
+    if (h.de===nombre || h.para===nombre)
+      hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
   }
 });
 
