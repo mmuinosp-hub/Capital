@@ -2,11 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Entregas realizadas - Capitalismo Simulado</title>
+<title>Entregas Realizadas - Capitalismo Simulado</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
@@ -14,53 +14,39 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 <nav>
   <a href="/">Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
+  <a href="/admin.html">Administrador</a> | 
   <a href="/estado_jugadores.html">Estado de jugadores</a> | 
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<h2>Historial de todas las entregas</h2>
+<h2>Entregas Realizadas</h2>
+<h3>Sala: <span id="nombreSala"></span></h3>
 
-<div id="loginDiv">
-  <input id="sala" placeholder="Sala">
-  <input id="password" type="password" placeholder="Contraseña administrador">
-  <button onclick="entrar()">Entrar</button>
-</div>
-
-<div id="entregasDiv" style="display:none;">
-  <table>
-    <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-    <tbody id="historialEntregas"></tbody>
-  </table>
-</div>
+<table>
+  <thead>
+    <tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>
+  </thead>
+  <tbody id="historial"></tbody>
+</table>
 
 <script>
 const socket = io();
-let sala = "";
+const sala = sessionStorage.getItem("sala");
+document.getElementById("nombreSala").textContent = sala || "-";
 
-function entrar() {
-  sala = document.getElementById("sala").value;
-  const password = document.getElementById("password").value;
-  if (!sala || !password) return alert("Completa los campos");
-  socket.emit("entrarAdmin", { sala, password });
+if (sala) {
+  socket.emit("entrarObservador", { sala });
 }
 
-socket.on("adminEntrado", () => {
-  document.getElementById("loginDiv").style.display = "none";
-  document.getElementById("entregasDiv").style.display = "block";
-});
-
 socket.on("actualizarEstado", (data) => {
-  const tbody = document.getElementById("historialEntregas");
-  tbody.innerHTML = "";
+  const hist = document.getElementById("historial");
+  hist.innerHTML = "";
   for (const h of data.historial) {
-    tbody.innerHTML += `<tr>
+    hist.innerHTML += `<tr>
       <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td>
     </tr>`;
   }
 });
-
-socket.on("error", msg => alert(msg));
 </script>
 </body>
 </html>
-
