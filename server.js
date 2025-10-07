@@ -7,7 +7,7 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
-// Generar ID único
+// Función simple para generar IDs únicos
 function generarId() {
   return Math.random().toString(36).substring(2, 10);
 }
@@ -60,8 +60,8 @@ io.on("connection", (socket) => {
         hierro: h,
         entregas: 5,
         proceso: null,
-        trigoProd: null,
-        hierroProd: null,
+        trigoProd: 0,
+        hierroProd: 0,
         trigoInsumo: t,
         hierroInsumo: h,
       };
@@ -70,12 +70,12 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Entrar como jugador o para ver historial
+  // Entrar como jugador
   socket.on("entrarJugador", ({ sala, nombre, password }) => {
     const data = salas[sala];
-    if (data && (nombre.startsWith("_") || (data.jugadores[nombre] && data.jugadores[nombre].password === password))) {
+    if (data && data.jugadores[nombre] && data.jugadores[nombre].password === password) {
       socket.join(sala);
-      if (!nombre.startsWith("_")) socket.emit("jugadorEntrado", { sala, nombre });
+      socket.emit("jugadorEntrado", { sala, nombre });
       io.to(sala).emit("actualizarEstado", data);
     } else {
       socket.emit("error", "Sala o jugador no encontrado o contraseña incorrecta");
@@ -112,20 +112,20 @@ io.on("connection", (socket) => {
   // Abrir/Cerrar entregas
   socket.on("toggleEntregas", (sala) => {
     const data = salas[sala];
-    if (data) {
-      data.entregasAbiertas = !data.entregasAbiertas;
+    if (!data) return;
 
-      // Fijar insumos al cerrar entregas
-      if (!data.entregasAbiertas) {
-        for (const nombre in data.jugadores) {
-          const j = data.jugadores[nombre];
-          j.trigoInsumo = j.trigo;
-          j.hierroInsumo = j.hierro;
-        }
+    data.entregasAbiertas = !data.entregasAbiertas;
+
+    // Cuando se cierran las entregas, fijar insumos para producción
+    if (!data.entregasAbiertas) {
+      for (const nombre in data.jugadores) {
+        const j = data.jugadores[nombre];
+        j.trigoInsumo = j.trigo;
+        j.hierroInsumo = j.hierro;
       }
-
-      io.to(sala).emit("actualizarEstado", data);
     }
+
+    io.to(sala).emit("actualizarEstado", data);
   });
 
   // Abrir/Cerrar producción
@@ -134,30 +134,40 @@ io.on("connection", (socket) => {
     if (!data) return;
 
     if (!data.produccionAbierta) {
+      // Abrir producción
       data.produccionAbierta = true;
     } else {
+      // Cerrar producción y aplicar cálculos
       data.produccionAbierta = false;
 
       for (const nombre in data.jugadores) {
         const j = data.jugadores[nombre];
-        const proceso = j.proceso || 3;
 
-        if (proceso === 1) {
+        // Determinar proceso aplicado
+        const procesoAplicado = j.proceso || 3;
+
+        // Aplicar producción según insumos finales
+        if (procesoAplicado === 1) {
           const factor = Math.min(j.trigoInsumo / 280, j.hierroInsumo / 12);
           j.trigoProd = 575 * factor;
           j.hierroProd = 0;
-        } else if (proceso === 2) {
+        } else if (procesoAplicado === 2) {
           const factor = Math.min(j.trigoInsumo / 120, j.hierroInsumo / 8);
           j.trigoProd = 0;
           j.hierroProd = 20 * factor;
-        } else {
+        } else { // proceso 3
           j.trigoProd = j.trigoInsumo / 2;
           j.hierroProd = j.hierroInsumo / 2;
         }
 
+        // Actualizar recursos del jugador
         j.trigo = j.trigoProd;
         j.hierro = j.hierroProd;
-        j.proceso = proceso;
+
+        // Guardar proceso aplicado
+        j.proceso = procesoAplicado;
+
+        // Reiniciar entregas para siguiente ronda
         j.entregas = 5;
       }
     }
@@ -181,20 +191,18 @@ io.on("connection", (socket) => {
 
     for (const nombre in data.jugadores) {
       const j = data.jugadores[nombre];
-      j.trigo = j.trigoProd ?? j.trigo;
-      j.hierro = j.hierroProd ?? j.hierro;
+      // Tomar las producciones como nuevos recursos
+      j.trigo = j.trigoProd;
+      j.hierro = j.hierroProd;
       j.trigoInsumo = j.trigo;
       j.hierroInsumo = j.hierro;
-      j.proceso = null;
-      j.trigoProd = null;
-      j.hierroProd = null;
       j.entregas = 5;
+      j.proceso = null;
+      j.trigoProd = 0;
+      j.hierroProd = 0;
     }
 
-    data.entregasAbiertas = true;
-    data.produccionAbierta = false;
-    data.historial = [];
-
+    data.historial = []; // Reinicia historial de la sesión actual
     io.to(sala).emit("actualizarEstado", data);
   });
 
