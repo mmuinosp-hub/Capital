@@ -2,41 +2,52 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Estado de jugadores</title>
+<title>Estado de Jugadores</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial, sans-serif; margin: 20px; }
 nav a { margin: 0 10px; text-decoration: none; color: #006; }
 table { border-collapse: collapse; width: 100%; margin-top: 15px; }
-th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+th, td { border: 1px solid #999; padding: 6px; text-align: center; }
 </style>
 </head>
 <body>
+
 <nav>
   <a href="/">Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
   <a href="/estado_jugadores.html">Estado de jugadores</a> | 
-  <a href="/entregas_realizadas.html">Entregas realizadas</a> | 
-  <a href="/historial_entregas.html">Historial de Entregas</a> | 
-  <a href="/historial_produccion.html">Historial de Producción</a>
+  <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<h2>Estado actual de los jugadores</h2>
+<h2>Estado de jugadores</h2>
+
 <table>
-<thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas restantes</th></tr></thead>
-<tbody id="jugadores"></tbody>
+  <thead>
+    <tr>
+      <th>Jugador</th>
+      <th>Trigo</th>
+      <th>Hierro</th>
+      <th>Entregas restantes</th>
+    </tr>
+  </thead>
+  <tbody id="jugadores"></tbody>
 </table>
 
 <script>
 const socket = io();
-const sala = localStorage.getItem("sala");
+const sala = localStorage.getItem("salaJugador") || localStorage.getItem("salaAdmin");
 if (sala) socket.emit("solicitarEstado", sala);
-
 socket.on("actualizarEstado", (data) => {
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
-  for (const [n, j] of Object.entries(data.jugadores)) {
-    tbody.innerHTML += `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td></tr>`;
+  for (const [nombre, j] of Object.entries(data.jugadores)) {
+    tbody.innerHTML += `<tr>
+      <td>${nombre}</td>
+      <td>${j.trigo.toFixed(2)}</td>
+      <td>${j.hierro.toFixed(2)}</td>
+      <td>${j.entregas}</td>
+    </tr>`;
   }
 });
 </script>
