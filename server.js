@@ -216,24 +216,34 @@ io.on("connection", (socket) => {
 
   // Nueva sesión
   socket.on("nuevaSesion", (sala) => {
-    const data = salas[sala];
-    if (!data) return;
+  const data = salas[sala];
+  if (!data) return;
 
-    for (const n in data.jugadores) {
-      const j = data.jugadores[n];
-      j.trigoInsumo = j.trigo;
-      j.hierroInsumo = j.hierro;
-      j.trigoProd = 0;
-      j.hierroProd = 0;
-      j.proceso = null;
-      j.entregas = 0;
-    }
+  for (const n in data.jugadores) {
+    const j = data.jugadores[n];
 
-    data.entregasAbiertas = true;
-    data.produccionAbierta = false;
-    data.historial = [];
-    io.to(sala).emit("actualizarEstado", data);
-  });
+    // Conservar insumos sumando producción anterior
+    j.trigoInsumo = j.trigo + j.trigoProd;
+    j.hierroInsumo = j.hierro + j.hierroProd;
+
+    // Resetear producción actual
+    j.trigoProd = 0;
+    j.hierroProd = 0;
+
+    // Si no eligió proceso, asignar 3 por defecto
+    if (j.proceso === null) j.proceso = 3;
+
+    // Resetear entregas
+    j.entregas = 0;
+  }
+
+  // Abrir entregas y cerrar producción
+  data.entregasAbiertas = true;
+  data.produccionAbierta = false;
+  data.historial = [];
+
+  io.to(sala).emit("actualizarEstado", data);
+});
 
   socket.on("disconnect", () => {
     console.log("Usuario desconectado:", socket.id);
@@ -243,3 +253,4 @@ io.on("connection", (socket) => {
 // Puerto dinámico para Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Servidor iniciado en http://localhost:${PORT}`));
+
