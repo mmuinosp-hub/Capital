@@ -123,18 +123,18 @@ socket.on("actualizarEstado", (data) => {
   // Formulario elección de proceso visible solo si producción abierta
   document.getElementById("formProceso").style.display = data.produccionAbierta ? "block" : "none";
 
-  // Calcular producciones posibles siempre
   const trigoIn = jugador.trigoInsumo;
   const hierroIn = jugador.hierroInsumo;
   const factor1 = Math.min(trigoIn/280, hierroIn/12);
   const factor2 = Math.min(trigoIn/120, hierroIn/8);
 
-  document.getElementById("p1Trigo").textContent = (575*factor1).toFixed(2);
-  document.getElementById("p1Hierro").textContent = (0).toFixed(2);
-  document.getElementById("p2Trigo").textContent = (0).toFixed(2);
-  document.getElementById("p2Hierro").textContent = (20*factor2).toFixed(2);
-  document.getElementById("p3Trigo").textContent = (trigoIn/2).toFixed(2);
-  document.getElementById("p3Hierro").textContent = (hierroIn/2).toFixed(2);
+  // Tabla de producciones siempre visible
+  document.getElementById("p1Trigo").textContent = data.produccionAbierta && jugador.proceso===1 ? jugador.trigoProd.toFixed(2) : (575*factor1).toFixed(2);
+  document.getElementById("p1Hierro").textContent = data.produccionAbierta && jugador.proceso===1 ? jugador.hierroProd.toFixed(2) : 0;
+  document.getElementById("p2Trigo").textContent = data.produccionAbierta && jugador.proceso===2 ? jugador.trigoProd.toFixed(2) : 0;
+  document.getElementById("p2Hierro").textContent = data.produccionAbierta && jugador.proceso===2 ? jugador.hierroProd.toFixed(2) : (20*factor2).toFixed(2);
+  document.getElementById("p3Trigo").textContent = data.produccionAbierta && jugador.proceso===3 ? jugador.trigoProd.toFixed(2) : (trigoIn/2).toFixed(2);
+  document.getElementById("p3Hierro").textContent = data.produccionAbierta && jugador.proceso===3 ? jugador.hierroProd.toFixed(2) : (hierroIn/2).toFixed(2);
 
   // Mostrar proceso elegido y producción obtenida
   if(jugador.proceso !== null) {
@@ -163,6 +163,8 @@ socket.on("actualizarEstado", (data) => {
     if(n!==nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
   }
 });
+
+socket.on("error", msg => alert(msg));
 </script>
 </body>
 </html>
