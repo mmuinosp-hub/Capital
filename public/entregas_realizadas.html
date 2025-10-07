@@ -2,52 +2,123 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Entregas Realizadas - Capitalismo Simulado</title>
+<title>Entregas realizadas - Capitalismo Simulado</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial; margin: 20px; }
+body { font-family: Arial, sans-serif; margin: 20px; }
+h2, h3 { margin-bottom: 5px; }
 table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+nav a { margin-right: 10px; }
+button { margin: 4px; padding: 6px 10px; }
 </style>
 </head>
 <body>
+
 <nav>
   <a href="/">Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
-  <a href="/admin.html">Administrador</a> | 
   <a href="/estado_jugadores.html">Estado de jugadores</a> | 
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<h2>Entregas Realizadas</h2>
-<h3>Sala: <span id="nombreSala"></span></h3>
-<p>Entregas abiertas: <span id="entregasAbiertas"></span></p>
+<h2>Entregas realizadas</h2>
 
-<table>
-  <thead>
-    <tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>
-  </thead>
-  <tbody id="historial"></tbody>
-</table>
+<div id="panelInicio">
+  <h3>Ver entregas de una sala</h3>
+  <input id="sala" placeholder="Nombre de la sala">
+  <button onclick="entrar()">Entrar</button>
+</div>
+
+<div id="panelEntregas" style="display:none;">
+  <h3 id="tituloSala"></h3>
+  <div><b>Entregas:</b> <span id="estadoEntregas">-</span> | 
+       <b>Producción:</b> <span id="estadoProduccion">-</span></div>
+  <button onclick="verHistorialCompleto()">Ver entregas de todas las sesiones</button>
+  <button onclick="salir()">Salir</button>
+
+  <h3>Entregas de la sesión actual</h3>
+  <table>
+    <thead>
+      <tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>
+    </thead>
+    <tbody id="tabla"></tbody>
+  </table>
+</div>
+
+<div id="panelHistorial" style="display:none;">
+  <h3>Historial completo de entregas (todas las sesiones)</h3>
+  <button onclick="cerrarHistorial()">Volver a la sesión actual</button>
+  <table>
+    <thead>
+      <tr><th>Sesión</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>
+    </thead>
+    <tbody id="tablaHistorial"></tbody>
+  </table>
+</div>
 
 <script>
 const socket = io();
-const sala = sessionStorage.getItem("sala");
-document.getElementById("nombreSala").textContent = sala || "-";
+let sala = "";
 
-if (sala) socket.emit("entrarObservador", { sala });
+// ==== Entrar como observador ====
+function entrar() {
+  sala = document.getElementById("sala").value.trim();
+  if (!sala) return alert("Ingresa el nombre de la sala");
+  socket.emit("entrarObservador", sala);
+}
 
-socket.on("actualizarEstado", (data) => {
-  document.getElementById("entregasAbiertas").textContent = data.entregasAbiertas ? "Sí" : "No";
+socket.on("observadorEntrado", s => {
+  sala = s;
+  document.getElementById("panelInicio").style.display = "none";
+  document.getElementById("panelEntregas").style.display = "block";
+  document.getElementById("tituloSala").textContent = "Sala: " + sala;
+});
 
-  const hist = document.getElementById("historial");
-  hist.innerHTML = "";
-  for (const h of data.historial) {
-    hist.innerHTML += `<tr>
+function salir() {
+  sala = "";
+  document.getElementById("panelInicio").style.display = "block";
+  document.getElementById("panelEntregas").style.display = "none";
+  document.getElementById("tabla").innerHTML = "";
+}
+
+// ==== Actualizar estado ====
+socket.on("actualizarEstado", data => {
+  if (!data) return;
+  document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "Abiertas" : "Cerradas";
+  document.getElementById("estadoProduccion").textContent = data.produccionAbierta ? "Abierta" : "Cerrada";
+
+  const tbody = document.getElementById("tabla");
+  tbody.innerHTML = "";
+  for (const h of data.historial || []) {
+    tbody.innerHTML += `<tr>
       <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td>
     </tr>`;
   }
 });
+
+// ==== Ver historial completo ====
+function verHistorialCompleto() {
+  socket.emit("getEntregasCompletas", sala);
+}
+
+socket.on("entregasCompletas", data => {
+  document.getElementById("panelEntregas").style.display = "none";
+  document.getElementById("panelHistorial").style.display = "block";
+  const t = document.getElementById("tablaHistorial");
+  t.innerHTML = "";
+  for (const h of data) {
+    t.innerHTML += `<tr>
+      <td>${h.sesion}</td><td>${h.de}</td><td>${h.para}</td>
+      <td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td>
+    </tr>`;
+  }
+});
+
+function cerrarHistorial() {
+  document.getElementById("panelHistorial").style.display = "none";
+  document.getElementById("panelEntregas").style.display = "block";
+}
 </script>
 </body>
 </html>
