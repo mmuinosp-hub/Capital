@@ -45,8 +45,8 @@ nav a { margin-right: 10px; }
     <button onclick="entregar()">Entregar</button>
   </div>
 
-  <div id="formProduccion" style="display:none;">
-    <h3>Producción</h3>
+  <div id="formProduccion">
+    <h3>Producciones posibles</h3>
     <table class="process-table">
       <thead><tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th></tr></thead>
       <tbody>
@@ -55,12 +55,15 @@ nav a { margin-right: 10px; }
         <tr><td>3</td><td id="p3Trigo">0</td><td id="p3Hierro">0</td></tr>
       </tbody>
     </table>
-    <select id="proceso">
-      <option value="1">Proceso 1</option>
-      <option value="2">Proceso 2</option>
-      <option value="3">Proceso 3</option>
-    </select>
-    <button onclick="elegirProceso()">Elegir proceso</button>
+
+    <div id="formProceso" style="display:none;">
+      <select id="proceso">
+        <option value="1">Proceso 1</option>
+        <option value="2">Proceso 2</option>
+        <option value="3">Proceso 3</option>
+      </select>
+      <button onclick="elegirProceso()">Elegir proceso</button>
+    </div>
   </div>
 
   <h3>Tu producción</h3>
@@ -114,18 +117,18 @@ socket.on("actualizarEstado", (data) => {
   document.getElementById("hierroDisp").textContent = jugador.hierro.toFixed(2);
   document.getElementById("entregasDisp").textContent = jugador.entregas;
 
-  // Formulario entregas
+  // Formulario entregas visible solo si entregas abiertas
   document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block" : "none";
 
-  // Formulario producción
-  document.getElementById("formProduccion").style.display = data.produccionAbierta ? "block" : "none";
+  // Formulario elección de proceso visible solo si producción abierta
+  document.getElementById("formProceso").style.display = data.produccionAbierta ? "block" : "none";
 
-  // Calcular producciones posibles
+  // Calcular producciones posibles siempre
   const trigoIn = jugador.trigoInsumo;
   const hierroIn = jugador.hierroInsumo;
-
   const factor1 = Math.min(trigoIn/280, hierroIn/12);
   const factor2 = Math.min(trigoIn/120, hierroIn/8);
+
   document.getElementById("p1Trigo").textContent = (575*factor1).toFixed(2);
   document.getElementById("p1Hierro").textContent = (0).toFixed(2);
   document.getElementById("p2Trigo").textContent = (0).toFixed(2);
@@ -144,7 +147,7 @@ socket.on("actualizarEstado", (data) => {
     document.getElementById("hierroProd").textContent = "0";
   }
 
-  // Historial de entregas del jugador
+  // Historial del jugador
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
   for(const h of data.historial.filter(e => e.de===nombre || e.para===nombre)) {
