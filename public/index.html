@@ -2,24 +2,39 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Capital</title>
+<title>Capitalismo Simulado - Inicio</title>
 <style>
-body { font-family: Arial; margin: 20px; }
-nav a { margin-right: 10px; }
+body { font-family: Arial, sans-serif; margin: 40px; text-align: center; }
+button { margin: 10px; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+h1 { margin-bottom: 40px; }
 </style>
 </head>
 <body>
-<h1>Capital</h1>
 
-<nav>
-  <a href="/player.html">Jugador</a> <br>
-  <a href="/admin.html">Administrador</a> <br>
-  <a href="/estado_jugadores.html">Estado de jugadores</a> <br>
-  <a href="/entregas_realizadas.html">Entregas realizadas</a> <br> 
-  <a href="/historial_entregas.html">Historial de entregas</a> <br>
-  <a href="/historial_produccion.html">Historial de producción</a>
-</nav>
+<h1>Capitalismo Simulado</h1>
+<p>Selecciona tu acción:</p>
 
-<p>Bienvenido al juego de simulación económica. Selecciona tu consola o consulta los históricos.</p>
+<!-- Opciones iniciales -->
+<button onclick="crearSala()">Crear Sala (Administrador)</button>
+<button onclick="entrarSala()">Entrar en Sala (Administrador)</button>
+<button onclick="entrarJugador()">Entrar como Jugador</button>
+
+<script>
+// Redirige a admin.html para crear sala
+function crearSala() {
+  window.location.href = "/admin.html";
+}
+
+// Redirige a admin.html para entrar en sala existente
+function entrarSala() {
+  window.location.href = "/admin.html";
+}
+
+// Redirige a player.html para entrar como jugador
+function entrarJugador() {
+  window.location.href = "/player.html";
+}
+</script>
+
 </body>
 </html>
