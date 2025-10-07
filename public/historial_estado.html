@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Histórico de Estado de Jugadores</title>
+<style>
+body { font-family: Arial; margin: 20px; }
+h2 { margin-bottom: 10px; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+</style>
+</head>
+<body>
+
+<h2>Histórico de Estado de Jugadores</h2>
+
+<nav>
+  <a href="/">Inicio</a> | 
+  <a href="/player.html">Jugador</a> | 
+  <a href="/estado_jugadores.html">Estado de jugadores</a> | 
+  <a href="/entregas_realizadas.html">Entregas realizadas</a>
+</nav>
+
+<div id="contenido"></div>
+
+<script>
+async function cargarHistorial() {
+  // Se asume que el servidor ofrece un endpoint JSON para sesiones históricas
+  const sala = prompt("Ingrese el nombre de la sala:");
+  const resp = await fetch(`/api/sesiones_estado?sala=${sala}`);
+  const data = await resp.json();
+  
+  const cont = document.getElementById("contenido");
+  cont.innerHTML = "";
+
+  data.sesiones.forEach((sesion, idx) => {
+    cont.innerHTML += `<h3>Sesión ${idx+1} - ${sesion.fecha}</h3>`;
+    let tabla = "<table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead><tbody>";
+    for (const [nombre, j] of Object.entries(sesion.jugadores)) {
+      tabla += `<tr>
+        <td>${nombre}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td>
+      </tr>`;
+    }
+    tabla += "</tbody></table>";
+    cont.innerHTML += tabla;
+  });
+}
+
+cargarHistorial();
+</script>
+</body>
+</html>
+
