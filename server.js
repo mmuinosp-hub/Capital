@@ -27,10 +27,6 @@ app.use(express.static("public"));
 
 
 
-// Socket.IO
-io.on("connection", (socket) => {
-  ...
-});
 
 // Generar IDs únicos
 function generarId() {
@@ -275,6 +271,7 @@ io.on("connection", (socket) => {
 // Puerto dinámico para Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Servidor iniciado en http://localhost:${PORT}`));
+
 
 
 
