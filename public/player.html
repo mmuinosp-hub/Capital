@@ -31,7 +31,7 @@ nav a { margin-right: 10px; }
 <h3>Tus recursos</h3>
 <p>Trigo: <span id="trigo">0</span></p>
 <p>Hierro: <span id="hierro">0</span></p>
-<p>Entregas restantes: <span id="entregas">0</span></p>
+<p>Entregas realizadas: <span id="entregas">0</span></p>
 
 <div id="formEntregas" style="margin-top:10px;">
   <h3>Hacer entrega</h3>
@@ -56,15 +56,15 @@ nav a { margin-right: 10px; }
 <h3>Producciones posibles según insumos actuales</h3>
 <table>
 <thead>
-<tr>
-<th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th>
-</tr>
+<tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th></tr>
 </thead>
 <tbody id="producciones"></tbody>
 </table>
 
 <h3>Tu producción actual</h3>
 <p>Proceso usado: <span id="procesoUsado">-</span></p>
+<p>Trigo producido: <span id="trigoProd">0</span></p>
+<p>Hierro producido: <span id="hierroProd">0</span></p>
 
 <h3>Tus entregas</h3>
 <table>
@@ -144,4 +144,3 @@ socket.on("error", msg => alert(msg));
 </script>
 </body>
 </html>
-
