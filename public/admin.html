@@ -110,7 +110,11 @@ function crearJugador() {
   if (!nombre || !password) return mostrarMensaje("Nombre y contraseña requeridos", "error");
   if (isNaN(trigo) || isNaN(hierro) || trigo < 0 || hierro < 0) return mostrarMensaje("Valores inválidos", "error");
 
+  if (!salaActual) return mostrarMensaje("No estás en ninguna sala", "error");
+
   socket.emit("crearJugador", { sala: salaActual, nombre, password, trigo, hierro });
+
+  // Limpiar formulario
   document.getElementById("jugador").value = "";
   document.getElementById("passJugador").value = "";
   document.getElementById("trigoIni").value = 0;
