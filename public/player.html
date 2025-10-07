@@ -97,7 +97,7 @@ socket.on("actualizarEstado", (data) => {
   document.getElementById("hierro").textContent = jugador.hierro.toFixed(2);
   document.getElementById("entregas").textContent = jugador.entregas;
 
-  // Mostrar/ocultar formularios
+  // Mostrar/ocultar formularios según estado del juego
   document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block" : "none";
   document.getElementById("formProduccion").style.display = data.produccionAbierta ? "block" : "none";
 
