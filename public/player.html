@@ -2,12 +2,13 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Jugador</title>
+<title>Jugador - Capitalismo Simulado</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
 table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+nav a { margin-right: 10px; }
 </style>
 </head>
 <body>
@@ -20,43 +21,43 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<div id="login">
+<p>Sala: <span id="nombreSala"></span></p>
+
+<h3>Entrar en Sala</h3>
 <input id="sala" placeholder="Sala">
 <input id="nombre" placeholder="Nombre">
 <input id="password" type="password" placeholder="Contraseña">
 <button onclick="entrar()">Entrar</button>
-</div>
 
 <div id="juego" style="display:none;">
-<h3>Sala: <span id="nombreSala"></span></h3>
-<h3>Tus recursos</h3>
-<p>Trigo: <span id="trigoDisp">0</span></p>
-<p>Hierro: <span id="hierroDisp">0</span></p>
-<p>Entregas restantes: <span id="entregasRest">0</span></p>
+  <h3>Recursos</h3>
+  <p>Trigo: <span id="trigo"></span></p>
+  <p>Hierro: <span id="hierro"></span></p>
+  <p>Entregas restantes: <span id="entregas"></span></p>
 
-<div id="formEntregas">
-<h3>Hacer entrega</h3>
-<select id="destino"></select>
-<input id="trigoEnv" type="number" placeholder="Trigo">
-<input id="hierroEnv" type="number" placeholder="Hierro">
-<button onclick="entregar()">Entregar</button>
-</div>
+  <div id="formEntregas">
+    <h3>Entregas</h3>
+    <select id="destino"></select>
+    <input id="trigoEnv" type="number" placeholder="Trigo a entregar">
+    <input id="hierroEnv" type="number" placeholder="Hierro a entregar">
+    <button onclick="entregar()">Entregar</button>
+  </div>
 
-<div id="formProduccion">
-<h3>Producción</h3>
-<select id="proceso">
-  <option value="1">Proceso 1</option>
-  <option value="2">Proceso 2</option>
-  <option value="3">Proceso 3</option>
-</select>
-<button onclick="elegirProceso()">Elegir proceso</button>
-</div>
+  <div id="formProduccion">
+    <h3>Producción</h3>
+    <select id="proceso">
+      <option value="1">Proceso 1</option>
+      <option value="2">Proceso 2</option>
+      <option value="3">Proceso 3</option>
+    </select>
+    <button onclick="elegirProceso()">Elegir proceso</button>
+  </div>
 
-<h3>Tus entregas</h3>
-<table>
-<thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-<tbody id="historial"></tbody>
-</table>
+  <h3>Historial de tus entregas</h3>
+  <table>
+    <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+    <tbody id="historial"></tbody>
+  </table>
 </div>
 
 <script>
@@ -71,10 +72,9 @@ function entrar() {
   socket.emit("entrarJugador", { sala, nombre, password });
 }
 
-socket.on("jugadorEntrado", ({ sala: s, nombre: n }) => {
-  document.getElementById("login").style.display = "none";
+socket.on("jugadorEntrado", (data) => {
+  document.getElementById("nombreSala").textContent = data.sala;
   document.getElementById("juego").style.display = "block";
-  document.getElementById("nombreSala").textContent = s;
 });
 
 function entregar() {
@@ -90,30 +90,41 @@ function elegirProceso() {
 }
 
 socket.on("actualizarEstado", (data) => {
-  if (!data || !data.jugadores[nombre]) return;
-  const j = data.jugadores[nombre];
-  document.getElementById("trigoDisp").textContent = j.trigo.toFixed(2);
-  document.getElementById("hierroDisp").textContent = j.hierro.toFixed(2);
-  document.getElementById("entregasRest").textContent = j.entregas;
+  const jugador = data.jugadores[nombre];
+  if (!jugador) return;
 
-  const sel = document.getElementById("destino");
-  sel.innerHTML = "";
-  for (const n in data.jugadores) {
-    if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
-  }
+  document.getElementById("trigo").textContent = jugador.trigo.toFixed(2);
+  document.getElementById("hierro").textContent = jugador.hierro.toFixed(2);
+  document.getElementById("entregas").textContent = jugador.entregas;
 
+  // Mostrar/ocultar formularios
   document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block" : "none";
   document.getElementById("formProduccion").style.display = data.produccionAbierta ? "block" : "none";
 
-  // Historial propio
+  // Destinos para entregas
+  const sel = document.getElementById("destino");
+  sel.innerHTML = "";
+  for (const n of Object.keys(data.jugadores)) {
+    if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
+  }
+
+  // Mostrar historial personal
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
-  for (const h of [...j.entregasHechas, ...j.entregasRecibidas]) {
-    hist.innerHTML += `<tr>
-      <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td>
-    </tr>`;
+  for (const h of data.historial) {
+    if (h.de === nombre || h.para === nombre) {
+      hist.innerHTML += `<tr>
+        <td>${h.de}</td>
+        <td>${h.para}</td>
+        <td>${h.trigo}</td>
+        <td>${h.hierro}</td>
+        <td>${h.hora}</td>
+      </tr>`;
+    }
   }
 });
+
+socket.on("error", msg => alert(msg));
 </script>
 </body>
 </html>
