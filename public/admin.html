@@ -122,17 +122,26 @@ function crearJugador() {
 }
 
 // Toggle entregas
-function toggleEntregas() { socket.emit("toggleEntregas", salaActual); }
+function toggleEntregas() { 
+  if (!salaActual) return mostrarMensaje("No hay sala activa", "error");
+  socket.emit("toggleEntregas", salaActual); 
+}
 
 // Toggle producción
-function toggleProduccion() { socket.emit("toggleProduccion", salaActual); }
+function toggleProduccion() { 
+  if (!salaActual) return mostrarMensaje("No hay sala activa", "error");
+  socket.emit("toggleProduccion", salaActual); 
+}
 
 // Nueva sesión
-function nuevaSesion() { socket.emit("nuevaSesion", salaActual); }
+function nuevaSesion() { 
+  if (!salaActual) return mostrarMensaje("No hay sala activa", "error");
+  socket.emit("nuevaSesion", salaActual); 
+}
 
 // Socket events
 socket.on("salaCreada", s => {
-  salaActual = s;
+  salaActual = s; // <--- asignar primero
   document.getElementById("crearSalaSec").classList.add("hidden");
   document.getElementById("panel").classList.remove("hidden");
   document.getElementById("nombreSala").textContent = s;
@@ -140,7 +149,7 @@ socket.on("salaCreada", s => {
 });
 
 socket.on("adminEntrado", s => {
-  salaActual = s;
+  salaActual = s; // <--- asignar primero
   document.getElementById("entrarSalaSec").classList.add("hidden");
   document.getElementById("panel").classList.remove("hidden");
   document.getElementById("nombreSala").textContent = s;
@@ -148,7 +157,7 @@ socket.on("adminEntrado", s => {
 });
 
 socket.on("actualizarEstado", (data) => {
-  if (!data.jugadores || !salaActual) return; // <--- prevenir render prematuro
+  if (!data.jugadores || !salaActual) return; // prevenir render prematuro
 
   // Estado fases
   document.getElementById("entregasAbiertas").textContent = data.entregasAbiertas ? "Sí" : "No";
