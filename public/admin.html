@@ -13,6 +13,7 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 #panelInicio { margin-bottom: 20px; }
 button { margin: 3px; padding: 6px 12px; }
 nav a { margin-right: 10px; }
+.estado { margin: 8px 0; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -43,6 +44,8 @@ nav a { margin-right: 10px; }
 <div id="panelAdmin">
   <h3 id="tituloSala"></h3>
   <button onclick="salirSala()">Salir de la sala</button>
+
+  <div class="estado" id="estadoJuego">Entregas: - | Producción: -</div>
 
   <h3>Crear jugador</h3>
   <input id="jugador" placeholder="Nombre jugador">
@@ -105,7 +108,6 @@ socket.on("adminEntrado", s => {
   document.getElementById("panelAdmin").style.display = "block";
 });
 
-// ==== Salir de la sala ====
 function salirSala() {
   salaActual = "";
   document.getElementById("panelInicio").style.display = "block";
@@ -128,24 +130,23 @@ function crearJugador() {
   document.getElementById("hierroIni").value = "";
 }
 
-// ==== Controles del juego ====
-function toggleEntregas() {
-  socket.emit("toggleEntregas", salaActual);
-}
-function toggleProduccion() {
-  socket.emit("toggleProduccion", salaActual);
-}
-function nuevaSesion() {
-  socket.emit("nuevaSesion", salaActual);
-}
+// ==== Controles ====
+function toggleEntregas() { socket.emit("toggleEntregas", salaActual); }
+function toggleProduccion() { socket.emit("toggleProduccion", salaActual); }
+function nuevaSesion() { socket.emit("nuevaSesion", salaActual); }
 
-// ==== Actualizar estado ====
+// ==== Actualización de estado ====
 socket.on("actualizarEstado", (data) => {
-  if (!salaActual || !data.jugadores) return;
+  if (!data) return;
 
+  // Estado general
+  document.getElementById("estadoJuego").textContent =
+    `Entregas: ${data.entregasAbiertas ? "Abiertas" : "Cerradas"} | Producción: ${data.produccionAbierta ? "Abierta" : "Cerrada"}`;
+
+  // Tabla jugadores
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
-  for (const [nombre, j] of Object.entries(data.jugadores)) {
+  for (const [nombre, j] of Object.entries(data.jugadores || {})) {
     tbody.innerHTML += `<tr>
       <td>${nombre}</td>
       <td>${j.trigo.toFixed(2)}</td>
@@ -155,9 +156,10 @@ socket.on("actualizarEstado", (data) => {
     </tr>`;
   }
 
+  // Historial
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
-  for (const h of data.historial) {
+  for (const h of data.historial || []) {
     hist.innerHTML += `<tr>
       <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td>
       <td>${h.hierro}</td><td>${h.hora}</td>
