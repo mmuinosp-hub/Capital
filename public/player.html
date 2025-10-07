@@ -105,17 +105,21 @@ socket.on("actualizarEstado", (data) => {
   const j = data.jugadores[nombre];
   if (!j) return;
 
+  // Recursos actuales
   document.getElementById("trigo").textContent = j.trigo.toFixed(2);
   document.getElementById("hierro").textContent = j.hierro.toFixed(2);
   document.getElementById("entregas").textContent = j.entregas;
 
+  // Formularios visibles según fase
   document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block" : "none";
   document.getElementById("formProduccion").style.display = data.produccionAbierta ? "block" : "none";
 
+  // Destinatarios
   const sel = document.getElementById("destino");
   sel.innerHTML = "";
   for (const n in data.jugadores) if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
 
+  // Producciones posibles
   const tbody = document.getElementById("producciones");
   tbody.innerHTML = "";
   const trigoInsumo = j.trigo;
@@ -125,10 +129,12 @@ socket.on("actualizarEstado", (data) => {
   tbody.innerHTML += `<tr><td>2</td><td>0</td><td>${(20*Math.min(trigoInsumo/120, hierroInsumo/8)).toFixed(2)}</td></tr>`;
   tbody.innerHTML += `<tr><td>3</td><td>${(trigoInsumo/2).toFixed(2)}</td><td>${(hierroInsumo/2).toFixed(2)}</td></tr>`;
 
+  // Producción actual
   document.getElementById("procesoUsado").textContent = j.proceso || "-";
   document.getElementById("trigoProd").textContent = j.trigoProd.toFixed(2);
   document.getElementById("hierroProd").textContent = j.hierroProd.toFixed(2);
 
+  // Historial de entregas solo del jugador
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
   for (const h of data.historial.filter(e => e.de===nombre || e.para===nombre)) {
