@@ -8,6 +8,7 @@
 body { font-family: Arial; margin: 20px; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+input, button { margin: 3px; }
 </style>
 </head>
 <body>
@@ -29,14 +30,7 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 <div id="estadoDiv" style="display:none;">
   <table>
     <thead>
-      <tr>
-        <th>Jugador</th>
-        <th>Trigo</th>
-        <th>Hierro</th>
-        <th>Proceso</th>
-        <th>Trigo producido</th>
-        <th>Hierro producido</th>
-      </tr>
+      <tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas restantes</th></tr>
     </thead>
     <tbody id="jugadoresEstado"></tbody>
   </table>
@@ -66,9 +60,7 @@ socket.on("actualizarEstado", (data) => {
       <td>${n}</td>
       <td>${j.trigo.toFixed(2)}</td>
       <td>${j.hierro.toFixed(2)}</td>
-      <td>${j.proceso ?? '-'}</td>
-      <td>${j.trigoProd?.toFixed(2) ?? '-'}</td>
-      <td>${j.hierroProd?.toFixed(2) ?? '-'}</td>
+      <td>${j.entregas}</td>
     </tr>`;
   }
 });
