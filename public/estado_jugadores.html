@@ -6,66 +6,50 @@
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
-input, button { margin: 3px; }
 </style>
 </head>
 <body>
 <nav>
   <a href="/">Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
+  <a href="/admin.html">Administrador</a> | 
   <a href="/estado_jugadores.html">Estado de jugadores</a> | 
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<h2>Estado de jugadores</h2>
+<h2>Estado de Jugadores</h2>
+<h3>Sala: <span id="nombreSala"></span></h3>
 
-<div id="loginDiv">
-  <input id="sala" placeholder="Sala">
-  <input id="password" type="password" placeholder="Contraseña administrador">
-  <button onclick="entrar()">Entrar</button>
-</div>
-
-<div id="estadoDiv" style="display:none;">
-  <table>
-    <thead>
-      <tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas restantes</th></tr>
-    </thead>
-    <tbody id="jugadoresEstado"></tbody>
-  </table>
-</div>
+<table>
+  <thead>
+    <tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr>
+  </thead>
+  <tbody id="jugadores"></tbody>
+</table>
 
 <script>
 const socket = io();
-let sala = "";
+const sala = sessionStorage.getItem("sala");
+document.getElementById("nombreSala").textContent = sala || "-";
 
-function entrar() {
-  sala = document.getElementById("sala").value;
-  const password = document.getElementById("password").value;
-  if (!sala || !password) return alert("Completa los campos");
-  socket.emit("entrarAdmin", { sala, password });
+if (sala) {
+  socket.emit("entrarObservador", { sala });
 }
 
-socket.on("adminEntrado", () => {
-  document.getElementById("loginDiv").style.display = "none";
-  document.getElementById("estadoDiv").style.display = "block";
-});
-
 socket.on("actualizarEstado", (data) => {
-  const tbody = document.getElementById("jugadoresEstado");
+  const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
-  for (const [n,j] of Object.entries(data.jugadores)) {
+  for (const [nombre, j] of Object.entries(data.jugadores)) {
     tbody.innerHTML += `<tr>
-      <td>${n}</td>
+      <td>${nombre}</td>
       <td>${j.trigo.toFixed(2)}</td>
       <td>${j.hierro.toFixed(2)}</td>
       <td>${j.entregas}</td>
     </tr>`;
   }
 });
-
-socket.on("error", msg => alert(msg));
 </script>
 </body>
 </html>
