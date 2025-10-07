@@ -39,7 +39,6 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
      <strong>Hierro:</strong> <span id="hierro">0</span> |
      <strong>Entregas realizadas:</strong> <span id="entregas">0</span></p>
 
-  <!-- Producciones posibles -->
   <h3>Producciones posibles</h3>
   <table>
     <thead>
@@ -84,8 +83,6 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
 
   <h4>Tu producción actual</h4>
   <p>Proceso elegido: <span id="procesoUsado">-</span></p>
-  <p>Trigo producido: <span id="trigoProd">0</span></p>
-  <p>Hierro producido: <span id="hierroProd">0</span></p>
 </section>
 
 <script>
@@ -153,10 +150,9 @@ socket.on("actualizarEstado", (data) => {
   tbody.innerHTML += `<tr><td>2</td><td>0</td><td>${(20*Math.min(trigoInsumo/120, hierroInsumo/8)).toFixed(2)}</td></tr>`;
   tbody.innerHTML += `<tr><td>3</td><td>${(trigoInsumo/2).toFixed(2)}</td><td>${(hierroInsumo/2).toFixed(2)}</td></tr>`;
 
-  // Mostrar producción actual si ya escogió proceso
-  document.getElementById("procesoUsado").textContent = j.proceso || "-";
-  document.getElementById("trigoProd").textContent = j.trigoProd.toFixed(2);
-  document.getElementById("hierroProd").textContent = j.hierroProd.toFixed(2);
+  // Mostrar proceso elegido (si existe)
+  const procesoSpan = document.getElementById("procesoUsado");
+  if (procesoSpan) procesoSpan.textContent = j.proceso || "-";
 
   // Historial de entregas separadas
   const hechas = document.getElementById("entregasHechas");
