@@ -2,50 +2,64 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Historial de Producción</title>
+<title>Historial de Estados</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+h2, h3 { margin-top: 30px; }
 </style>
 </head>
 <body>
-<nav>
-  <a href="/">Inicio</a> | 
-  <a href="/player.html">Jugador</a> | 
-  <a href="/estado_jugadores.html">Estado de jugadores</a> | 
-  <a href="/entregas_realizadas.html">Entregas realizadas</a>
-</nav>
+<h1>Historial de Estados</h1>
+<label>Sala: <input id="sala" placeholder="Nombre de la sala"></label>
+<button onclick="cargarHistorial()">Cargar historial</button>
 
-<h2>Historial de producción</h2>
-<p>Sala: <span id="nombreSala"></span></p>
-
-<table>
-  <thead>
-    <tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Proceso</th></tr>
-  </thead>
-  <tbody id="tablaProduccion"></tbody>
-</table>
+<div id="contenedorHistorial"></div>
 
 <script>
-const socket = io();
-let sala = prompt("Introduce el nombre de la sala:");
-socket.emit("entrarJugador", { sala, nombre: "__viewer__", password: "" });
+async function cargarHistorial() {
+  const sala = document.getElementById("sala").value.trim();
+  if (!sala) return alert("Introduce el nombre de la sala");
 
-socket.on("actualizarEstado", data => {
-  document.getElementById("nombreSala").textContent = sala;
-  const tbody = document.getElementById("tablaProduccion");
-  tbody.innerHTML = "";
-  for (const [nombre, j] of Object.entries(data.jugadores)) {
-    tbody.innerHTML += `<tr>
-      <td>${nombre}</td>
-      <td>${j.trigoProd.toFixed(2)}</td>
-      <td>${j.hierroProd.toFixed(2)}</td>
-      <td>${j.proceso ?? "-"}</td>
-    </tr>`;
+  // Obtener lista de archivos de producción
+  const response = await fetch(`/listarProduccion?sala=${sala}`);
+  const archivos = await response.json();
+
+  const contenedor = document.getElementById("contenedorHistorial");
+  contenedor.innerHTML = "";
+
+  if (archivos.length === 0) {
+    contenedor.innerHTML = "<p>No hay sesiones registradas para esta sala.</p>";
+    return;
   }
-});
+
+  for (const archivo of archivos) {
+    const dataResp = await fetch(`/historialArchivo?archivo=${archivo}`);
+    const data = await dataResp.json();
+
+    const fecha = archivo.split("_").pop().replace(".json", "");
+
+    const h3 = document.createElement("h3");
+    h3.textContent = `Sesión: ${fecha}`;
+    contenedor.appendChild(h3);
+
+    const tabla = document.createElement("table");
+    const thead = document.createElement("thead");
+    thead.innerHTML = "<tr><th>Jugador</th><th>Trigo inicial</th><th>Hierro inicial</th><th>Trigo final</th><th>Hierro final</th><th>Proceso</th></tr>";
+    tabla.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    for (const [jugador, info] of Object.entries(data)) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${jugador}</td><td>${info.trigoInsumo ?? info.trigo}</td><td>${info.hierroInsumo ?? info.hierro}</td><td>${info.trigo}</td><td>${info.hierro}</td><td>${info.proceso}</td>`;
+      tbody.appendChild(tr);
+    }
+    tabla.appendChild(tbody);
+    contenedor.appendChild(tabla);
+  }
+}
 </script>
 </body>
 </html>
