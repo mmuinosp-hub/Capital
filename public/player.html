@@ -12,6 +12,9 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 .hidden { display: none; }
 nav a { margin-right: 10px; }
 section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding: 10px; }
+#mensaje { margin-top: 10px; padding: 5px 10px; border-radius: 6px; display: none; }
+#mensaje.ok { background: #d1ffd1; border: 1px solid #6b6; }
+#mensaje.error { background: #ffd1d1; border: 1px solid #b66; }
 </style>
 </head>
 <body>
@@ -23,7 +26,7 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
 
 <h2>Consola del Jugador</h2>
 
-<!-- 🔹 LOGIN -->
+<!-- LOGIN -->
 <section id="login">
   <h3>Entrar en sala</h3>
   <label>Sala: <input id="sala" placeholder="Sala"></label>
@@ -32,7 +35,7 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
   <button onclick="entrar()">Entrar</button>
 </section>
 
-<!-- 🔹 PANEL PRINCIPAL -->
+<!-- PANEL PRINCIPAL -->
 <section id="panel" class="hidden">
   <h3>Sala: <span id="nombreSala"></span></h3>
   <p><strong>Trigo:</strong> <span id="trigo">0</span> |
@@ -48,7 +51,7 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
   </table>
 </section>
 
-<!-- 🔹 ENTREGAS -->
+<!-- ENTREGAS -->
 <section id="entregasSec" class="hidden">
   <h3>Hacer entrega</h3>
   <label>Destinatario:
@@ -56,7 +59,9 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
   </label>
   <label>Trigo: <input id="trigoEnv" type="number" min="0" value="0"></label>
   <label>Hierro: <input id="hierroEnv" type="number" min="0" value="0"></label>
-  <button onclick="entregar()">Entregar</button>
+  <button id="btnEntregar" onclick="entregar()">Entregar</button>
+
+  <div id="mensaje"></div>
 
   <h4>Tus entregas realizadas</h4>
   <table>
@@ -71,7 +76,7 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
   </table>
 </section>
 
-<!-- 🔹 PRODUCCIÓN -->
+<!-- PRODUCCIÓN -->
 <section id="produccionSec" class="hidden">
   <h3>Elegir proceso de producción</h3>
   <select id="proceso">
@@ -80,6 +85,8 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
     <option value="3">Proceso 3 (Reducir a la mitad los recursos)</option>
   </select>
   <button onclick="elegirProceso()">Elegir proceso</button>
+
+  <div id="mensajeProd"></div>
 
   <h4>Tu producción actual</h4>
   <p>Proceso elegido: <span id="procesoUsado">-</span></p>
@@ -90,7 +97,16 @@ const socket = io();
 let sala = "";
 let nombre = "";
 
-// 🔸 Entrar a la sala
+// Mostrar mensaje temporal
+function mostrarMensaje(texto, tipo="ok") {
+  const msg = document.getElementById("mensaje");
+  msg.textContent = texto;
+  msg.className = tipo === "ok" ? "ok" : "error";
+  msg.style.display = "block";
+  setTimeout(() => msg.style.display = "none", 2000);
+}
+
+// Entrar a la sala
 function entrar() {
   sala = document.getElementById("sala").value.trim();
   nombre = document.getElementById("nombre").value.trim();
@@ -99,20 +115,34 @@ function entrar() {
   socket.emit("entrarJugador", { sala, nombre, password });
 }
 
-// 🔸 Entregar recursos
+// Entregar recursos (con validación y bloqueo)
 function entregar() {
+  const btn = document.getElementById("btnEntregar");
   const para = document.getElementById("destino").value;
-  const trigo = document.getElementById("trigoEnv").value;
-  const hierro = document.getElementById("hierroEnv").value;
+  const trigo = parseFloat(document.getElementById("trigoEnv").value);
+  const hierro = parseFloat(document.getElementById("hierroEnv").value);
+
+  if (isNaN(trigo) || isNaN(hierro)) return mostrarMensaje("Valores inválidos", "error");
+  if (trigo < 0 || hierro < 0) return mostrarMensaje("No se permiten valores negativos", "error");
+  if (trigo === 0 && hierro === 0) return mostrarMensaje("Debes entregar algo", "error");
+
+  btn.disabled = true;
   socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
+
+  setTimeout(() => btn.disabled = false, 1000); // Evita doble clic
   document.getElementById("trigoEnv").value = 0;
   document.getElementById("hierroEnv").value = 0;
+  mostrarMensaje("Entrega enviada correctamente");
 }
 
-// 🔸 Elegir proceso
+// Elegir proceso (con confirmación)
 function elegirProceso() {
   const proceso = parseInt(document.getElementById("proceso").value);
   socket.emit("elegirProceso", { sala, nombre, proceso });
+  const msg = document.getElementById("mensajeProd");
+  msg.textContent = "Proceso elegido correctamente";
+  msg.style.color = "green";
+  setTimeout(() => msg.textContent = "", 2000);
 }
 
 socket.on("jugadorEntrado", ({ sala }) => {
@@ -121,27 +151,22 @@ socket.on("jugadorEntrado", ({ sala }) => {
   document.getElementById("nombreSala").textContent = sala;
 });
 
-// 🔸 Actualizar pantalla según estado del servidor
+// Actualización de estado
 socket.on("actualizarEstado", (data) => {
   const j = data.jugadores[nombre];
   if (!j) return;
-
-  // Recursos actuales
   document.getElementById("trigo").textContent = j.trigo.toFixed(2);
   document.getElementById("hierro").textContent = j.hierro.toFixed(2);
   document.getElementById("entregas").textContent = j.entregas;
 
-  // Mostrar secciones según fase
   document.getElementById("entregasSec").classList.toggle("hidden", !data.entregasAbiertas);
   document.getElementById("produccionSec").classList.toggle("hidden", !data.produccionAbierta);
 
-  // Actualizar destinatarios
   const sel = document.getElementById("destino");
   sel.innerHTML = "";
   for (const n in data.jugadores)
     if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
 
-  // Calcular producciones posibles
   const tbody = document.getElementById("producciones");
   tbody.innerHTML = "";
   const trigoInsumo = j.trigo;
@@ -150,11 +175,9 @@ socket.on("actualizarEstado", (data) => {
   tbody.innerHTML += `<tr><td>2</td><td>0</td><td>${(20*Math.min(trigoInsumo/120, hierroInsumo/8)).toFixed(2)}</td></tr>`;
   tbody.innerHTML += `<tr><td>3</td><td>${(trigoInsumo/2).toFixed(2)}</td><td>${(hierroInsumo/2).toFixed(2)}</td></tr>`;
 
-  // Mostrar proceso elegido (si existe)
   const procesoSpan = document.getElementById("procesoUsado");
   if (procesoSpan) procesoSpan.textContent = j.proceso || "-";
 
-  // Historial de entregas separadas
   const hechas = document.getElementById("entregasHechas");
   const recibidas = document.getElementById("entregasRecibidas");
   hechas.innerHTML = "";
@@ -167,7 +190,7 @@ socket.on("actualizarEstado", (data) => {
   }
 });
 
-socket.on("error", msg => alert(msg));
+socket.on("error", msg => mostrarMensaje(msg, "error"));
 </script>
 </body>
 </html>
