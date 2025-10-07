@@ -113,6 +113,7 @@ io.on("connection", (socket) => {
     if (!data) return;
 
     if (nombre === "__viewer__") {
+      // Espectador
       socket.join(sala);
       socket.emit("jugadorEntrado", { sala, nombre });
       io.to(sala).emit("actualizarEstado", data);
@@ -220,27 +221,17 @@ io.on("connection", (socket) => {
 
     for (const n in data.jugadores) {
       const j = data.jugadores[n];
-
-      // Conservar insumos sumando producción anterior
-      j.trigoInsumo = j.trigo + j.trigoProd;
-      j.hierroInsumo = j.hierro + j.hierroProd;
-
-      // Resetear producción actual
+      j.trigoInsumo = j.trigo;
+      j.hierroInsumo = j.hierro;
       j.trigoProd = 0;
       j.hierroProd = 0;
-
-      // Si no eligió proceso, asignar 3 por defecto
-      if (j.proceso === null) j.proceso = 3;
-
-      // Resetear entregas
+      j.proceso = null;
       j.entregas = 0;
     }
 
-    // Abrir entregas y cerrar producción
     data.entregasAbiertas = true;
     data.produccionAbierta = false;
     data.historial = [];
-
     io.to(sala).emit("actualizarEstado", data);
   });
 
