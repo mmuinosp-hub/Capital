@@ -46,6 +46,7 @@ nav a { margin-right: 10px; }
   <p>Producción abierta: <span id="estadoProduccion"></span></p>
   <button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
   <button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
+  <button onclick="nuevaSesion()">Nueva sesión</button>
 
   <h3>Jugadores</h3>
   <table>
@@ -95,6 +96,7 @@ function crearJugador() {
 // Control de juego
 function toggleEntregas() { socket.emit("toggleEntregas", sala); }
 function toggleProduccion() { socket.emit("toggleProduccion", sala); }
+function nuevaSesion() { socket.emit("nuevaSesion", sala); }
 
 socket.on("actualizarEstado", (data) => {
   document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "Sí" : "No";
