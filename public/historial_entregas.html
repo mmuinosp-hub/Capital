@@ -2,17 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Historial Completo de Entregas</title>
+<title>Historial de Entregas</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
-<h2>Historial Completo de Entregas</h2>
-
 <nav>
   <a href="/">Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
@@ -20,22 +18,27 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
+<h2>Historial completo de entregas</h2>
+<p>Sala: <span id="nombreSala"></span></p>
+
 <table>
-<thead><tr><th>Sala</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-<tbody id="tablaHistorial"></tbody>
+  <thead>
+    <tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>
+  </thead>
+  <tbody id="tablaHistorial"></tbody>
 </table>
 
 <script>
 const socket = io();
+let sala = prompt("Introduce el nombre de la sala:");
+socket.emit("entrarJugador", { sala, nombre: "__viewer__", password: "" });
 
-socket.emit("pedirHistorialCompleto");
-
-socket.on("historialCompletoEntregas", (historial) => {
+socket.on("actualizarEstado", data => {
+  document.getElementById("nombreSala").textContent = sala;
   const tbody = document.getElementById("tablaHistorial");
   tbody.innerHTML = "";
-  for (const h of historial) {
+  for (const h of data.historial) {
     tbody.innerHTML += `<tr>
-      <td>${h.sala}</td>
       <td>${h.de}</td>
       <td>${h.para}</td>
       <td>${h.trigo}</td>
