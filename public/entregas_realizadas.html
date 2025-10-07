@@ -11,7 +11,6 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
-
 <h2>Entregas Realizadas</h2>
 
 <nav>
@@ -21,31 +20,36 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<h3>Sala: <span id="nombreSala"></span></h3>
+<p>Sala: <span id="nombreSala"></span></p>
 
 <table>
 <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-<tbody id="historial"></tbody>
+<tbody id="tablaEntregas"></tbody>
 </table>
 
 <script>
 const socket = io();
-let sala = null;
+let sala = "";
 
-// Recibir sala del servidor
-socket.on("setSala", s => {
+function setSala(s) {
   sala = s;
   document.getElementById("nombreSala").textContent = sala;
-});
+}
 
-// Actualización en tiempo real del historial
+// Actualiza tabla con el historial de entregas de la sesión actual
 socket.on("actualizarEstado", (data) => {
-  if (!data || !sala) return;
-  const tbody = document.getElementById("historial");
+  if (!sala && Object.keys(data.jugadores).length > 0) {
+    setSala(Object.keys(data.jugadores)[0]);
+  }
+  const tbody = document.getElementById("tablaEntregas");
   tbody.innerHTML = "";
   for (const h of data.historial) {
     tbody.innerHTML += `<tr>
-      <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td>
+      <td>${h.de}</td>
+      <td>${h.para}</td>
+      <td>${h.trigo}</td>
+      <td>${h.hierro}</td>
+      <td>${h.hora}</td>
     </tr>`;
   }
 });
