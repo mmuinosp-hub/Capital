@@ -28,16 +28,19 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 <tbody id="historial"></tbody>
 </table>
 
-<p><a href="/historial_entregas.html">Ver histórico de sesiones pasadas</a></p>
-
 <script>
 const socket = io();
-let sala = prompt("Ingrese el nombre de la sala:");
+let sala = null;
 
-document.getElementById("nombreSala").textContent = sala;
+// Recibir sala del servidor
+socket.on("setSala", s => {
+  sala = s;
+  document.getElementById("nombreSala").textContent = sala;
+});
 
+// Actualización en tiempo real del historial
 socket.on("actualizarEstado", (data) => {
-  if (!data) return;
+  if (!data || !sala) return;
   const tbody = document.getElementById("historial");
   tbody.innerHTML = "";
   for (const h of data.historial) {
