@@ -25,22 +25,29 @@ function guardarHistorial(sala) {
   const histDir = path.join(__dirname, "historiales");
   if (!fs.existsSync(histDir)) fs.mkdirSync(histDir);
   const fecha = new Date().toISOString().replace(/:/g, "-");
-  fs.writeFileSync(
-    path.join(histDir, `entregas_${sala}_${fecha}.json`),
-    JSON.stringify(data.historial, null, 2)
-  );
-  const produccion = {};
-  for (const n in data.jugadores) {
-    produccion[n] = {
-      trigo: data.jugadores[n].trigo,
-      hierro: data.jugadores[n].hierro,
-      proceso: data.jugadores[n].proceso
-    };
+
+  try {
+    fs.writeFileSync(
+      path.join(histDir, `entregas_${sala}_${fecha}.json`),
+      JSON.stringify(data.historial, null, 2)
+    );
+
+    const produccion = {};
+    for (const n in data.jugadores) {
+      produccion[n] = {
+        trigo: data.jugadores[n].trigo,
+        hierro: data.jugadores[n].hierro,
+        proceso: data.jugadores[n].proceso
+      };
+    }
+
+    fs.writeFileSync(
+      path.join(histDir, `produccion_${sala}_${fecha}.json`),
+      JSON.stringify(produccion, null, 2)
+    );
+  } catch (err) {
+    console.error("Error al guardar historial:", err);
   }
-  fs.writeFileSync(
-    path.join(histDir, `produccion_${sala}_${fecha}.json`),
-    JSON.stringify(produccion, null, 2)
-  );
 }
 
 // Socket.IO
@@ -100,10 +107,21 @@ io.on("connection", (socket) => {
     io.to(sala).emit("actualizarEstado", data);
   });
 
-  // Entrar jugador
+  // Entrar jugador / espectador
   socket.on("entrarJugador", ({ sala, nombre, password }) => {
     const data = salas[sala];
-    if (data && data.jugadores[nombre] && data.jugadores[nombre].password === password) {
+    if (!data) return;
+
+    if (nombre === "__viewer__") {
+      // Espectador
+      socket.join(sala);
+      socket.emit("jugadorEntrado", { sala, nombre });
+      io.to(sala).emit("actualizarEstado", data);
+      return;
+    }
+
+    const jugador = data.jugadores[nombre];
+    if (jugador && jugador.password === password) {
       socket.join(sala);
       socket.emit("jugadorEntrado", { sala, nombre });
       io.to(sala).emit("actualizarEstado", data);
@@ -119,6 +137,7 @@ io.on("connection", (socket) => {
     const emisor = data.jugadores[de];
     const receptor = data.jugadores[para];
     if (!emisor || !receptor) return;
+
     trigo = Math.min(parseFloat(trigo) || 0, emisor.trigo);
     hierro = Math.min(parseFloat(hierro) || 0, emisor.hierro);
     emisor.trigo -= trigo;
@@ -126,6 +145,7 @@ io.on("connection", (socket) => {
     receptor.trigo += trigo;
     receptor.hierro += hierro;
     emisor.entregas += 1;
+
     data.historial.push({ de, para, trigo, hierro, hora: new Date().toLocaleTimeString() });
     io.to(sala).emit("actualizarEstado", data);
   });
@@ -149,33 +169,38 @@ io.on("connection", (socket) => {
   socket.on("toggleProduccion", (sala) => {
     const data = salas[sala];
     if (!data) return;
+
     if (!data.produccionAbierta) {
       data.produccionAbierta = true;
     } else {
       data.produccionAbierta = false;
+
       for (const n in data.jugadores) {
         const j = data.jugadores[n];
         const proceso = j.proceso || 3;
         let factor;
+
         if (proceso === 1) {
           factor = Math.min(j.trigoInsumo / 280, j.hierroInsumo / 12);
-          j.trigoProd = 575 * factor;
+          j.trigoProd = Math.round(575 * factor);
           j.hierroProd = 0;
         } else if (proceso === 2) {
           factor = Math.min(j.trigoInsumo / 120, j.hierroInsumo / 8);
           j.trigoProd = 0;
-          j.hierroProd = 20 * factor;
+          j.hierroProd = Math.round(20 * factor);
         } else {
-          j.trigoProd = j.trigoInsumo / 2;
-          j.hierroProd = j.hierroInsumo / 2;
+          j.trigoProd = Math.round(j.trigoInsumo / 2);
+          j.hierroProd = Math.round(j.hierroInsumo / 2);
         }
+
         j.trigo = j.trigoProd;
         j.hierro = j.hierroProd;
-        j.proceso = proceso;
         j.entregas = 0;
       }
+
       guardarHistorial(sala);
     }
+
     io.to(sala).emit("actualizarEstado", data);
   });
 
@@ -193,6 +218,7 @@ io.on("connection", (socket) => {
   socket.on("nuevaSesion", (sala) => {
     const data = salas[sala];
     if (!data) return;
+
     for (const n in data.jugadores) {
       const j = data.jugadores[n];
       j.trigoInsumo = j.trigo;
@@ -202,6 +228,7 @@ io.on("connection", (socket) => {
       j.proceso = null;
       j.entregas = 0;
     }
+
     data.entregasAbiertas = true;
     data.produccionAbierta = false;
     data.historial = [];
