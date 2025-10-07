@@ -1,1 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Histórico de Entregas</title>
+<style>
+body { font-family: Arial; margin: 20px; }
+h2 { margin-bottom: 10px; }
+table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+</style>
+</head>
+<body>
+
+<h2>Histórico de Entregas</h2>
+
+<nav>
+  <a href="/">Inicio</a> | 
+  <a href="/player.html">Jugador</a> | 
+  <a href="/estado_jugadores.html">Estado de jugadores</a> | 
+  <a href="/entregas_realizadas.html">Entregas realizadas</a>
+</nav>
+
+<div id="contenido"></div>
+
+<script>
+async function cargarHistorial() {
+  const sala = prompt("Ingrese el nombre de la sala:");
+  const resp = await fetch(`/api/sesiones_entregas?sala=${sala}`);
+  const data = await resp.json();
+
+  const cont = document.getElementById("contenido");
+  cont.innerHTML = "";
+
+  data.sesiones.forEach((sesion, idx) => {
+    cont.innerHTML += `<h3>Sesión ${idx+1} - ${sesion.fecha}</h3>`;
+    let tabla = "<table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>";
+    for (const h of sesion.historial) {
+      tabla += `<tr>
+        <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td>
+      </tr>`;
+    }
+    tabla += "</tbody></table>";
+    cont.innerHTML += tabla;
+  });
+}
+
+cargarHistorial();
+</script>
+</body>
+</html>
 
