@@ -41,18 +41,27 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
 <section id="panel" class="hidden">
   <h3>Sala activa: <span id="nombreSala"></span></h3>
 
-  <h4>Crear jugador</h4>
-  <label>Nombre: <input id="jugador" placeholder="Nombre jugador"></label>
-  <label>Contraseña: <input id="passJugador" placeholder="Contraseña jugador"></label>
-  <label>Trigo inicial: <input id="trigoIni" type="number" min="0" value="0"></label>
-  <label>Hierro inicial: <input id="hierroIni" type="number" min="0" value="0"></label>
-  <button id="btnCrearJugador" onclick="crearJugador()">Crear jugador</button>
+  <!-- Control del juego -->
+  <section id="controlJuego" style="background:#f0f0f0; padding:10px; border-radius:6px;">
+    <h4>Control del juego</h4>
+    <p>Entregas abiertas: <span id="estadoEntregas">Sí</span></p>
+    <p>Producción abierta: <span id="estadoProduccion">No</span></p>
+    <button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
+    <button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
+    <button onclick="nuevaSesion()">Nueva sesión</button>
+  </section>
 
-  <h4>Control de juego</h4>
-  <button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
-  <button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
-  <button onclick="nuevaSesion()">Nueva sesión</button>
+  <!-- Crear jugador -->
+  <section id="crearJugadorSec" style="background:#f9f9f9; padding:10px; border-radius:6px; margin-top:10px;">
+    <h4>Crear jugador</h4>
+    <label>Nombre: <input id="jugador" placeholder="Nombre jugador"></label>
+    <label>Contraseña: <input id="passJugador" placeholder="Contraseña jugador"></label>
+    <label>Trigo inicial: <input id="trigoIni" type="number" min="0" value="0"></label>
+    <label>Hierro inicial: <input id="hierroIni" type="number" min="0" value="0"></label>
+    <button id="btnCrearJugador" onclick="crearJugador()">Crear jugador</button>
+  </section>
 
+  <!-- Tabla de jugadores -->
   <h4>Jugadores</h4>
   <table>
     <thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead>
@@ -147,6 +156,11 @@ socket.on("adminEntrado", s => {
 });
 
 socket.on("actualizarEstado", (data) => {
+  // Estado de fases
+  document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "Sí" : "No";
+  document.getElementById("estadoProduccion").textContent = data.produccionAbierta ? "Sí" : "No";
+
+  // Tabla de jugadores
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
   for (const [nombre, j] of Object.entries(data.jugadores)) {
