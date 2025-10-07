@@ -8,10 +8,13 @@
 body { font-family: Arial, sans-serif; margin: 20px; }
 h2 { margin-top: 10px; }
 nav a { margin: 0 10px; text-decoration: none; color: #006; }
+nav a:hover { text-decoration: underline; }
 table { border-collapse: collapse; width: 100%; margin-top: 15px; }
 th, td { border: 1px solid #999; padding: 6px; text-align: center; }
-button { margin: 5px; padding: 6px 12px; cursor: pointer; }
+button { margin: 5px; padding: 6px 12px; cursor: pointer; border-radius: 6px; }
+input { margin: 4px; padding: 6px; }
 .status { margin-top: 10px; padding: 10px; background: #eef; border-radius: 6px; }
+#panel { margin-top: 20px; }
 </style>
 </head>
 <body>
@@ -26,9 +29,12 @@ button { margin: 5px; padding: 6px 12px; cursor: pointer; }
 <h2>Consola del Administrador</h2>
 
 <div id="login">
-  <input id="sala" placeholder="Sala">
-  <input id="password" type="password" placeholder="Contraseña">
-  <button onclick="entrar()">Entrar</button>
+  <h3>Crear o entrar a una sala</h3>
+  <input id="sala" placeholder="Nombre de la sala">
+  <input id="password" type="password" placeholder="Contraseña de administrador">
+  <br>
+  <button onclick="crearSala()">Crear sala nueva</button>
+  <button onclick="entrar()">Entrar a sala existente</button>
 </div>
 
 <div id="panel" style="display:none;">
@@ -64,28 +70,46 @@ button { margin: 5px; padding: 6px 12px; cursor: pointer; }
 const socket = io();
 let sala = localStorage.getItem("salaAdmin");
 
-function entrar() {
-  sala = document.getElementById("sala").value;
+function crearSala() {
+  const nombreSala = document.getElementById("sala").value.trim();
   const password = document.getElementById("password").value;
-  socket.emit("entrarAdmin", { sala, password });
+  if (!nombreSala || !password) return alert("Introduce nombre y contraseña para crear la sala.");
+  socket.emit("crearSala", { sala: nombreSala, password });
 }
+
+function entrar() {
+  const nombreSala = document.getElementById("sala").value.trim();
+  const password = document.getElementById("password").value;
+  if (!nombreSala || !password) return alert("Introduce nombre y contraseña para entrar.");
+  socket.emit("entrarAdmin", { sala: nombreSala, password });
+}
+
+socket.on("salaCreada", ({ sala: s }) => {
+  localStorage.setItem("salaAdmin", s);
+  iniciarPanel(s);
+});
 
 socket.on("adminEntrado", ({ sala: s }) => {
   localStorage.setItem("salaAdmin", s);
+  iniciarPanel(s);
+});
+
+function iniciarPanel(s) {
   document.getElementById("login").style.display = "none";
   document.getElementById("panel").style.display = "block";
   document.getElementById("salaNombre").textContent = s;
   socket.emit("solicitarEstado", s);
-});
+}
 
 socket.on("actualizarEstado", (data) => {
   document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "ABIERTAS" : "CERRADAS";
   document.getElementById("estadoProduccion").textContent = data.produccionAbierta ? "ABIERTA" : "CERRADA";
+
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
-  for (const [n, j] of Object.entries(data.jugadores)) {
+  for (const [nombre, j] of Object.entries(data.jugadores)) {
     tbody.innerHTML += `<tr>
-      <td>${n}</td>
+      <td>${nombre}</td>
       <td>${j.trigo.toFixed(2)}</td>
       <td>${j.hierro.toFixed(2)}</td>
       <td>${j.entregas}</td>
