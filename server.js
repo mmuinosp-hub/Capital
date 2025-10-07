@@ -10,6 +10,59 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
+
+
+
+
+
+
+
+
+
+
+// === NUEVOS ENDPOINTS PARA HISTORIAL ===
+const cors = require("cors");
+app.use(cors());
+app.use(express.json());
+
+// Listar archivos de producción
+app.get("/listarProduccion", (req, res) => {
+  const sala = req.query.sala;
+  const dir = path.join(__dirname, "historiales");
+  if (!fs.existsSync(dir)) return res.json([]);
+  const archivos = fs.readdirSync(dir).filter(f => f.startsWith(`produccion_${sala}_`));
+  res.json(archivos);
+});
+
+// Listar archivos de entregas
+app.get("/listarEntregas", (req, res) => {
+  const sala = req.query.sala;
+  const dir = path.join(__dirname, "historiales");
+  if (!fs.existsSync(dir)) return res.json([]);
+  const archivos = fs.readdirSync(dir).filter(f => f.startsWith(`entregas_${sala}_`));
+  res.json(archivos);
+});
+
+// Leer archivo JSON
+app.get("/historialArchivo", (req, res) => {
+  const archivo = req.query.archivo;
+  const ruta = path.join(__dirname, "historiales", archivo);
+  if (!fs.existsSync(ruta)) return res.json([]);
+  const data = JSON.parse(fs.readFileSync(ruta));
+  res.json(data);
+});
+// === FIN NUEVOS ENDPOINTS ===
+
+// Socket.IO
+io.on("connection", (socket) => {
+  ...
+});
+
+
+
+
+
+
 // Generar IDs únicos
 function generarId() {
   return Math.random().toString(36).substring(2, 10);
@@ -253,4 +306,5 @@ io.on("connection", (socket) => {
 // Puerto dinámico para Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Servidor iniciado en http://localhost:${PORT}`));
+
 
