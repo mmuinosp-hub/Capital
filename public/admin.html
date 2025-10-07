@@ -5,119 +5,82 @@
 <title>Administrador - Capitalismo Simulado</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-th, td { border: 1px solid #999; padding: 5px; text-align: center; }
-h2, h3 { margin-top: 20px; }
-input, button, select { margin: 3px; padding: 4px; }
-.notice { color: gray; font-style: italic; }
+body { font-family: Arial, sans-serif; margin: 20px; }
+h2 { margin-top: 10px; }
+nav a { margin: 0 10px; text-decoration: none; color: #006; }
+table { border-collapse: collapse; width: 100%; margin-top: 15px; }
+th, td { border: 1px solid #999; padding: 6px; text-align: center; }
+button { margin: 5px; padding: 6px 12px; cursor: pointer; }
+.status { margin-top: 10px; padding: 10px; background: #eef; border-radius: 6px; }
 </style>
 </head>
 <body>
-<h2>Administrador</h2>
 
 <nav>
   <a href="/">Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
-  <a href="/estado_jugadores.html">Estado de jugadores</b> | 
-  <a href="/entregas_realizadas.html">Entregas realizadas</a> | 
-  <a href="/historial_entregas.html">Historial de Entregas</a> | 
-  <a href="/historial_produccion.html">Historial de Producción</a>
+  <a href="/estado_jugadores.html">Estado de jugadores</a> | 
+  <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
-<hr>
 
+<h2>Consola del Administrador</h2>
 
-  
-<h3>Crear sala</h3>
-<input id="salaCrear" placeholder="Nombre de sala">
-<input id="passwordCrear" type="password" placeholder="Contraseña admin">
-<button onclick="crearSala()">Crear Sala</button>
+<div id="login">
+  <input id="sala" placeholder="Sala">
+  <input id="password" type="password" placeholder="Contraseña">
+  <button onclick="entrar()">Entrar</button>
+</div>
 
-<h3>Entrar en sala</h3>
-<input id="sala" placeholder="Sala">
-<input id="password" type="password" placeholder="Contraseña">
-<button onclick="entrar()">Entrar</button>
+<div id="panel" style="display:none;">
+  <p>Administrador conectado a la sala <b id="salaNombre"></b></p>
 
-<h3>Crear jugador</h3>
-<input id="jugador" placeholder="Nombre jugador">
-<input id="passJugador" placeholder="Contraseña jugador">
-<input id="trigoIni" type="number" placeholder="Trigo inicial">
-<input id="hierroIni" type="number" placeholder="Hierro inicial">
-<button onclick="crearJugador()">Crear</button>
+  <div class="status">
+    <p>Entregas: <span id="estadoEntregas">?</span> |
+       Producción: <span id="estadoProduccion">?</span></p>
+  </div>
 
-<h3>Control del juego</h3>
-<button onclick="toggleEntregas()">Abrir/Cerrar entregas</button>
-<button onclick="toggleProduccion()">Abrir/Cerrar producción</button>
-<button onclick="reiniciarSesion()">Nueva sesión</button>
-<button onclick="descargarHistorialEntregas()">Descargar historial entregas</button>
-<button onclick="descargarHistorialProduccion()">Descargar historial producción</button>
+  <div>
+    <button onclick="abrirEntregas(true)">Abrir entregas</button>
+    <button onclick="abrirEntregas(false)">Cerrar entregas</button>
+    <button onclick="abrirProduccion(true)">Abrir producción</button>
+    <button onclick="abrirProduccion(false)">Cerrar producción</button>
+    <button onclick="nuevaSesion()">Nueva sesión</button>
+  </div>
 
-<h3>Estado del juego</h3>
-<p>Entregas: <span id="estadoEntregas">?</span></p>
-<p>Producción: <span id="estadoProduccion">?</span></p>
-
-<h3>Jugadores</h3>
-<table>
-<thead>
-<tr>
-  <th>Jugador</th>
-  <th>Trigo disponible</th>
-  <th>Hierro disponible</th>
-  <th>Entregas</th>
-  <th>Proceso</th>
-</tr>
-</thead>
-<tbody id="jugadores"></tbody>
-</table>
-
-<h3>Historial de entregas (sesión actual)</h3>
-<table>
-<thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Fecha</th></tr></thead>
-<tbody id="historial"></tbody>
-</table>
+  <table>
+    <thead>
+      <tr>
+        <th>Jugador</th>
+        <th>Trigo</th>
+        <th>Hierro</th>
+        <th>Entregas restantes</th>
+      </tr>
+    </thead>
+    <tbody id="jugadores"></tbody>
+  </table>
+</div>
 
 <script>
 const socket = io();
-let sala = "";
-
-function crearSala() {
-  const s = document.getElementById("salaCrear").value;
-  const pass = document.getElementById("passwordCrear").value;
-  if (!s || !pass) return alert("Ingresa sala y contraseña");
-  sala = s;
-  socket.emit("crearSala", { sala: s, password: pass });
-}
+let sala = localStorage.getItem("salaAdmin");
 
 function entrar() {
-  const s = document.getElementById("sala").value;
-  const pass = document.getElementById("password").value;
-  sala = s;
-  socket.emit("entrarAdmin", { sala, password: pass });
+  sala = document.getElementById("sala").value;
+  const password = document.getElementById("password").value;
+  socket.emit("entrarAdmin", { sala, password });
 }
 
-function crearJugador() {
-  const nombre = document.getElementById("jugador").value;
-  const password = document.getElementById("passJugador").value;
-  const trigo = document.getElementById("trigoIni").value;
-  const hierro = document.getElementById("hierroIni").value;
-  socket.emit("crearJugador", { sala, nombre, password, trigo, hierro });
-}
-
-function toggleEntregas() { socket.emit("toggleEntregas", sala); }
-function toggleProduccion() { socket.emit("toggleProduccion", sala); }
-function reiniciarSesion() { socket.emit("reiniciarSesion", sala); }
-function descargarHistorialEntregas() { if (!sala) return alert("Ingresa una sala"); window.open(`/historialEntregas/${sala}`, "_blank"); }
-function descargarHistorialProduccion() { if (!sala) return alert("Ingresa una sala"); window.open(`/historialProduccion/${sala}`, "_blank"); }
-
-socket.on("salaCreada", s => alert("Sala creada: " + s));
-socket.on("salaExiste", () => alert("La sala ya existe"));
-socket.on("adminEntrado", s => alert("Entraste como admin en: " + s));
-socket.on("error", msg => alert(msg));
+socket.on("adminEntrado", ({ sala: s }) => {
+  localStorage.setItem("salaAdmin", s);
+  document.getElementById("login").style.display = "none";
+  document.getElementById("panel").style.display = "block";
+  document.getElementById("salaNombre").textContent = s;
+  socket.emit("solicitarEstado", s);
+});
 
 socket.on("actualizarEstado", (data) => {
   document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "ABIERTAS" : "CERRADAS";
   document.getElementById("estadoProduccion").textContent = data.produccionAbierta ? "ABIERTA" : "CERRADA";
-
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
   for (const [n, j] of Object.entries(data.jugadores)) {
@@ -125,26 +88,24 @@ socket.on("actualizarEstado", (data) => {
       <td>${n}</td>
       <td>${j.trigo.toFixed(2)}</td>
       <td>${j.hierro.toFixed(2)}</td>
-      <td>${j.entregasDisponibles}</td>
-      <td>${j.proceso ?? "-"}</td>
-    </tr>`;
-  }
-
-  const hist = document.getElementById("historial");
-  hist.innerHTML = "";
-  for (const h of data.historial) {
-    hist.innerHTML += `<tr>
-      <td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.fecha}</td>
+      <td>${j.entregas}</td>
     </tr>`;
   }
 });
+
+function abrirEntregas(abrir) {
+  socket.emit("abrirEntregas", { sala, abrir });
+}
+function abrirProduccion(abrir) {
+  socket.emit("abrirProduccion", { sala, abrir });
+}
+function nuevaSesion() {
+  if (confirm("¿Iniciar nueva sesión con las producciones alcanzadas?")) {
+    socket.emit("nuevaSesion", sala);
+  }
+}
+
+socket.on("error", msg => alert(msg));
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
