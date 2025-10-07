@@ -2,17 +2,16 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Histórico de Estado de Jugadores</title>
+<title>Historial Completo de Producción</title>
+<script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; }
-h2 { margin-bottom: 10px; }
-table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
-
-<h2>Histórico de Estado de Jugadores</h2>
+<h2>Historial Completo de Producción</h2>
 
 <nav>
   <a href="/">Inicio</a> | 
@@ -21,33 +20,31 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<div id="contenido"></div>
+<table>
+<thead><tr><th>Sala</th><th>Jugador</th><th>Trigo Insumo</th><th>Hierro Insumo</th><th>Proceso</th><th>Trigo Producido</th><th>Hierro Producido</th></tr></thead>
+<tbody id="tablaHistorialProd"></tbody>
+</table>
 
 <script>
-async function cargarHistorial() {
-  // Se asume que el servidor ofrece un endpoint JSON para sesiones históricas
-  const sala = prompt("Ingrese el nombre de la sala:");
-  const resp = await fetch(`/api/sesiones_estado?sala=${sala}`);
-  const data = await resp.json();
-  
-  const cont = document.getElementById("contenido");
-  cont.innerHTML = "";
+const socket = io();
 
-  data.sesiones.forEach((sesion, idx) => {
-    cont.innerHTML += `<h3>Sesión ${idx+1} - ${sesion.fecha}</h3>`;
-    let tabla = "<table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead><tbody>";
-    for (const [nombre, j] of Object.entries(sesion.jugadores)) {
-      tabla += `<tr>
-        <td>${nombre}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td>
-      </tr>`;
-    }
-    tabla += "</tbody></table>";
-    cont.innerHTML += tabla;
-  });
-}
+socket.emit("pedirHistorialProduccion");
 
-cargarHistorial();
+socket.on("historialCompletoProduccion", (historial) => {
+  const tbody = document.getElementById("tablaHistorialProd");
+  tbody.innerHTML = "";
+  for (const h of historial) {
+    tbody.innerHTML += `<tr>
+      <td>${h.sala}</td>
+      <td>${h.nombre}</td>
+      <td>${h.trigoInsumo.toFixed(2)}</td>
+      <td>${h.hierroInsumo.toFixed(2)}</td>
+      <td>${h.proceso}</td>
+      <td>${h.trigoProd.toFixed(2)}</td>
+      <td>${h.hierroProd.toFixed(2)}</td>
+    </tr>`;
+  }
+});
 </script>
 </body>
 </html>
-
