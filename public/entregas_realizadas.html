@@ -8,36 +8,46 @@
 body { font-family: Arial, sans-serif; margin: 20px; }
 nav a { margin: 0 10px; text-decoration: none; color: #006; }
 table { border-collapse: collapse; width: 100%; margin-top: 15px; }
-th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+th, td { border: 1px solid #999; padding: 6px; text-align: center; }
 </style>
 </head>
 <body>
+
 <nav>
   <a href="/">Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
   <a href="/estado_jugadores.html">Estado de jugadores</a> | 
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
-  <a href="/historial_entregas.html">Historial de Entregas</a> | 
-  <a href="/historial_produccion.html">Historial de Producción</a>
 </nav>
 
-<h2>Historial de entregas</h2>
+<h2>Entregas realizadas</h2>
 
 <table>
-<thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-<tbody id="historial"></tbody>
+  <thead>
+    <tr>
+      <th>Origen</th>
+      <th>Destino</th>
+      <th>Producto</th>
+      <th>Cantidad</th>
+    </tr>
+  </thead>
+  <tbody id="entregas"></tbody>
 </table>
 
 <script>
 const socket = io();
-const sala = localStorage.getItem("sala");
-if (sala) socket.emit("solicitarEstado", sala);
-
-socket.on("actualizarEstado", (data) => {
-  const tbody = document.getElementById("historial");
+const sala = localStorage.getItem("salaJugador") || localStorage.getItem("salaAdmin");
+if (sala) socket.emit("solicitarEntregas", sala);
+socket.on("actualizarEntregas", (entregas) => {
+  const tbody = document.getElementById("entregas");
   tbody.innerHTML = "";
-  for (const h of data.historial) {
-    tbody.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
+  for (const e of entregas) {
+    tbody.innerHTML += `<tr>
+      <td>${e.origen}</td>
+      <td>${e.destino}</td>
+      <td>${e.producto}</td>
+      <td>${e.cantidad.toFixed(2)}</td>
+    </tr>`;
   }
 });
 </script>
