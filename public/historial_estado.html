@@ -5,61 +5,62 @@
 <title>Historial de Estados</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-th, td { border: 1px solid #999; padding: 5px; text-align: center; }
-h2, h3 { margin-top: 30px; }
+body { font-family: Arial, sans-serif; margin: 20px; }
+fieldset { margin-bottom: 15px; }
 </style>
 </head>
 <body>
-<h1>Historial de Estados</h1>
-<label>Sala: <input id="sala" placeholder="Nombre de la sala"></label>
-<button onclick="cargarHistorial()">Cargar historial</button>
 
-<div id="contenedorHistorial"></div>
+<h1>Historial de Estados</h1>
+
+<p>
+  Sala: <input type="text" id="sala" placeholder="Nombre de la sala">
+  <button id="btnCargar">Cargar historial</button>
+  <button id="btnCargarTodas">Cargar historial de todas las sesiones</button>
+</p>
+
+<div id="historial"></div>
 
 <script>
-async function cargarHistorial() {
-  const sala = document.getElementById("sala").value.trim();
-  if (!sala) return alert("Introduce el nombre de la sala");
+const historialDiv = document.getElementById("historial");
 
-  // Obtener lista de archivos de producción
-  const response = await fetch(`/listarProduccion?sala=${sala}`);
-  const archivos = await response.json();
+function mostrarEstado(data, fecha) {
+  const div = document.createElement("div");
+  div.style.border = "1px solid #ccc";
+  div.style.marginBottom = "10px";
+  div.style.padding = "10px";
 
-  const contenedor = document.getElementById("contenedorHistorial");
-  contenedor.innerHTML = "";
+  const h3 = document.createElement("h3");
+  h3.innerText = `Sesión: ${fecha}`;
+  div.appendChild(h3);
 
-  if (archivos.length === 0) {
-    contenedor.innerHTML = "<p>No hay sesiones registradas para esta sala.</p>";
-    return;
+  for (const j in data) {
+    const p = document.createElement("p");
+    p.innerText = `${j}: Trigo=${data[j].trigo}, Hierro=${data[j].hierro}, Proceso=${data[j].proceso}`;
+    div.appendChild(p);
   }
 
-  for (const archivo of archivos) {
-    const dataResp = await fetch(`/historialArchivo?archivo=${archivo}`);
-    const data = await dataResp.json();
-
-    const fecha = archivo.split("_").pop().replace(".json", "");
-
-    const h3 = document.createElement("h3");
-    h3.textContent = `Sesión: ${fecha}`;
-    contenedor.appendChild(h3);
-
-    const tabla = document.createElement("table");
-    const thead = document.createElement("thead");
-    thead.innerHTML = "<tr><th>Jugador</th><th>Trigo inicial</th><th>Hierro inicial</th><th>Trigo final</th><th>Hierro final</th><th>Proceso</th></tr>";
-    tabla.appendChild(thead);
-
-    const tbody = document.createElement("tbody");
-    for (const [jugador, info] of Object.entries(data)) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${jugador}</td><td>${info.trigoInsumo ?? info.trigo}</td><td>${info.hierroInsumo ?? info.hierro}</td><td>${info.trigo}</td><td>${info.hierro}</td><td>${info.proceso}</td>`;
-      tbody.appendChild(tr);
-    }
-    tabla.appendChild(tbody);
-    contenedor.appendChild(tabla);
-  }
+  historialDiv.appendChild(div);
 }
+
+function cargarHistorial(todas=false) {
+  historialDiv.innerHTML = "";
+  const sala = document.getElementById("sala").value;
+  fetch(`/listarProduccion?sala=${sala}`)
+    .then(r => r.json())
+    .then(archivos => {
+      if (!todas) archivos = [archivos[archivos.length-1]]; // solo última sesión
+      archivos.forEach(a => {
+        fetch(`/historialArchivo?archivo=${a}`)
+          .then(r => r.json())
+          .then(data => mostrarEstado(data, a));
+      });
+    });
+}
+
+document.getElementById("btnCargar").onclick = () => cargarHistorial(false);
+document.getElementById("btnCargarTodas").onclick = () => cargarHistorial(true);
 </script>
+
 </body>
 </html>
