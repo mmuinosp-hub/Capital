@@ -50,7 +50,9 @@ input, button { margin: 3px; }
 
   <h3>Jugadores</h3>
   <table>
-    <thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th><th>Prod Trigo</th><th>Prod Hierro</th></tr></thead>
+    <thead>
+      <tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th><th>Prod Trigo</th><th>Prod Hierro</th></tr>
+    </thead>
     <tbody id="jugadores"></tbody>
   </table>
 
@@ -102,7 +104,7 @@ socket.on("adminEntrado", s => {
 socket.on("actualizarEstado", (data) => {
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
-  for (const [nombre,j] of Object.entries(data.jugadores)) {
+  for (const [nombre, j] of Object.entries(data.jugadores)) {
     tbody.innerHTML += `<tr>
       <td>${nombre}</td>
       <td>${j.trigo.toFixed(2)}</td>
