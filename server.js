@@ -10,39 +10,6 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
-// === NUEVOS ENDPOINTS PARA HISTORIAL ===
-
-// Listar archivos de producción
-app.get("/listarProduccion", function(req, res) {
-  const sala = req.query.sala;
-  const dir = path.join(__dirname, "historiales");
-  if (!fs.existsSync(dir)) return res.json([]);
-  const archivos = fs.readdirSync(dir).filter(function(f) {
-    return f.indexOf("produccion_" + sala + "_") === 0;
-  });
-  res.json(archivos);
-});
-
-// Listar archivos de entregas
-app.get("/listarEntregas", function(req, res) {
-  const sala = req.query.sala;
-  const dir = path.join(__dirname, "historiales");
-  if (!fs.existsSync(dir)) return res.json([]);
-  const archivos = fs.readdirSync(dir).filter(function(f) {
-    return f.indexOf("entregas_" + sala + "_") === 0;
-  });
-  res.json(archivos);
-});
-
-// Leer archivo JSON
-app.get("/historialArchivo", function(req, res) {
-  const archivo = req.query.archivo;
-  const ruta = path.join(__dirname, "historiales", archivo);
-  if (!fs.existsSync(ruta)) return res.json([]);
-  const data = JSON.parse(fs.readFileSync(ruta));
-  res.json(data);
-});
-
 // Generar IDs únicos
 function generarId() {
   return Math.random().toString(36).substring(2, 10);
@@ -225,7 +192,6 @@ io.on("connection", (socket) => {
           j.hierroProd = Math.round(j.hierroInsumo / 2);
         }
 
-        // Actualizar recursos
         j.trigo = j.trigoProd;
         j.hierro = j.hierroProd;
         j.entregas = 0;
@@ -255,23 +221,22 @@ io.on("connection", (socket) => {
     for (const n in data.jugadores) {
       const j = data.jugadores[n];
 
-      // Usar producción anterior como insumos de nueva sesión
-      j.trigoInsumo = j.trigoProd;
-      j.hierroInsumo = j.hierroProd;
+      // Conservar insumos sumando producción anterior
+      j.trigoInsumo = j.trigo + j.trigoProd;
+      j.hierroInsumo = j.hierro + j.hierroProd;
 
-      // Reiniciar producción y proceso
+      // Resetear producción actual
       j.trigoProd = 0;
       j.hierroProd = 0;
-      j.proceso = null;
 
-      // Actualizar recursos para fase de entregas
-      j.trigo = j.trigoInsumo;
-      j.hierro = j.hierroInsumo;
+      // Si no eligió proceso, asignar 3 por defecto
+      if (j.proceso === null) j.proceso = 3;
 
-      // Reiniciar entregas
+      // Resetear entregas
       j.entregas = 0;
     }
 
+    // Abrir entregas y cerrar producción
     data.entregasAbiertas = true;
     data.produccionAbierta = false;
     data.historial = [];
