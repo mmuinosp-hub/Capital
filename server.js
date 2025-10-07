@@ -10,13 +10,6 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
-
-
-
-
-
-
-
 // === NUEVOS ENDPOINTS PARA HISTORIAL ===
 
 // Listar archivos de producción
@@ -49,16 +42,6 @@ app.get("/historialArchivo", function(req, res) {
   const data = JSON.parse(fs.readFileSync(ruta));
   res.json(data);
 });
-
-
-
-
-
-
-
-
-
-
 
 // Generar IDs únicos
 function generarId() {
@@ -163,7 +146,6 @@ io.on("connection", (socket) => {
     if (!data) return;
 
     if (nombre === "__viewer__") {
-      // Espectador
       socket.join(sala);
       socket.emit("jugadorEntrado", { sala, nombre });
       io.to(sala).emit("actualizarEstado", data);
@@ -243,6 +225,7 @@ io.on("connection", (socket) => {
           j.hierroProd = Math.round(j.hierroInsumo / 2);
         }
 
+        // Actualizar recursos
         j.trigo = j.trigoProd;
         j.hierro = j.hierroProd;
         j.entregas = 0;
@@ -266,34 +249,35 @@ io.on("connection", (socket) => {
 
   // Nueva sesión
   socket.on("nuevaSesion", (sala) => {
-  const data = salas[sala];
-  if (!data) return;
+    const data = salas[sala];
+    if (!data) return;
 
-  for (const n in data.jugadores) {
-    const j = data.jugadores[n];
+    for (const n in data.jugadores) {
+      const j = data.jugadores[n];
 
-    // Conservar insumos sumando producción anterior
-    j.trigoInsumo = j.trigo + j.trigoProd;
-    j.hierroInsumo = j.hierro + j.hierroProd;
+      // Usar producción anterior como insumos de nueva sesión
+      j.trigoInsumo = j.trigoProd;
+      j.hierroInsumo = j.hierroProd;
 
-    // Resetear producción actual
-    j.trigoProd = 0;
-    j.hierroProd = 0;
+      // Reiniciar producción y proceso
+      j.trigoProd = 0;
+      j.hierroProd = 0;
+      j.proceso = null;
 
-    // Si no eligió proceso, asignar 3 por defecto
-    if (j.proceso === null) j.proceso = 3;
+      // Actualizar recursos para fase de entregas
+      j.trigo = j.trigoInsumo;
+      j.hierro = j.hierroInsumo;
 
-    // Resetear entregas
-    j.entregas = 0;
-  }
+      // Reiniciar entregas
+      j.entregas = 0;
+    }
 
-  // Abrir entregas y cerrar producción
-  data.entregasAbiertas = true;
-  data.produccionAbierta = false;
-  data.historial = [];
+    data.entregasAbiertas = true;
+    data.produccionAbierta = false;
+    data.historial = [];
 
-  io.to(sala).emit("actualizarEstado", data);
-});
+    io.to(sala).emit("actualizarEstado", data);
+  });
 
   socket.on("disconnect", () => {
     console.log("Usuario desconectado:", socket.id);
@@ -303,9 +287,3 @@ io.on("connection", (socket) => {
 // Puerto dinámico para Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Servidor iniciado en http://localhost:${PORT}`));
-
-
-
-
-
-
