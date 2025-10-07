@@ -21,6 +21,7 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 
 <h2>Entregas Realizadas</h2>
 <h3>Sala: <span id="nombreSala"></span></h3>
+<p>Entregas abiertas: <span id="entregasAbiertas"></span></p>
 
 <table>
   <thead>
@@ -34,11 +35,11 @@ const socket = io();
 const sala = sessionStorage.getItem("sala");
 document.getElementById("nombreSala").textContent = sala || "-";
 
-if (sala) {
-  socket.emit("entrarObservador", { sala });
-}
+if (sala) socket.emit("entrarObservador", { sala });
 
 socket.on("actualizarEstado", (data) => {
+  document.getElementById("entregasAbiertas").textContent = data.entregasAbiertas ? "Sí" : "No";
+
   const hist = document.getElementById("historial");
   hist.innerHTML = "";
   for (const h of data.historial) {
