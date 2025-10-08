@@ -57,22 +57,21 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
     <label>Destinatario:
       <select id="destinatario"></select>
     </label>
-    <label>Trigo a entregar: 
-      <input id="trigoEnt" type="number" min="0" value="0">
-    </label>
-    <label>Hierro a entregar:
-      <input id="hierroEnt" type="number" min="0" value="0">
-    </label>
-    <button onclick="entregar()">📦 Enviar entrega</button>
+    <label>Trigo: <input id="cantidadTrigo" type="number" min="0" value="0"></label>
+    <label>Hierro: <input id="cantidadHierro" type="number" min="0" value="0"></label>
+    <button onclick="entregar()">Enviar entrega</button>
   </div>
 
   <h4>Tus entregas</h4>
   <table>
     <thead>
-      <tr><th>Tipo</th><th>Jugador</th><th>Detalle</th><th>Hora</th></tr>
+      <tr><th>Tipo</th><th>Jugador</th><th>Recurso</th><th>Cantidad</th></tr>
     </thead>
     <tbody id="misEntregas"></tbody>
   </table>
+
+  <!-- Cuadro neto de entregas -->
+  <p id="netoEntregas"></p>
 </section>
 
 <!-- PRODUCCIÓN -->
@@ -82,15 +81,15 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 
   <div id="formProduccion">
     <div>
-      <button onclick="producir(1)">🌾 Proceso 1: Trigo</button>
+      <button onclick="producir('proceso1')">🌾 Proceso 1: Trigo</button>
       <div id="infoTrigo" class="proceso-info"></div>
     </div>
     <div>
-      <button onclick="producir(2)">⛏️ Proceso 2: Hierro</button>
+      <button onclick="producir('proceso2')">⛏️ Proceso 2: Hierro</button>
       <div id="infoHierro" class="proceso-info"></div>
     </div>
     <div>
-      <button onclick="producir(3)">♻️ Proceso 3: Simplificar</button>
+      <button onclick="producir('proceso3')">♻️ Proceso 3: Simplificar</button>
       <div id="infoSimplificar" class="proceso-info"></div>
     </div>
   </div>
@@ -109,49 +108,57 @@ function entrar(){
   socket.emit("entrarJugador", { sala:salaActual, nombre:jugadorActual, password });
 }
 
-function entregar() {
-  const para = document.getElementById("destinatario").value;
-  const trigo = parseFloat(document.getElementById("trigoEnt").value) || 0;
-  const hierro = parseFloat(document.getElementById("hierroEnt").value) || 0;
-
-  if (!para) return alert("Selecciona un destinatario.");
-  if (trigo <= 0 && hierro <= 0) return alert("Debes entregar algo (trigo o hierro).");
-  if (trigo > recursos.trigo || hierro > recursos.hierro)
-    return alert("No tienes suficientes recursos para entregar esa cantidad.");
-
-  socket.emit("enviarEntrega", {
-    sala: salaActual,
-    de: jugadorActual,
-    para,
-    trigo,
-    hierro
-  });
-
-  // Reiniciar los campos de cantidad
-  document.getElementById("trigoEnt").value = 0;
-  document.getElementById("hierroEnt").value = 0;
+function entregar(){
+  const dest = document.getElementById("destinatario").value;
+  const trigo = parseFloat(document.getElementById("cantidadTrigo").value) || 0;
+  const hierro = parseFloat(document.getElementById("cantidadHierro").value) || 0;
+  if(!dest || (trigo<=0 && hierro<=0)) return alert("Datos inválidos");
+  socket.emit("enviarEntrega",{ sala:salaActual, de:jugadorActual, para:dest, trigo, hierro });
 }
 
-function producir(proceso){
+function producir(tipo){
+  let proceso;
+  if(tipo==='proceso1') proceso=1;
+  else if(tipo==='proceso2') proceso=2;
+  else proceso=3;
   socket.emit("elegirProceso",{ sala:salaActual, nombre:jugadorActual, proceso });
 }
 
-socket.on("jugadorEntrado", ({ sala, nombre })=>{
+// Actualiza destinatarios
+function actualizarDestinatarios(jugadores){
+  const sel = document.getElementById("destinatario");
+  sel.innerHTML = '<option value="">--Selecciona--</option>';
+  for(const j of jugadores){
+    if(j!==jugadorActual) sel.innerHTML += `<option value="${j}">${j}</option>`;
+  }
+}
+
+// Actualiza recursos
+function actualizarRecursos(j){
+  recursos.trigo = j.trigo;
+  recursos.hierro = j.hierro;
+  document.getElementById("trigo").textContent = j.trigo.toFixed(2);
+  document.getElementById("hierro").textContent = j.hierro.toFixed(2);
+}
+
+// SOCKET EVENTS
+socket.on("jugadorEntrado", ({ sala, nombre, datos, jugadores })=>{
   document.getElementById("acceso").classList.add("hidden");
   document.getElementById("panel").classList.remove("hidden");
   document.getElementById("entregasPanel").classList.remove("hidden");
   document.getElementById("produccionPanel").classList.remove("hidden");
   document.getElementById("nombreSala").textContent = sala;
   document.getElementById("nombreJugador").textContent = nombre;
+  actualizarRecursos(datos);
+  actualizarDestinatarios(jugadores);
 });
 
 socket.on("actualizarEstado", data=>{
   const j = data.jugadores[jugadorActual];
   if(!j) return;
-  actualizarRecursos(j);
 
-  const nombres = Object.keys(data.jugadores);
-  actualizarDestinatarios(nombres);
+  actualizarRecursos(j);
+  actualizarDestinatarios(Object.keys(data.jugadores));
 
   const eAb = data.entregasAbiertas;
   const pAb = data.produccionAbierta;
@@ -163,64 +170,43 @@ socket.on("actualizarEstado", data=>{
   document.getElementById("formProduccion").style.display = pAb ? "block" : "none";
   document.getElementById("avisoProduccion").textContent = pAb ? "" : "⚙️ Producción cerrada";
 
-  // Mostrar entregas propias (de data.historial)
+  // Mostrar entregas propias
   const tbody = document.getElementById("misEntregas");
   tbody.innerHTML = "";
-  for (const ent of data.historial) {
-    if (ent.de === jugadorActual) {
-      tbody.innerHTML += `<tr class="enviada">
-        <td>📤 Enviada</td>
-        <td>${ent.para}</td>
-        <td>Trigo: ${ent.trigo.toFixed(2)}, Hierro: ${ent.hierro.toFixed(2)}</td>
-        <td>${ent.hora}</td>
-      </tr>`;
-    } else if (ent.para === jugadorActual) {
-      tbody.innerHTML += `<tr class="recibida">
-        <td>📥 Recibida</td>
-        <td>${ent.de}</td>
-        <td>Trigo: ${ent.trigo.toFixed(2)}, Hierro: ${ent.hierro.toFixed(2)}</td>
-        <td>${ent.hora}</td>
-      </tr>`;
+  for(const ent of data.historial){
+    if(ent.de===jugadorActual){
+      tbody.innerHTML += `<tr class="enviada"><td>📤 Enviada</td><td>${ent.para}</td><td>Trigo:${ent.trigo}</td><td>Hierro:${ent.hierro}</td></tr>`;
+    }else if(ent.para===jugadorActual){
+      tbody.innerHTML += `<tr class="recibida"><td>📥 Recibida</td><td>${ent.de}</td><td>Trigo:${ent.trigo}</td><td>Hierro:${ent.hierro}</td></tr>`;
     }
   }
 
-  actualizarInfoProcesos();
+  // --- NETO DE ENTREGAS ---
+  const totalTrigo = data.historial.reduce((sum, ent)=>{
+    if(ent.de===jugadorActual) sum-=ent.trigo;
+    if(ent.para===jugadorActual) sum+=ent.trigo;
+    return sum;
+  },0);
+  const totalHierro = data.historial.reduce((sum, ent)=>{
+    if(ent.de===jugadorActual) sum-=ent.hierro;
+    if(ent.para===jugadorActual) sum+=ent.hierro;
+    return sum;
+  },0);
+  document.getElementById("netoEntregas").textContent =
+    `📊 Neto de entregas: Trigo ${totalTrigo.toFixed(2)}, Hierro ${totalHierro.toFixed(2)}`;
+
+  // --- PRODUCCIÓN POTENCIAL SEGÚN RECURSOS NETOS ---
+  const t = j.trigo;
+  const h = j.hierro;
+  const prod1 = 575*Math.min(t/280, h/12);
+  const prod2 = 20*Math.min(t/120, h/8);
+  const prod3t = t/2;
+  const prod3h = h/2;
+
+  document.getElementById("infoTrigo").textContent = `🌾 Proceso 1: +${prod1.toFixed(2)} trigo posible`;
+  document.getElementById("infoHierro").textContent = `⛏️ Proceso 2: +${prod2.toFixed(2)} hierro posible`;
+  document.getElementById("infoSimplificar").textContent = `♻️ Proceso 3: +${prod3t.toFixed(2)} trigo, +${prod3h.toFixed(2)} hierro`;
 });
-
-socket.on("error", msg => alert(msg));
-
-function actualizarDestinatarios(jugadores){
-  const sel = document.getElementById("destinatario");
-  sel.innerHTML = '<option value="">--Selecciona--</option>';
-  for(const j of jugadores){
-    if(j !== jugadorActual) sel.innerHTML += `<option value="${j}">${j}</option>`;
-  }
-}
-
-function actualizarRecursos(j){
-  recursos.trigo = j.trigo;
-  recursos.hierro = j.hierro;
-  document.getElementById("trigo").textContent = j.trigo.toFixed(2);
-  document.getElementById("hierro").textContent = j.hierro.toFixed(2);
-  actualizarInfoProcesos();
-}
-
-function actualizarInfoProcesos(){
-  const t = recursos.trigo;
-  const h = recursos.hierro;
-
-  const prod1 = 575 * Math.min(t/280, h/12);
-  const prod2 = 20 * Math.min(t/120, h/8);
-  const prod3t = t / 2;
-  const prod3h = h / 2;
-
-  document.getElementById("infoTrigo").textContent = 
-    `🌾 Producción posible: +${prod1.toFixed(2)} trigo (575 * min(trigo/280, hierro/12))`;
-  document.getElementById("infoHierro").textContent = 
-    `⛏️ Producción posible: +${prod2.toFixed(2)} hierro (20 * min(trigo/120, hierro/8))`;
-  document.getElementById("infoSimplificar").textContent = 
-    `♻️ Simplificar: trigo → ${prod3t.toFixed(2)}, hierro → ${prod3h.toFixed(2)} (trigo/2, hierro/2)`;
-}
 </script>
 </body>
 </html>
