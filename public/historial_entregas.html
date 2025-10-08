@@ -3,63 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <title>Historial de Entregas</title>
+<script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-fieldset { margin-bottom: 15px; }
+body { font-family: Arial; margin: 20px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
+<nav>
+  <a href="/">Inicio</a> | 
+  <a href="/player.html">Jugador</a> | 
+  <a href="/estado_jugadores.html">Estado de jugadores</a> | 
+  <a href="/entregas_realizadas.html">Entregas realizadas</a>
+</nav>
 
-<h1>Historial de Entregas</h1>
+<h2>Historial completo de entregas</h2>
+<p>Sala: <span id="nombreSala"></span></p>
 
-<p>
-  Sala: <input type="text" id="sala" placeholder="Nombre de la sala">
-  <button id="btnCargar">Cargar historial</button>
-  <button id="btnCargarTodas">Cargar historial de todas las sesiones</button>
-</p>
-
-<div id="historial"></div>
+<table>
+  <thead>
+    <tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>
+  </thead>
+  <tbody id="tablaHistorial"></tbody>
+</table>
 
 <script>
-const historialDiv = document.getElementById("historial");
+const socket = io();
+let sala = prompt("Introduce el nombre de la sala:");
+socket.emit("entrarJugador", { sala, nombre: "__viewer__", password: "" });
 
-function mostrarEntregas(data, fecha) {
-  const div = document.createElement("div");
-  div.style.border = "1px solid #ccc";
-  div.style.marginBottom = "10px";
-  div.style.padding = "10px";
-
-  const h3 = document.createElement("h3");
-  h3.innerText = `Sesión: ${fecha}`;
-  div.appendChild(h3);
-
-  data.forEach(e => {
-    const p = document.createElement("p");
-    p.innerText = `${e.hora} - ${e.de} → ${e.para}: Trigo=${e.trigo}, Hierro=${e.hierro}`;
-    div.appendChild(p);
-  });
-
-  historialDiv.appendChild(div);
-}
-
-function cargarHistorial(todas=false) {
-  historialDiv.innerHTML = "";
-  const sala = document.getElementById("sala").value;
-  fetch(`/listarEntregas?sala=${sala}`)
-    .then(r => r.json())
-    .then(archivos => {
-      if (!todas) archivos = [archivos[archivos.length-1]]; // solo última sesión
-      archivos.forEach(a => {
-        fetch(`/historialArchivo?archivo=${a}`)
-          .then(r => r.json())
-          .then(data => mostrarEntregas(data, a));
-      });
-    });
-}
-
-document.getElementById("btnCargar").onclick = () => cargarHistorial(false);
-document.getElementById("btnCargarTodas").onclick = () => cargarHistorial(true);
+socket.on("actualizarEstado", data => {
+  document.getElementById("nombreSala").textContent = sala;
+  const tbody = document.getElementById("tablaHistorial");
+  tbody.innerHTML = "";
+  for (const h of data.historial) {
+    tbody.innerHTML += `<tr>
+      <td>${h.de}</td>
+      <td>${h.para}</td>
+      <td>${h.trigo}</td>
+      <td>${h.hierro}</td>
+      <td>${h.hora}</td>
+    </tr>`;
+  }
+});
 </script>
-
 </body>
 </html>
