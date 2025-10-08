@@ -124,19 +124,17 @@ socket.on("jugadorEntrado", ({ sala, jugador, datos, jugadores })=>{
   document.getElementById("nombreSala").textContent = sala;
   document.getElementById("nombreJugador").textContent = jugador;
   actualizarRecursos(datos);
-
-  const sel = document.getElementById("destinatario");
-  sel.innerHTML = '<option value="">--Selecciona--</option>';
-  for(const j of jugadores){
-    if(j !== jugador) sel.innerHTML += `<option value="${j}">${j}</option>`;
-  }
+  actualizarDestinatarios(jugadores);
 });
 
 socket.on("actualizarEstado", data=>{
   const j = data.jugadores[jugadorActual];
   if(!j) return;
-
   actualizarRecursos(j);
+
+  // Actualizar destinatarios dinámicamente
+  const nombres = Object.keys(data.jugadores);
+  actualizarDestinatarios(nombres);
 
   const eAb = data.entregasAbiertas;
   const pAb = data.produccionAbierta;
@@ -148,20 +146,29 @@ socket.on("actualizarEstado", data=>{
   document.getElementById("formProduccion").style.display = pAb ? "block" : "none";
   document.getElementById("avisoProduccion").textContent = pAb ? "" : "⚙️ Producción cerrada";
 
+  // Mostrar entregas propias
   const tbody = document.getElementById("misEntregas");
   tbody.innerHTML = "";
   for(const ent of data.entregas){
     if(ent.origen === jugadorActual){
       tbody.innerHTML += `<tr class="enviada"><td>📤 Enviada</td><td>${ent.destino}</td><td>${ent.recurso}</td><td>${ent.cantidad}</td></tr>`;
-    }
-    else if(ent.destino === jugadorActual){
+    } else if(ent.destino === jugadorActual){
       tbody.innerHTML += `<tr class="recibida"><td>📥 Recibida</td><td>${ent.origen}</td><td>${ent.recurso}</td><td>${ent.cantidad}</td></tr>`;
     }
   }
+
   actualizarInfoProcesos();
 });
 
 socket.on("error", msg => alert(msg));
+
+function actualizarDestinatarios(jugadores){
+  const sel = document.getElementById("destinatario");
+  sel.innerHTML = '<option value="">--Selecciona--</option>';
+  for(const j of jugadores){
+    if(j !== jugadorActual) sel.innerHTML += `<option value="${j}">${j}</option>`;
+  }
+}
 
 function actualizarRecursos(j){
   recursos.trigo = j.trigo;
@@ -175,19 +182,17 @@ function actualizarInfoProcesos(){
   const t = recursos.trigo;
   const h = recursos.hierro;
 
-  const p1 = 575 * Math.min(t/280, h/12);
-  const p2 = 20 * Math.min(t/120, h/8);
-  const p3t = t/2;
-  const p3h = h/2;
+  const prod1 = 575 * Math.min(t/280, h/12);
+  const prod2 = 20 * Math.min(t/120, h/8);
+  const prod3t = t / 2;
+  const prod3h = h / 2;
 
   document.getElementById("infoTrigo").textContent = 
-    `Proceso 1 → 🌾 +${p1.toFixed(2)} (fórmula: 575 * min(trigo/280, hierro/12))`;
-
+    `🌾 Producción posible: +${prod1.toFixed(2)} trigo (575 * min(trigo/280, hierro/12))`;
   document.getElementById("infoHierro").textContent = 
-    `Proceso 2 → ⛏️ +${p2.toFixed(2)} (fórmula: 20 * min(trigo/120, hierro/8))`;
-
+    `⛏️ Producción posible: +${prod2.toFixed(2)} hierro (20 * min(trigo/120, hierro/8))`;
   document.getElementById("infoSimplificar").textContent = 
-    `Proceso 3 → 🌾 ${(p3t).toFixed(2)}, ⛏️ ${(p3h).toFixed(2)} (fórmula: trigo/2, hierro/2)`;
+    `♻️ Simplificar: trigo → ${(prod3t).toFixed(2)}, hierro → ${(prod3h).toFixed(2)} (trigo/2, hierro/2)`;
 }
 </script>
 </body>
