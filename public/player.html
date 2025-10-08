@@ -13,8 +13,9 @@ button.secondary{background:#616161;}
 table{width:100%;border-collapse:collapse;margin-top:8px;}
 th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 .hidden{display:none;}
-.enviada{background:#e3f2fd;} /* azul claro */
-.recibida{background:#e8f5e9;} /* verde claro */
+.enviada{background:#e3f2fd;}
+.recibida{background:#e8f5e9;}
+.proceso-info{font-size:0.9em;color:#333;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -71,16 +72,27 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 <section id="produccionPanel" class="hidden">
   <h3>Producción</h3>
   <div id="avisoProduccion"></div>
+
   <div id="formProduccion">
-    <button onclick="producir('trigo')">🌾 Producir Trigo</button>
-    <button onclick="producir('hierro')">⛏️ Producir Hierro</button>
-    <button onclick="producir('simplificar')">♻️ Simplificar (reducir ambos)</button>
+    <div>
+      <button onclick="producir('trigo')">🌾 Producir Trigo</button>
+      <div id="infoTrigo" class="proceso-info"></div>
+    </div>
+    <div>
+      <button onclick="producir('hierro')">⛏️ Producir Hierro</button>
+      <div id="infoHierro" class="proceso-info"></div>
+    </div>
+    <div>
+      <button onclick="producir('simplificar')">♻️ Simplificar</button>
+      <div id="infoSimplificar" class="proceso-info"></div>
+    </div>
   </div>
 </section>
 
 <script>
 const socket = io();
 let salaActual="", jugadorActual="";
+let recursos = { trigo:0, hierro:0 };
 
 function entrar(){
   salaActual = document.getElementById("sala").value.trim();
@@ -118,19 +130,17 @@ socket.on("actualizarEstado", data=>{
 
   actualizarRecursos(j);
 
-  // Estado general
   const eAb = data.entregasAbiertas;
   const pAb = data.produccionAbierta;
   document.getElementById("estadoJuego").textContent = 
     eAb ? "Fase de Entregas" : pAb ? "Fase de Producción" : "Esperando próxima ronda";
 
-  // Mostrar u ocultar formularios según fase
   document.getElementById("formEntrega").style.display = eAb ? "block" : "none";
   document.getElementById("avisoEntregas").textContent = eAb ? "" : "📦 Entregas cerradas";
   document.getElementById("formProduccion").style.display = pAb ? "block" : "none";
   document.getElementById("avisoProduccion").textContent = pAb ? "" : "⚙️ Producción cerrada";
 
-  // Filtrar entregas solo del jugador actual
+  // Mostrar entregas propias
   const tbody = document.getElementById("misEntregas");
   tbody.innerHTML = "";
   for(const ent of data.entregas){
@@ -141,13 +151,38 @@ socket.on("actualizarEstado", data=>{
       tbody.innerHTML += `<tr class="recibida"><td>📥 Recibida</td><td>${ent.origen}</td><td>${ent.recurso}</td><td>${ent.cantidad}</td></tr>`;
     }
   }
+
+  // Actualizar info de procesos
+  actualizarInfoProcesos();
 });
 
 socket.on("error", msg => alert(msg));
 
 function actualizarRecursos(j){
+  recursos.trigo = j.trigo;
+  recursos.hierro = j.hierro;
   document.getElementById("trigo").textContent = j.trigo.toFixed(2);
   document.getElementById("hierro").textContent = j.hierro.toFixed(2);
+  actualizarInfoProcesos();
+}
+
+function actualizarInfoProcesos(){
+  const t = recursos.trigo;
+  const h = recursos.hierro;
+
+  // Supongamos las reglas:
+  // 1. producir trigo: trigo_final = trigo + hierro*0.5
+  // 2. producir hierro: hierro_final = hierro + trigo*0.5
+  // 3. simplificar: ambos se reducen a la mitad
+
+  document.getElementById("infoTrigo").textContent = 
+    `Resultado estimado → 🌾 ${(t + h*0.5).toFixed(2)} trigo total, ⛏️ ${h.toFixed(2)} hierro.`;
+
+  document.getElementById("infoHierro").textContent = 
+    `Resultado estimado → 🌾 ${t.toFixed(2)} trigo, ⛏️ ${(h + t*0.5).toFixed(2)} hierro total.`;
+
+  document.getElementById("infoSimplificar").textContent = 
+    `Resultado estimado → 🌾 ${(t/2).toFixed(2)} trigo, ⛏️ ${(h/2).toFixed(2)} hierro.`;
 }
 </script>
 </body>
