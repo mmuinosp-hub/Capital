@@ -48,7 +48,9 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
   <div id="avisoEntregas"></div>
 
   <div id="formEntrega">
-    <label>Destinatario: <input id="destinatario" placeholder="Jugador destino"></label>
+    <label>Destinatario:
+      <select id="destinatario"></select>
+    </label>
     <label>Recurso: 
       <select id="recurso">
         <option value="trigo">Trigo</option>
@@ -75,15 +77,15 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 
   <div id="formProduccion">
     <div>
-      <button onclick="producir('trigo')">🌾 Producir Trigo</button>
+      <button onclick="producir('proceso1')">🌾 Proceso 1: Trigo</button>
       <div id="infoTrigo" class="proceso-info"></div>
     </div>
     <div>
-      <button onclick="producir('hierro')">⛏️ Producir Hierro</button>
+      <button onclick="producir('proceso2')">⛏️ Proceso 2: Hierro</button>
       <div id="infoHierro" class="proceso-info"></div>
     </div>
     <div>
-      <button onclick="producir('simplificar')">♻️ Simplificar</button>
+      <button onclick="producir('proceso3')">♻️ Proceso 3: Simplificar</button>
       <div id="infoSimplificar" class="proceso-info"></div>
     </div>
   </div>
@@ -103,7 +105,7 @@ function entrar(){
 }
 
 function entregar(){
-  const dest = document.getElementById("destinatario").value.trim();
+  const dest = document.getElementById("destinatario").value;
   const recurso = document.getElementById("recurso").value;
   const cantidad = parseFloat(document.getElementById("cantidad").value);
   if(!dest || cantidad<=0) return alert("Datos inválidos");
@@ -114,7 +116,7 @@ function producir(tipo){
   socket.emit("producir",{ sala:salaActual, jugador:jugadorActual, tipo });
 }
 
-socket.on("jugadorEntrado", ({ sala, jugador, datos })=>{
+socket.on("jugadorEntrado", ({ sala, jugador, datos, jugadores })=>{
   document.getElementById("acceso").classList.add("hidden");
   document.getElementById("panel").classList.remove("hidden");
   document.getElementById("entregasPanel").classList.remove("hidden");
@@ -122,6 +124,12 @@ socket.on("jugadorEntrado", ({ sala, jugador, datos })=>{
   document.getElementById("nombreSala").textContent = sala;
   document.getElementById("nombreJugador").textContent = jugador;
   actualizarRecursos(datos);
+
+  const sel = document.getElementById("destinatario");
+  sel.innerHTML = '<option value="">--Selecciona--</option>';
+  for(const j of jugadores){
+    if(j !== jugador) sel.innerHTML += `<option value="${j}">${j}</option>`;
+  }
 });
 
 socket.on("actualizarEstado", data=>{
@@ -140,7 +148,6 @@ socket.on("actualizarEstado", data=>{
   document.getElementById("formProduccion").style.display = pAb ? "block" : "none";
   document.getElementById("avisoProduccion").textContent = pAb ? "" : "⚙️ Producción cerrada";
 
-  // Mostrar entregas propias
   const tbody = document.getElementById("misEntregas");
   tbody.innerHTML = "";
   for(const ent of data.entregas){
@@ -151,8 +158,6 @@ socket.on("actualizarEstado", data=>{
       tbody.innerHTML += `<tr class="recibida"><td>📥 Recibida</td><td>${ent.origen}</td><td>${ent.recurso}</td><td>${ent.cantidad}</td></tr>`;
     }
   }
-
-  // Actualizar info de procesos
   actualizarInfoProcesos();
 });
 
@@ -170,19 +175,19 @@ function actualizarInfoProcesos(){
   const t = recursos.trigo;
   const h = recursos.hierro;
 
-  // Supongamos las reglas:
-  // 1. producir trigo: trigo_final = trigo + hierro*0.5
-  // 2. producir hierro: hierro_final = hierro + trigo*0.5
-  // 3. simplificar: ambos se reducen a la mitad
+  const p1 = 575 * Math.min(t/280, h/12);
+  const p2 = 20 * Math.min(t/120, h/8);
+  const p3t = t/2;
+  const p3h = h/2;
 
   document.getElementById("infoTrigo").textContent = 
-    `Resultado estimado → 🌾 ${(t + h*0.5).toFixed(2)} trigo total, ⛏️ ${h.toFixed(2)} hierro.`;
+    `Proceso 1 → 🌾 +${p1.toFixed(2)} (fórmula: 575 * min(trigo/280, hierro/12))`;
 
   document.getElementById("infoHierro").textContent = 
-    `Resultado estimado → 🌾 ${t.toFixed(2)} trigo, ⛏️ ${(h + t*0.5).toFixed(2)} hierro total.`;
+    `Proceso 2 → ⛏️ +${p2.toFixed(2)} (fórmula: 20 * min(trigo/120, hierro/8))`;
 
   document.getElementById("infoSimplificar").textContent = 
-    `Resultado estimado → 🌾 ${(t/2).toFixed(2)} trigo, ⛏️ ${(h/2).toFixed(2)} hierro.`;
+    `Proceso 3 → 🌾 ${(p3t).toFixed(2)}, ⛏️ ${(p3h).toFixed(2)} (fórmula: trigo/2, hierro/2)`;
 }
 </script>
 </body>
