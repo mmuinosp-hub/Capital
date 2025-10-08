@@ -5,98 +5,123 @@
 <title>Historial Global</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-th, td { border: 1px solid #aaa; padding: 5px; text-align: center; }
-select, button { padding: 4px; margin: 4px 0; }
-.hidden { display: none; }
+body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+h2 { margin-bottom: 10px; }
+section { background: #fff; padding: 14px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin-bottom: 14px; }
+table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+select, button { padding: 6px 10px; margin: 4px; }
 </style>
 </head>
 <body>
+
 <nav>
-  <a href="/">🏠 Inicio</a> | 
-  <a href="/player.html">Jugador</a> | 
+  <a href="/">Inicio</a> |
+  <a href="/player.html">Jugador</a> |
   <a href="/admin.html">Administrador</a>
 </nav>
 
-<h2>📚 Historial Global</h2>
+<h2>Historial Global</h2>
 
-<label>Archivo: 
-  <select id="selectorArchivos"></select>
-</label>
-
-<label>Tipo de historial: 
+<section>
+  <h3>Selecciona tipo de historial</h3>
   <select id="tipoHistorial">
     <option value="entregas">Entregas</option>
     <option value="produccion">Producción</option>
   </select>
-</label>
 
-<button onclick="cargarArchivo()">🔄 Cargar</button>
+  <select id="archivoSeleccionado">
+    <option value="">-- Cargando --</option>
+  </select>
+  <button onclick="cargarArchivo()">Cargar</button>
+</section>
 
-<table id="tablaHistorial">
-  <thead id="thead"></thead>
-  <tbody id="tbody"></tbody>
-</table>
+<section id="tablaSection" style="display:none;">
+  <h3>Datos del historial: <span id="nombreArchivo"></span></h3>
+  <table id="tablaHistorial">
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</section>
 
 <script>
-async function cargarLista() {
-  const res = await fetch("/api/historiales");
-  const archivos = await res.json();
-  const sel = document.getElementById("selectorArchivos");
-  sel.innerHTML = "";
-  for (const a of archivos) {
-    const opt = document.createElement("option");
-    opt.value = a;
-    opt.textContent = a;
-    sel.appendChild(opt);
+async function listarArchivos() {
+  try {
+    const res = await fetch("/api/historiales");
+    const data = await res.json();
+
+    const tipoSelect = document.getElementById("tipoHistorial");
+    const archivoSelect = document.getElementById("archivoSeleccionado");
+    archivoSelect.innerHTML = "";
+
+    const tipo = tipoSelect.value;
+    const lista = data[tipo] || [];
+
+    if (lista.length === 0) {
+      archivoSelect.innerHTML = "<option value=''>No hay archivos</option>";
+      return;
+    }
+
+    for (const f of lista) {
+      archivoSelect.innerHTML += `<option value="${f}">${f}</option>`;
+    }
+  } catch (err) {
+    alert("Error cargando lista de archivos");
+    console.error(err);
   }
-  if (archivos.length) cargarArchivo();
 }
 
+// Actualizar lista al cambiar tipo
+document.getElementById("tipoHistorial").addEventListener("change", listarArchivos);
+
+// Cargar archivo seleccionado
 async function cargarArchivo() {
-  const archivo = document.getElementById("selectorArchivos").value;
-  const tipo = document.getElementById("tipoHistorial").value;
+  const archivo = document.getElementById("archivoSeleccionado").value;
   if (!archivo) return;
 
-  const res = await fetch("/historiales/" + archivo);
-  const data = await res.json();
+  try {
+    const res = await fetch(`/api/historiales/${archivo}`);
+    const data = await res.json();
 
-  const thead = document.getElementById("thead");
-  const tbody = document.getElementById("tbody");
-  tbody.innerHTML = "";
-  thead.innerHTML = "";
+    document.getElementById("tablaSection").style.display = "block";
+    document.getElementById("nombreArchivo").textContent = archivo;
 
-  if (tipo === "entregas") {
-    thead.innerHTML = `<tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>`;
-    for (const h of data) {
-      tbody.innerHTML += `<tr>
-        <td>${h.de}</td>
-        <td>${h.para}</td>
-        <td>${h.trigo}</td>
-        <td>${h.hierro}</td>
-        <td>${h.hora}</td>
-      </tr>`;
+    const thead = document.getElementById("thead");
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = "";
+
+    if (archivo.startsWith("entregas_")) {
+      thead.innerHTML = "<tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>";
+      data.forEach(h => {
+        tbody.innerHTML += `<tr>
+          <td>${h.de}</td>
+          <td>${h.para}</td>
+          <td>${h.trigo}</td>
+          <td>${h.hierro}</td>
+          <td>${h.hora}</td>
+        </tr>`;
+      });
+    } else {
+      // Producción
+      thead.innerHTML = "<tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Proceso</th></tr>";
+      for (const [nombre, j] of Object.entries(data)) {
+        tbody.innerHTML += `<tr>
+          <td>${nombre}</td>
+          <td>${j.trigo}</td>
+          <td>${j.hierro}</td>
+          <td>${j.proceso ?? "-"}</td>
+        </tr>`;
+      }
     }
-  } else {
-    thead.innerHTML = `<tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Trigo Prod</th><th>Hierro Prod</th><th>Proceso</th></tr>`;
-    for (const [nombre, j] of Object.entries(data)) {
-      tbody.innerHTML += `<tr>
-        <td>${nombre}</td>
-        <td>${j.trigo.toFixed(2)}</td>
-        <td>${j.hierro.toFixed(2)}</td>
-        <td>${j.trigoProd.toFixed(2)}</td>
-        <td>${j.hierroProd.toFixed(2)}</td>
-        <td>${j.proceso ?? "-"}</td>
-      </tr>`;
-    }
+  } catch (err) {
+    alert("Error cargando archivo");
+    console.error(err);
   }
 }
 
-document.getElementById("tipoHistorial").addEventListener("change", cargarArchivo);
-document.getElementById("selectorArchivos").addEventListener("change", cargarArchivo);
-
-cargarLista();
+// Inicial
+listarArchivos();
 </script>
+
 </body>
 </html>
