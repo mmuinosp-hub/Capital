@@ -6,14 +6,14 @@
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial, sans-serif; margin: 20px; background:#f9f9f9; }
-section { background:#fff; padding:12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.08); margin-bottom:12px; }
-h2,h3{margin:0 0 8px 0;}
-label{margin-right:8px;}
-button{padding:6px 10px;border-radius:6px;border:none;background:#1976d2;color:#fff;cursor:pointer;margin-right:6px;}
+section { background:#fff; padding:14px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.08); margin-bottom:14px; }
+h2,h3{margin:0 0 10px 0;}
+button{padding:8px 14px;border-radius:8px;border:none;background:#1976d2;color:#fff;cursor:pointer;margin:6px 4px;}
 button.secondary{background:#616161;}
 table{width:100%;border-collapse:collapse;margin-top:8px;}
 th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 nav a{margin-right:10px;}
+.hidden{display:none;}
 </style>
 </head>
 <body>
@@ -26,24 +26,33 @@ nav a{margin-right:10px;}
 
 <h2>Panel del Administrador</h2>
 
-<!-- ACCESO: ocultable al entrar -->
-<section id="acceso">
-  <h3>Acceso</h3>
-  <div>
-    <label>Nombre de sala: <input id="sala" placeholder="Nombre de la sala"></label>
-    <label>Contraseña: <input id="password" type="password" placeholder="Contraseña admin"></label>
-    <button onclick="entrar()">Entrar</button>
-  </div>
-  <div style="margin-top:10px;">
-    <h4>Crear nueva sala</h4>
-    <label>Nombre: <input id="salaCrear" placeholder="Nombre nueva sala"></label>
-    <label>Contraseña: <input id="passwordCrear" type="password"></label>
-    <button onclick="crearSala()">Crear</button>
-  </div>
+<!-- Paso 1: elegir acción -->
+<section id="seleccionAccion">
+  <h3>¿Qué deseas hacer?</h3>
+  <button onclick="mostrarCrear()">🆕 Crear nueva sala</button>
+  <button class="secondary" onclick="mostrarAcceder()">🔑 Acceder a sala existente</button>
 </section>
 
-<!-- PANEL CONTROL: visible tras entrar -->
-<section id="panel" style="display:none;">
+<!-- Paso 2a: crear sala -->
+<section id="formCrear" class="hidden">
+  <h3>Crear nueva sala</h3>
+  <label>Nombre: <input id="salaCrear" placeholder="Nombre de la nueva sala"></label>
+  <label>Contraseña: <input id="passwordCrear" type="password" placeholder="Contraseña admin"></label>
+  <button onclick="crearSala()">Crear y acceder</button>
+  <button class="secondary" onclick="volverInicio()">⬅️ Volver</button>
+</section>
+
+<!-- Paso 2b: acceder sala -->
+<section id="formAcceder" class="hidden">
+  <h3>Acceder a sala existente</h3>
+  <label>Nombre: <input id="sala" placeholder="Nombre de la sala"></label>
+  <label>Contraseña: <input id="password" type="password" placeholder="Contraseña admin"></label>
+  <button onclick="entrar()">Entrar</button>
+  <button class="secondary" onclick="volverInicio()">⬅️ Volver</button>
+</section>
+
+<!-- PANEL DE CONTROL -->
+<section id="panel" class="hidden">
   <h3>Control de sala</h3>
   <p><strong>Sala:</strong> <span id="nombreSala"></span></p>
   <p>Entregas: <strong id="estadoEntregas"></strong> | Producción: <strong id="estadoProduccion"></strong></p>
@@ -54,8 +63,8 @@ nav a{margin-right:10px;}
   </div>
 </section>
 
-<!-- CREAR JUGADOR (más abajo) -->
-<section id="jugadoresPanel" style="display:none;">
+<!-- CREAR JUGADOR -->
+<section id="jugadoresPanel" class="hidden">
   <h3>Crear nuevo jugador</h3>
   <div>
     <label>Nombre: <input id="jugador" placeholder="Nombre del jugador"></label>
@@ -67,7 +76,7 @@ nav a{margin-right:10px;}
 </section>
 
 <!-- LISTADO -->
-<section id="tablaJugadores" style="display:none;">
+<section id="tablaJugadores" class="hidden">
   <h3>Jugadores conectados</h3>
   <table>
     <thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead>
@@ -79,58 +88,83 @@ nav a{margin-right:10px;}
 const socket = io();
 let salaActual = "";
 
-// Crear sala
-function crearSala() {
+// Mostrar formularios según opción
+function mostrarCrear(){
+  document.getElementById("seleccionAccion").classList.add("hidden");
+  document.getElementById("formCrear").classList.remove("hidden");
+}
+function mostrarAcceder(){
+  document.getElementById("seleccionAccion").classList.add("hidden");
+  document.getElementById("formAcceder").classList.remove("hidden");
+}
+function volverInicio(){
+  document.getElementById("formCrear").classList.add("hidden");
+  document.getElementById("formAcceder").classList.add("hidden");
+  document.getElementById("seleccionAccion").classList.remove("hidden");
+}
+
+// Crear sala y acceder directamente
+function crearSala(){
   const s = document.getElementById("salaCrear").value.trim();
   const p = document.getElementById("passwordCrear").value.trim();
-  if (!s||!p) return alert("Rellena nombre y contraseña");
+  if(!s||!p) return alert("Rellena nombre y contraseña");
+  salaActual = s;
   socket.emit("crearSala", { sala: s, password: p });
 }
 
-// Entrar como admin
-function entrar() {
+// Acceder a sala existente
+function entrar(){
   salaActual = document.getElementById("sala").value.trim();
   const pass = document.getElementById("password").value.trim();
-  if (!salaActual || !pass) return alert("Ingresa sala y contraseña");
+  if(!salaActual||!pass) return alert("Ingresa sala y contraseña");
   socket.emit("entrarAdmin", { sala: salaActual, password: pass });
 }
 
-// Crear jugador usando salaActual
-function crearJugador() {
+// Crear jugador
+function crearJugador(){
   const nombre = document.getElementById("jugador").value.trim();
   const password = document.getElementById("passJugador").value.trim();
   const trigo = document.getElementById("trigoIni").value;
   const hierro = document.getElementById("hierroIni").value;
-  if (!nombre || !password) return alert("Falta nombre o contraseña del jugador");
-  socket.emit("crearJugador", { sala: salaActual, nombre, password, trigo, hierro });
+  if(!nombre||!password) return alert("Falta nombre o contraseña del jugador");
+  socket.emit("crearJugador",{ sala:salaActual, nombre, password, trigo, hierro });
 }
 
+// Controles del juego
 function toggleEntregas(){ socket.emit("toggleEntregas", salaActual); }
 function toggleProduccion(){ socket.emit("toggleProduccion", salaActual); }
 function nuevaSesion(){ socket.emit("nuevaSesion", salaActual); }
 
 // SOCKET EVENTS
-socket.on("salaCreada", s => alert("Sala creada: " + s));
+socket.on("salaCreada", s => {
+  // Acceder automáticamente
+  socket.emit("entrarAdmin", { sala: s, password: document.getElementById("passwordCrear").value.trim() });
+});
+
 socket.on("salaExiste", () => alert("La sala ya existe"));
 
 socket.on("adminEntrado", s => {
-  salaActual = s; // guardar la sala (fix)
-  document.getElementById("acceso").style.display = "none";
-  document.getElementById("panel").style.display = "block";
-  document.getElementById("jugadoresPanel").style.display = "block";
-  document.getElementById("tablaJugadores").style.display = "block";
+  salaActual = s;
+  document.getElementById("formCrear").classList.add("hidden");
+  document.getElementById("formAcceder").classList.add("hidden");
+  document.getElementById("seleccionAccion").classList.add("hidden");
+
+  document.getElementById("panel").classList.remove("hidden");
+  document.getElementById("jugadoresPanel").classList.remove("hidden");
+  document.getElementById("tablaJugadores").classList.remove("hidden");
+
   document.getElementById("nombreSala").textContent = s;
 });
 
 socket.on("error", msg => alert(msg));
 
-socket.on("actualizarEstado", (data) => {
+socket.on("actualizarEstado", data => {
   document.getElementById("estadoEntregas").textContent = data.entregasAbiertas ? "Abiertas" : "Cerradas";
   document.getElementById("estadoProduccion").textContent = data.produccionAbierta ? "Abierta" : "Cerrada";
 
   const tbody = document.getElementById("jugadores");
   tbody.innerHTML = "";
-  for (const [nombre, j] of Object.entries(data.jugadores)) {
+  for (const [nombre,j] of Object.entries(data.jugadores)){
     tbody.innerHTML += `<tr>
       <td>${nombre}</td>
       <td>${j.trigo.toFixed(2)}</td>
