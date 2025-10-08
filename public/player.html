@@ -15,14 +15,16 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 .hidden{display:none;}
 .enviada{background:#e3f2fd;}
 .recibida{background:#e8f5e9;}
+.proceso-info{font-size:0.9em;color:#333;margin-top:4px;}
+.seleccionado{background:#c8e6c9;font-weight:bold;}
 </style>
 </head>
 <body>
 <nav>
   <a href="/">Inicio</a> |
   <a href="/player.html">Jugador</a> |
-  <a href="/estado_jugadores.html">Estado de jugadores</a> |
-  <a href="/entregas_realizadas.html">Entregas realizadas</a>
+  <a href="/estado_jugadores.html">Estado</a> |
+  <a href="/entregas_realizadas.html">Entregas</a>
 </nav>
 <h2>Consola del Jugador</h2>
 
@@ -52,14 +54,17 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
   <h3>Entregas</h3>
   <div id="avisoEntregas"></div>
 
-  <div id="formEntrega">
+  <div>
+    <label>Trigo a entregar: <input id="cantidadTrigo" type="number" min="0" value="0"></label>
+    <label>Hierro a entregar: <input id="cantidadHierro" type="number" min="0" value="0"></label>
     <label>Destinatario:
       <select id="destinatario"></select>
     </label>
-    <label>Trigo: <input id="cantidadTrigo" type="number" min="0"></label>
-    <label>Hierro: <input id="cantidadHierro" type="number" min="0"></label>
     <button onclick="entregar()">Enviar entrega</button>
   </div>
+
+  <h4>Suma neta de entregas</h4>
+  <p>Trigo neto: <span id="netoTrigo">0</span> | Hierro neto: <span id="netoHierro">0</span></p>
 
   <h4>Tus entregas</h4>
   <table>
@@ -68,16 +73,10 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
     </thead>
     <tbody id="misEntregas"></tbody>
   </table>
-
-  <h4>Resumen neto de entregas</h4>
-  <table>
-    <tr><th>Neto Trigo</th><th>Neto Hierro</th></tr>
-    <tr><td id="netoTrigo">0</td><td id="netoHierro">0</td></tr>
-  </table>
 </section>
 
 <!-- PRODUCCIÓN POTENCIAL -->
-<section id="produccionPanel">
+<section id="produccionPanel" class="hidden">
   <h3>Producción potencial</h3>
   <h4>Producciones según recursos actuales (incluyendo entregas)</h4>
   <table>
@@ -93,6 +92,7 @@ const socket = io();
 let salaActual="", jugadorActual="";
 let recursos = { trigo:0, hierro:0 };
 let neto = { trigo:0, hierro:0 };
+let procesoElegido = null;
 
 function entrar(){
   salaActual = document.getElementById("sala").value.trim();
@@ -110,22 +110,13 @@ function entregar(){
   socket.emit("enviarEntrega",{ sala:salaActual, de:jugadorActual, para:dest, trigo, hierro });
 }
 
-function actualizarDestinatarios(jugadores){
-  const sel = document.getElementById("destinatario");
-  sel.innerHTML = '<option value="">--Selecciona--</option>';
-  for(const j of jugadores){
-    if(j !== jugadorActual) sel.innerHTML += `<option value="${j}">${j}</option>`;
-  }
+// Elegir proceso (opcional, para marcar visualmente)
+function elegirProceso(num){
+  procesoElegido = num;
+  actualizarPotencial();
+  socket.emit("elegirProceso",{ sala:salaActual, nombre:jugadorActual, proceso:num });
 }
 
-function actualizarRecursos(j){
-  recursos.trigo = j.trigo;
-  recursos.hierro = j.hierro;
-  document.getElementById("trigo").textContent = j.trigo.toFixed(2);
-  document.getElementById("hierro").textContent = j.hierro.toFixed(2);
-}
-
-// SOCKET EVENTS
 socket.on("jugadorEntrado", ({ sala, nombre, datos, jugadores })=>{
   document.getElementById("acceso").classList.add("hidden");
   document.getElementById("panel").classList.remove("hidden");
@@ -140,7 +131,7 @@ socket.on("jugadorEntrado", ({ sala, nombre, datos, jugadores })=>{
 socket.on("actualizarEstado", data=>{
   const j = data.jugadores[jugadorActual];
   if(!j) return;
-
+  procesoElegido = j.proceso;
   actualizarRecursos(j);
 
   // Actualizar destinatarios
@@ -152,7 +143,6 @@ socket.on("actualizarEstado", data=>{
   document.getElementById("estadoJuego").textContent = 
     eAb ? "Fase de Entregas" : pAb ? "Fase de Producción" : "Esperando próxima ronda";
 
-  document.getElementById("formEntrega").style.display = eAb ? "block" : "none";
   document.getElementById("avisoEntregas").textContent = eAb ? "" : "📦 Entregas cerradas";
 
   // Mostrar entregas propias
@@ -173,24 +163,43 @@ socket.on("actualizarEstado", data=>{
   document.getElementById("netoTrigo").textContent = neto.trigo.toFixed(2);
   document.getElementById("netoHierro").textContent = neto.hierro.toFixed(2);
 
-  // Producciones potenciales
-  const t = j.trigo + neto.trigo;
-  const h = j.hierro + neto.hierro;
-
-  const prod1 = 575*Math.min(t/280, h/12);
-  const prod2 = 20*Math.min(t/120, h/8);
-  const prod3t = t/2;
-  const prod3h = h/2;
-
-  const tbodyPot = document.getElementById("tablaPotencial");
-  tbodyPot.innerHTML = `
-    <tr><td>Proceso 1</td><td>${prod1.toFixed(2)}</td><td>0</td></tr>
-    <tr><td>Proceso 2</td><td>0</td><td>${prod2.toFixed(2)}</td></tr>
-    <tr><td>Proceso 3</td><td>${prod3t.toFixed(2)}</td><td>${prod3h.toFixed(2)}</td></tr>
-  `;
+  actualizarPotencial();
 });
 
 socket.on("error", msg => alert(msg));
+
+function actualizarDestinatarios(jugadores){
+  const sel = document.getElementById("destinatario");
+  sel.innerHTML = '<option value="">--Selecciona--</option>';
+  for(const j of jugadores){
+    if(j !== jugadorActual) sel.innerHTML += `<option value="${j}">${j}</option>`;
+  }
+}
+
+function actualizarRecursos(j){
+  recursos.trigo = j.trigo;
+  recursos.hierro = j.hierro;
+  document.getElementById("trigo").textContent = j.trigo.toFixed(2);
+  document.getElementById("hierro").textContent = j.hierro.toFixed(2);
+  actualizarPotencial();
+}
+
+function actualizarPotencial(){
+  const t = recursos.trigo + neto.trigo;
+  const h = recursos.hierro + neto.hierro;
+
+  const prod1 = 575 * Math.min(t/280, h/12);
+  const prod2 = 20 * Math.min(t/120, h/8);
+  const prod3t = t / 2;
+  const prod3h = h / 2;
+
+  const tbody = document.getElementById("tablaPotencial");
+  tbody.innerHTML = `
+    <tr class="${procesoElegido===1?'seleccionado':''}" onclick="elegirProceso(1)"><td>Proceso 1 (Trigo)</td><td>${prod1.toFixed(2)}</td><td>0</td></tr>
+    <tr class="${procesoElegido===2?'seleccionado':''}" onclick="elegirProceso(2)"><td>Proceso 2 (Hierro)</td><td>0</td><td>${prod2.toFixed(2)}</td></tr>
+    <tr class="${procesoElegido===3?'seleccionado':''}" onclick="elegirProceso(3)"><td>Proceso 3 (Simplificar)</td><td>${prod3t.toFixed(2)}</td><td>${prod3h.toFixed(2)}</td></tr>
+  `;
+}
 </script>
 </body>
 </html>
