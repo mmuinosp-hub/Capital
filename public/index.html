@@ -9,23 +9,57 @@ section { background:#fff; padding:14px; border-radius:10px; box-shadow:0 2px 6p
 h2,h3{margin:0 0 10px 0;}
 button{padding:8px 14px;border-radius:8px;border:none;background:#1976d2;color:#fff;cursor:pointer;margin:6px 4px;}
 button.secondary{background:#616161;}
-table{width:100%;border-collapse:collapse;margin-top:8px;}
-th,td{border:1px solid #ddd;padding:6px;text-align:center;}
+table{border-collapse:collapse;margin-top:8px;}
+      .tabla-transparente {
+        opacity: 0.93; /* 50% de transparencia */
+      }
+th,td{border:1px solid #ddd;padding:6px;}
 nav a{margin-right:10px;}
 .hidden{display:none;}
 </style>
 </head>
 <body background="Capital.png">
 
-<!--
-<h1 align=center>Capital</h1>
--->
   
 <!-- Opciones iniciales -->
-<table width=100% height=100%><tr width=100% height=100%><td width=100% height=100% valign=center align=center>
+<center>
+<table  class="tabla-transparente" bgcolor=ffffff><tr><td>
+<h1 align=center>Capital</h1>
+<P align="Justify">Simulamos un sistema capitalista en su forma más esencial: agentes que intercambian y producen para maximizar su beneficio.
+
+<P align="Justify">Cada jugador comienza con una cierta cantidad de trigo y hierro.
+<P align="Justify">El juego se desarrolla en sesiones sucesivas, y en cada una ocurren dos fases:
+<ol>
+<li>Entregas:
+<ul>
+<li>Cada jugador puede realizar hasta cinco entregas de trigo y/o hierro a otros jugadores, en las cantidades que desee.
+</ul>
+<br>
+<li>Producción:
+<ul>
+<li>Cada jugador elige un único proceso de producción:
+<ul>
+<li>Proceso 1: Usa 280 de trigo y 12 de hierro para producir 575 de trigo (o proporción equivalente).
+
+<li>Proceso 2: Usa 120 de trigo y 8 de hierro para producir 20 de hierro (o proporción equivalente).
+
+<li>Sin proceso: Los materiales disponibles se reducen a la mitad.
+</ul>
+<li>En los procesos 1 y 2 se consumen todos los materiales, y al final solo se dispone del producto obtenido.
+</ul>
+</ol>
+<P align="Justify">El ciclo de entregas y producción se repite en cada sesión.
+
+<P align="Justify">El objetivo de cada jugador es alcanzar la mayor producción posible al término del juego.
+
+<center>
 <button onclick="entrarJugador()">Entrar como Jugador</button>
 <button onclick="crearSala()">Entrar como Administrador</button>
+</center>
 </td></tr></table>
+
+
+</center>
 
 <script>
 // Redirige a admin.html para crear sala
