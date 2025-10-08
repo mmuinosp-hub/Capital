@@ -57,14 +57,13 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
     <label>Destinatario:
       <select id="destinatario"></select>
     </label>
-    <label>Recurso: 
-      <select id="recurso">
-        <option value="trigo">Trigo</option>
-        <option value="hierro">Hierro</option>
-      </select>
+    <label>Trigo a entregar: 
+      <input id="trigoEnt" type="number" min="0" value="0">
     </label>
-    <label>Cantidad: <input id="cantidad" type="number" min="0"></label>
-    <button onclick="entregar()">Enviar entrega</button>
+    <label>Hierro a entregar:
+      <input id="hierroEnt" type="number" min="0" value="0">
+    </label>
+    <button onclick="entregar()">📦 Enviar entrega</button>
   </div>
 
   <h4>Tus entregas</h4>
@@ -112,13 +111,13 @@ function entrar(){
 
 function entregar() {
   const para = document.getElementById("destinatario").value;
-  const recurso = document.getElementById("recurso").value;
-  const cantidad = parseFloat(document.getElementById("cantidad").value);
-  if (!para || cantidad <= 0) return alert("Datos inválidos");
+  const trigo = parseFloat(document.getElementById("trigoEnt").value) || 0;
+  const hierro = parseFloat(document.getElementById("hierroEnt").value) || 0;
 
-  let trigo = 0, hierro = 0;
-  if (recurso === "trigo") trigo = cantidad;
-  else hierro = cantidad;
+  if (!para) return alert("Selecciona un destinatario.");
+  if (trigo <= 0 && hierro <= 0) return alert("Debes entregar algo (trigo o hierro).");
+  if (trigo > recursos.trigo || hierro > recursos.hierro)
+    return alert("No tienes suficientes recursos para entregar esa cantidad.");
 
   socket.emit("enviarEntrega", {
     sala: salaActual,
@@ -127,6 +126,10 @@ function entregar() {
     trigo,
     hierro
   });
+
+  // Reiniciar los campos de cantidad
+  document.getElementById("trigoEnt").value = 0;
+  document.getElementById("hierroEnt").value = 0;
 }
 
 function producir(proceso){
