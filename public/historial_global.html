@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Historial Global</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { border: 1px solid #aaa; padding: 5px; text-align: center; }
+select, button { padding: 4px; margin: 4px 0; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">🏠 Inicio</a> | 
+  <a href="/player.html">Jugador</a> | 
+  <a href="/admin.html">Administrador</a>
+</nav>
+
+<h2>📚 Historial Global</h2>
+
+<label>Archivo: 
+  <select id="selectorArchivos"></select>
+</label>
+
+<label>Tipo de historial: 
+  <select id="tipoHistorial">
+    <option value="entregas">Entregas</option>
+    <option value="produccion">Producción</option>
+  </select>
+</label>
+
+<button onclick="cargarArchivo()">🔄 Cargar</button>
+
+<table id="tablaHistorial">
+  <thead id="thead"></thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<script>
+async function cargarLista() {
+  const res = await fetch("/api/historiales");
+  const archivos = await res.json();
+  const sel = document.getElementById("selectorArchivos");
+  sel.innerHTML = "";
+  for (const a of archivos) {
+    const opt = document.createElement("option");
+    opt.value = a;
+    opt.textContent = a;
+    sel.appendChild(opt);
+  }
+  if (archivos.length) cargarArchivo();
+}
+
+async function cargarArchivo() {
+  const archivo = document.getElementById("selectorArchivos").value;
+  const tipo = document.getElementById("tipoHistorial").value;
+  if (!archivo) return;
+
+  const res = await fetch("/historiales/" + archivo);
+  const data = await res.json();
+
+  const thead = document.getElementById("thead");
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+  thead.innerHTML = "";
+
+  if (tipo === "entregas") {
+    thead.innerHTML = `<tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>`;
+    for (const h of data) {
+      tbody.innerHTML += `<tr>
+        <td>${h.de}</td>
+        <td>${h.para}</td>
+        <td>${h.trigo}</td>
+        <td>${h.hierro}</td>
+        <td>${h.hora}</td>
+      </tr>`;
+    }
+  } else {
+    thead.innerHTML = `<tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Trigo Prod</th><th>Hierro Prod</th><th>Proceso</th></tr>`;
+    for (const [nombre, j] of Object.entries(data)) {
+      tbody.innerHTML += `<tr>
+        <td>${nombre}</td>
+        <td>${j.trigo.toFixed(2)}</td>
+        <td>${j.hierro.toFixed(2)}</td>
+        <td>${j.trigoProd.toFixed(2)}</td>
+        <td>${j.hierroProd.toFixed(2)}</td>
+        <td>${j.proceso ?? "-"}</td>
+      </tr>`;
+    }
+  }
+}
+
+document.getElementById("tipoHistorial").addEventListener("change", cargarArchivo);
+document.getElementById("selectorArchivos").addEventListener("change", cargarArchivo);
+
+cargarLista();
+</script>
+</body>
+</html>
