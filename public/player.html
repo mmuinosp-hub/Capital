@@ -7,7 +7,7 @@
 <style>
 body{font-family:Arial,sans-serif;margin:20px;background:#f9f9f9;}
 section{background:#fff;padding:14px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.08);margin-bottom:14px;}
-h2,h3{margin:0 0 10px 0;}
+h2,h3,h4{margin:0 0 10px 0;}
 button{padding:8px 14px;border-radius:8px;border:none;background:#1976d2;color:#fff;cursor:pointer;margin:6px 4px;}
 button.secondary{background:#616161;}
 table{width:100%;border-collapse:collapse;margin-top:8px;}
@@ -15,7 +15,6 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 .hidden{display:none;}
 .enviada{background:#e3f2fd;}
 .recibida{background:#e8f5e9;}
-.proceso-info{font-size:0.9em;color:#333;margin-top:4px;}
 </style>
 </head>
 <body>
@@ -25,6 +24,7 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
   <a href="/estado_jugadores.html">Estado</a> |
   <a href="/entregas_realizadas.html">Entregas</a>
 </nav>
+
 <h2>Consola del Jugador</h2>
 
 <!-- ENTRADA A SALA -->
@@ -62,14 +62,16 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
     <button onclick="entregar()">Enviar entrega</button>
   </div>
 
-  <h4>Tus entregas</h4>
+  <h4>Tus entregas netas</h4>
+  <p>Trigo neto: <span id="netoTrigo">0</span> | Hierro neto: <span id="netoHierro">0</span></p>
+
+  <h4>Historial de tus entregas</h4>
   <table>
     <thead>
       <tr><th>Tipo</th><th>Jugador</th><th>Trigo</th><th>Hierro</th></tr>
     </thead>
     <tbody id="misEntregas"></tbody>
   </table>
-  <p><strong>Total neto entregado/recibido:</strong> 🌾 <span id="netoTrigo">0</span> | ⛏️ <span id="netoHierro">0</span></p>
 </section>
 
 <!-- PRODUCCIÓN -->
@@ -78,17 +80,18 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
   <div id="avisoProduccion"></div>
 
   <div id="formProduccion">
-    <div>
+    <h4>Producciones potenciales según recursos actuales:</h4>
+    <table>
+      <thead>
+        <tr><th>Proceso</th><th>Trigo</th><th>Hierro</th></tr>
+      </thead>
+      <tbody id="tablaPotencial"></tbody>
+    </table>
+
+    <div style="margin-top:10px;">
       <button onclick="producir('proceso1')">🌾 Proceso 1: Trigo</button>
-      <div id="infoTrigo" class="proceso-info"></div>
-    </div>
-    <div>
       <button onclick="producir('proceso2')">⛏️ Proceso 2: Hierro</button>
-      <div id="infoHierro" class="proceso-info"></div>
-    </div>
-    <div>
       <button onclick="producir('proceso3')">♻️ Proceso 3: Simplificar</button>
-      <div id="infoSimplificar" class="proceso-info"></div>
     </div>
   </div>
 </section>
@@ -97,6 +100,7 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 const socket = io();
 let salaActual="", jugadorActual="";
 let recursos = { trigo:0, hierro:0 };
+let neto = { trigo:0, hierro:0 };
 
 function entrar(){
   salaActual = document.getElementById("sala").value.trim();
@@ -118,13 +122,13 @@ function producir(tipo){
   socket.emit("elegirProceso",{ sala:salaActual, nombre:jugadorActual, proceso: tipo==='proceso1'?1: tipo==='proceso2'?2:3 });
 }
 
-socket.on("jugadorEntrado", ({ sala, jugador, datos, jugadores })=>{
+socket.on("jugadorEntrado", ({ sala, nombre, datos, jugadores })=>{
   document.getElementById("acceso").classList.add("hidden");
   document.getElementById("panel").classList.remove("hidden");
   document.getElementById("entregasPanel").classList.remove("hidden");
   document.getElementById("produccionPanel").classList.remove("hidden");
   document.getElementById("nombreSala").textContent = sala;
-  document.getElementById("nombreJugador").textContent = jugador;
+  document.getElementById("nombreJugador").textContent = nombre;
   actualizarRecursos(datos);
   actualizarDestinatarios(Object.keys(jugadores));
 });
@@ -132,21 +136,7 @@ socket.on("jugadorEntrado", ({ sala, jugador, datos, jugadores })=>{
 socket.on("actualizarEstado", data=>{
   const j = data.jugadores[jugadorActual];
   if(!j) return;
-
-  // --- CALCULAR NETO DE ENTREGAS ---
-  let netoTrigo = 0, netoHierro = 0;
-  for(const ent of data.historial){
-    if(ent.de===jugadorActual){ netoTrigo -= ent.trigo; netoHierro -= ent.hierro; }
-    if(ent.para===jugadorActual){ netoTrigo += ent.trigo; netoHierro += ent.hierro; }
-  }
-  document.getElementById("netoTrigo").textContent = netoTrigo.toFixed(2);
-  document.getElementById("netoHierro").textContent = netoHierro.toFixed(2);
-
-  // --- ACTUALIZAR RECURSOS ---
-  recursos.trigo = j.trigo + netoTrigo;
-  recursos.hierro = j.hierro + netoHierro;
-  document.getElementById("trigo").textContent = recursos.trigo.toFixed(2);
-  document.getElementById("hierro").textContent = recursos.hierro.toFixed(2);
+  actualizarRecursos(j);
 
   // Actualizar destinatarios dinámicamente
   const nombres = Object.keys(data.jugadores);
@@ -162,38 +152,45 @@ socket.on("actualizarEstado", data=>{
   document.getElementById("formProduccion").style.display = pAb ? "block" : "none";
   document.getElementById("avisoProduccion").textContent = pAb ? "" : "⚙️ Producción cerrada";
 
-  // Mostrar entregas propias
+  // Mostrar entregas propias y calcular neto
+  neto.trigo = 0; neto.hierro = 0;
   const tbody = document.getElementById("misEntregas");
   tbody.innerHTML = "";
   for(const ent of data.historial){
     if(ent.de === jugadorActual){
       tbody.innerHTML += `<tr class="enviada"><td>📤 Enviada</td><td>${ent.para}</td><td>${ent.trigo}</td><td>${ent.hierro}</td></tr>`;
+      neto.trigo -= ent.trigo; neto.hierro -= ent.hierro;
     } else if(ent.para === jugadorActual){
       tbody.innerHTML += `<tr class="recibida"><td>📥 Recibida</td><td>${ent.de}</td><td>${ent.trigo}</td><td>${ent.hierro}</td></tr>`;
+      neto.trigo += ent.trigo; neto.hierro += ent.hierro;
     }
   }
+  document.getElementById("netoTrigo").textContent = neto.trigo.toFixed(2);
+  document.getElementById("netoHierro").textContent = neto.hierro.toFixed(2);
 
-  // --- PRODUCCIÓN POTENCIAL ---
-  const t = recursos.trigo;
-  const h = recursos.hierro;
+  // Producciones potenciales según recursos actuales
+  const t = j.trigo;
+  const h = j.hierro;
 
   const prod1 = 575*Math.min(t/280, h/12);
   const prod2 = 20*Math.min(t/120, h/8);
   const prod3t = t/2;
   const prod3h = h/2;
 
-  document.getElementById("infoTrigo").textContent = `🌾 Proceso 1: +${prod1.toFixed(2)} trigo posible`;
-  document.getElementById("infoHierro").textContent = `⛏️ Proceso 2: +${prod2.toFixed(2)} hierro posible`;
-  document.getElementById("infoSimplificar").textContent = `♻️ Proceso 3: +${prod3t.toFixed(2)} trigo, +${prod3h.toFixed(2)} hierro`;
+  const tbodyPot = document.getElementById("tablaPotencial");
+  tbodyPot.innerHTML = `
+<tr><td>Proceso 1</td><td>${prod1.toFixed(2)}</td><td>0</td></tr>
+<tr><td>Proceso 2</td><td>0</td><td>${prod2.toFixed(2)}</td></tr>
+<tr><td>Proceso 3</td><td>${prod3t.toFixed(2)}</td><td>${prod3h.toFixed(2)}</td></tr>
+`;
 });
-
-socket.on("error", msg => alert(msg));
 
 function actualizarDestinatarios(jugadores){
   const sel = document.getElementById("destinatario");
-  const current = jugadorActual;
   sel.innerHTML = '<option value="">--Selecciona--</option>';
-  for(const j of jugadores){ if(j!==current) sel.innerHTML += `<option value="${j}">${j}</option>`; }
+  for(const j of jugadores){
+    if(j !== jugadorActual) sel.innerHTML += `<option value="${j}">${j}</option>`;
+  }
 }
 
 function actualizarRecursos(j){
