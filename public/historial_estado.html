@@ -2,65 +2,50 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Historial de Estados</title>
+<title>Historial de Producción</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-fieldset { margin-bottom: 15px; }
+body { font-family: Arial; margin: 20px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </style>
 </head>
 <body>
+<nav>
+  <a href="/">Inicio</a> | 
+  <a href="/player.html">Jugador</a> | 
+  <a href="/estado_jugadores.html">Estado de jugadores</a> | 
+  <a href="/entregas_realizadas.html">Entregas realizadas</a>
+</nav>
 
-<h1>Historial de Estados</h1>
+<h2>Historial de producción</h2>
+<p>Sala: <span id="nombreSala"></span></p>
 
-<p>
-  Sala: <input type="text" id="sala" placeholder="Nombre de la sala">
-  <button id="btnCargar">Cargar historial</button>
-  <button id="btnCargarTodas">Cargar historial de todas las sesiones</button>
-</p>
-
-<div id="historial"></div>
+<table>
+  <thead>
+    <tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Proceso</th></tr>
+  </thead>
+  <tbody id="tablaProduccion"></tbody>
+</table>
 
 <script>
-const historialDiv = document.getElementById("historial");
+const socket = io();
+let sala = prompt("Introduce el nombre de la sala:");
+socket.emit("entrarJugador", { sala, nombre: "__viewer__", password: "" });
 
-function mostrarEstado(data, fecha) {
-  const div = document.createElement("div");
-  div.style.border = "1px solid #ccc";
-  div.style.marginBottom = "10px";
-  div.style.padding = "10px";
-
-  const h3 = document.createElement("h3");
-  h3.innerText = `Sesión: ${fecha}`;
-  div.appendChild(h3);
-
-  for (const j in data) {
-    const p = document.createElement("p");
-    p.innerText = `${j}: Trigo=${data[j].trigo}, Hierro=${data[j].hierro}, Proceso=${data[j].proceso}`;
-    div.appendChild(p);
+socket.on("actualizarEstado", data => {
+  document.getElementById("nombreSala").textContent = sala;
+  const tbody = document.getElementById("tablaProduccion");
+  tbody.innerHTML = "";
+  for (const [nombre, j] of Object.entries(data.jugadores)) {
+    tbody.innerHTML += `<tr>
+      <td>${nombre}</td>
+      <td>${j.trigoProd.toFixed(2)}</td>
+      <td>${j.hierroProd.toFixed(2)}</td>
+      <td>${j.proceso ?? "-"}</td>
+    </tr>`;
   }
-
-  historialDiv.appendChild(div);
-}
-
-function cargarHistorial(todas=false) {
-  historialDiv.innerHTML = "";
-  const sala = document.getElementById("sala").value;
-  fetch(`/listarProduccion?sala=${sala}`)
-    .then(r => r.json())
-    .then(archivos => {
-      if (!todas) archivos = [archivos[archivos.length-1]]; // solo última sesión
-      archivos.forEach(a => {
-        fetch(`/historialArchivo?archivo=${a}`)
-          .then(r => r.json())
-          .then(data => mostrarEstado(data, a));
-      });
-    });
-}
-
-document.getElementById("btnCargar").onclick = () => cargarHistorial(false);
-document.getElementById("btnCargarTodas").onclick = () => cargarHistorial(true);
+});
 </script>
-
 </body>
 </html>
