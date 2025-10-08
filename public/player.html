@@ -5,74 +5,45 @@
 <title>Jugador - Capitalismo Simulado</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial, sans-serif; margin: 20px; }
-h2, h3 { margin-top: 20px; }
+body { font-family: Arial; margin: 20px; }
 table { border-collapse: collapse; width: 100%; margin-top: 10px; }
 th, td { border: 1px solid #999; padding: 5px; text-align: center; }
-.hidden { display: none; }
 nav a { margin-right: 10px; }
-section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding: 10px; }
 </style>
 </head>
 <body>
 <nav>
   <a href="/">Inicio</a> |
+  <a href="/player.html">Jugador</a> |
   <a href="/estado_jugadores.html">Estado de jugadores</a> |
   <a href="/entregas_realizadas.html">Entregas realizadas</a>
 </nav>
 
-<h2>Consola del Jugador</h2>
+<h2>Jugador</h2>
 
-<!-- 🔹 LOGIN -->
-<section id="login">
-  <h3>Entrar en sala</h3>
+<div>
   <label>Sala: <input id="sala" placeholder="Sala"></label>
   <label>Nombre: <input id="nombre" placeholder="Nombre"></label>
-  <label>Contraseña: <input id="password" type="password" placeholder="Contraseña"></label>
+  <label>Contraseña: <input id="password" type="password"></label>
   <button onclick="entrar()">Entrar</button>
-</section>
+</div>
 
-<!-- 🔹 PANEL PRINCIPAL -->
-<section id="panel" class="hidden">
-  <h3>Sala: <span id="nombreSala"></span></h3>
-  <p><strong>Trigo:</strong> <span id="trigo">0</span> |
-     <strong>Hierro:</strong> <span id="hierro">0</span> |
-     <strong>Entregas realizadas:</strong> <span id="entregas">0</span></p>
+<h3>Tus recursos</h3>
+<p>Trigo: <span id="trigo">0</span></p>
+<p>Hierro: <span id="hierro">0</span></p>
+<p>Entregas realizadas: <span id="entregas">0</span></p>
 
-  <h3>Producciones posibles</h3>
-  <table>
-    <thead>
-      <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th></tr>
-    </thead>
-    <tbody id="producciones"></tbody>
-  </table>
-</section>
-
-<!-- 🔹 ENTREGAS -->
-<section id="entregasSec" class="hidden">
+<div id="formEntregas" style="margin-top:10px;">
   <h3>Hacer entrega</h3>
-  <label>Destinatario:
+  <label>Destinatario: 
     <select id="destino"></select>
   </label>
-  <label>Trigo: <input id="trigoEnv" type="number" min="0" value="0"></label>
-  <label>Hierro: <input id="hierroEnv" type="number" min="0" value="0"></label>
+  <label>Trigo: <input id="trigoEnv" type="number" min="0"></label>
+  <label>Hierro: <input id="hierroEnv" type="number" min="0"></label>
   <button onclick="entregar()">Entregar</button>
+</div>
 
-  <h4>Tus entregas realizadas</h4>
-  <table>
-    <thead><tr><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-    <tbody id="entregasHechas"></tbody>
-  </table>
-
-  <h4>Entregas que has recibido</h4>
-  <table>
-    <thead><tr><th>De</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-    <tbody id="entregasRecibidas"></tbody>
-  </table>
-</section>
-
-<!-- 🔹 PRODUCCIÓN -->
-<section id="produccionSec" class="hidden">
+<div id="formProduccion" style="margin-top:10px;">
   <h3>Elegir proceso de producción</h3>
   <select id="proceso">
     <option value="1">Proceso 1 (280 trigo + 12 hierro → 575 trigo)</option>
@@ -80,48 +51,54 @@ section { margin-top: 20px; border: 1px solid #ccc; border-radius: 10px; padding
     <option value="3">Proceso 3 (Reducir a la mitad los recursos)</option>
   </select>
   <button onclick="elegirProceso()">Elegir proceso</button>
+</div>
 
-  <h4>Tu producción actual</h4>
-  <p>Proceso elegido: <span id="procesoUsado">-</span></p>
-</section>
+<h3>Producciones posibles según insumos actuales</h3>
+<table>
+<thead>
+<tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th></tr>
+</thead>
+<tbody id="producciones"></tbody>
+</table>
+
+<h3>Tu producción actual</h3>
+<p>Proceso usado: <span id="procesoUsado">-</span></p>
+<p>Trigo producido: <span id="trigoProd">0</span></p>
+<p>Hierro producido: <span id="hierroProd">0</span></p>
+
+<h3>Tus entregas</h3>
+<table>
+<thead>
+<tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr>
+</thead>
+<tbody id="historial"></tbody>
+</table>
 
 <script>
 const socket = io();
 let sala = "";
 let nombre = "";
 
-// 🔸 Entrar a la sala
 function entrar() {
   sala = document.getElementById("sala").value.trim();
   nombre = document.getElementById("nombre").value.trim();
   const password = document.getElementById("password").value.trim();
-  if (!sala || !nombre || !password) return alert("Completa todos los campos");
+  if (!sala || !nombre || !password) return alert("Completa sala, nombre y contraseña");
   socket.emit("entrarJugador", { sala, nombre, password });
 }
 
-// 🔸 Entregar recursos
 function entregar() {
   const para = document.getElementById("destino").value;
   const trigo = document.getElementById("trigoEnv").value;
   const hierro = document.getElementById("hierroEnv").value;
   socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
-  document.getElementById("trigoEnv").value = 0;
-  document.getElementById("hierroEnv").value = 0;
 }
 
-// 🔸 Elegir proceso
 function elegirProceso() {
   const proceso = parseInt(document.getElementById("proceso").value);
   socket.emit("elegirProceso", { sala, nombre, proceso });
 }
 
-socket.on("jugadorEntrado", ({ sala }) => {
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("panel").classList.remove("hidden");
-  document.getElementById("nombreSala").textContent = sala;
-});
-
-// 🔸 Actualizar pantalla según estado del servidor
 socket.on("actualizarEstado", (data) => {
   const j = data.jugadores[nombre];
   if (!j) return;
@@ -131,39 +108,35 @@ socket.on("actualizarEstado", (data) => {
   document.getElementById("hierro").textContent = j.hierro.toFixed(2);
   document.getElementById("entregas").textContent = j.entregas;
 
-  // Mostrar secciones según fase
-  document.getElementById("entregasSec").classList.toggle("hidden", !data.entregasAbiertas);
-  document.getElementById("produccionSec").classList.toggle("hidden", !data.produccionAbierta);
+  // Formularios visibles según fase
+  document.getElementById("formEntregas").style.display = data.entregasAbiertas ? "block" : "none";
+  document.getElementById("formProduccion").style.display = data.produccionAbierta ? "block" : "none";
 
-  // Actualizar destinatarios
+  // Destinatarios
   const sel = document.getElementById("destino");
   sel.innerHTML = "";
-  for (const n in data.jugadores)
-    if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
+  for (const n in data.jugadores) if (n !== nombre) sel.innerHTML += `<option value="${n}">${n}</option>`;
 
-  // Calcular producciones posibles
+  // Producciones posibles
   const tbody = document.getElementById("producciones");
   tbody.innerHTML = "";
   const trigoInsumo = j.trigo;
   const hierroInsumo = j.hierro;
+
   tbody.innerHTML += `<tr><td>1</td><td>${(575*Math.min(trigoInsumo/280, hierroInsumo/12)).toFixed(2)}</td><td>0</td></tr>`;
   tbody.innerHTML += `<tr><td>2</td><td>0</td><td>${(20*Math.min(trigoInsumo/120, hierroInsumo/8)).toFixed(2)}</td></tr>`;
   tbody.innerHTML += `<tr><td>3</td><td>${(trigoInsumo/2).toFixed(2)}</td><td>${(hierroInsumo/2).toFixed(2)}</td></tr>`;
 
-  // Mostrar proceso elegido (si existe)
-  const procesoSpan = document.getElementById("procesoUsado");
-  if (procesoSpan) procesoSpan.textContent = j.proceso || "-";
+  // Producción actual
+  document.getElementById("procesoUsado").textContent = j.proceso || "-";
+  document.getElementById("trigoProd").textContent = j.trigoProd.toFixed(2);
+  document.getElementById("hierroProd").textContent = j.hierroProd.toFixed(2);
 
-  // Historial de entregas separadas
-  const hechas = document.getElementById("entregasHechas");
-  const recibidas = document.getElementById("entregasRecibidas");
-  hechas.innerHTML = "";
-  recibidas.innerHTML = "";
-  for (const h of data.historial) {
-    if (h.de === nombre)
-      hechas.innerHTML += `<tr><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
-    if (h.para === nombre)
-      recibidas.innerHTML += `<tr><td>${h.de}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
+  // Historial de entregas solo del jugador
+  const hist = document.getElementById("historial");
+  hist.innerHTML = "";
+  for (const h of data.historial.filter(e => e.de===nombre || e.para===nombre)) {
+    hist.innerHTML += `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`;
   }
 });
 
