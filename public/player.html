@@ -16,7 +16,7 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 .enviada{background:#e3f2fd;}
 .recibida{background:#e8f5e9;}
 .proceso-info{font-size:0.9em;color:#333;margin-top:4px;}
-.seleccionado{background:#c8e6c9;font-weight:bold;}
+.seleccionado{background:#c8e6c9;}
 </style>
 </head>
 <body>
@@ -26,6 +26,7 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
   <a href="/estado_jugadores.html">Estado</a> |
   <a href="/entregas_realizadas.html">Entregas</a>
 </nav>
+
 <h2>Consola del Jugador</h2>
 
 <!-- ENTRADA A SALA -->
@@ -54,34 +55,34 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
   <h3>Entregas</h3>
   <div id="avisoEntregas"></div>
 
-  <div>
-    <label>Trigo a entregar: <input id="cantidadTrigo" type="number" min="0" value="0"></label>
-    <label>Hierro a entregar: <input id="cantidadHierro" type="number" min="0" value="0"></label>
+  <div id="formEntrega">
     <label>Destinatario:
       <select id="destinatario"></select>
     </label>
+    <label>Trigo: <input id="cantidadTrigo" type="number" min="0"></label>
+    <label>Hierro: <input id="cantidadHierro" type="number" min="0"></label>
     <button onclick="entregar()">Enviar entrega</button>
   </div>
 
-  <h4>Suma neta de entregas</h4>
-  <p>Trigo neto: <span id="netoTrigo">0</span> | Hierro neto: <span id="netoHierro">0</span></p>
-
-  <h4>Tus entregas</h4>
+  <h4>Netas de entregas</h4>
   <table>
-    <thead>
-      <tr><th>Tipo</th><th>Jugador</th><th>Trigo</th><th>Hierro</th></tr>
-    </thead>
-    <tbody id="misEntregas"></tbody>
+    <tr><th>Trigo</th><th>Hierro</th></tr>
+    <tr><td id="netoTrigo">0</td><td id="netoHierro">0</td></tr>
   </table>
 </section>
 
-<!-- PRODUCCIÓN POTENCIAL -->
+<!-- PRODUCCIÓN -->
 <section id="produccionPanel" class="hidden">
   <h3>Producción potencial</h3>
-  <h4>Producciones según recursos actuales (incluyendo entregas)</h4>
+  <p>Producciones según recursos actuales (incluyendo entregas)</p>
   <table>
     <thead>
-      <tr><th>Proceso</th><th>Trigo</th><th>Hierro</th></tr>
+      <tr>
+        <th>Proceso</th>
+        <th>Trigo producido</th>
+        <th>Hierro producido</th>
+        <th>Insumos desperdiciados</th>
+      </tr>
     </thead>
     <tbody id="tablaPotencial"></tbody>
   </table>
@@ -110,11 +111,10 @@ function entregar(){
   socket.emit("enviarEntrega",{ sala:salaActual, de:jugadorActual, para:dest, trigo, hierro });
 }
 
-// Elegir proceso (opcional, para marcar visualmente)
 function elegirProceso(num){
   procesoElegido = num;
-  actualizarPotencial();
   socket.emit("elegirProceso",{ sala:salaActual, nombre:jugadorActual, proceso:num });
+  actualizarPotencial();
 }
 
 socket.on("jugadorEntrado", ({ sala, nombre, datos, jugadores })=>{
@@ -124,80 +124,92 @@ socket.on("jugadorEntrado", ({ sala, nombre, datos, jugadores })=>{
   document.getElementById("produccionPanel").classList.remove("hidden");
   document.getElementById("nombreSala").textContent = sala;
   document.getElementById("nombreJugador").textContent = nombre;
-  actualizarRecursos(datos);
-  actualizarDestinatarios(jugadores);
 });
 
 socket.on("actualizarEstado", data=>{
   const j = data.jugadores[jugadorActual];
   if(!j) return;
-  procesoElegido = j.proceso;
-  actualizarRecursos(j);
 
-  // Actualizar destinatarios
+  // Actualizar recursos
+  recursos.trigo = j.trigo;
+  recursos.hierro = j.hierro;
+
+  // Calcular neto de entregas
+  let netT = 0, netH = 0;
+  for(const ent of data.historial){
+    if(ent.de === jugadorActual){ netT -= ent.trigo; netH -= ent.hierro; }
+    if(ent.para === jugadorActual){ netT += ent.trigo; netH += ent.hierro; }
+  }
+  neto.trigo = netT;
+  neto.hierro = netH;
+
+  document.getElementById("trigo").textContent = recursos.trigo.toFixed(2);
+  document.getElementById("hierro").textContent = recursos.hierro.toFixed(2);
+  document.getElementById("netoTrigo").textContent = neto.trigo.toFixed(2);
+  document.getElementById("netoHierro").textContent = neto.hierro.toFixed(2);
+
+  // Actualizar lista de destinatarios
   const nombres = Object.keys(data.jugadores);
-  actualizarDestinatarios(nombres);
+  const sel = document.getElementById("destinatario");
+  sel.innerHTML = '<option value="">--Selecciona--</option>';
+  for(const n of nombres) if(n!==jugadorActual) sel.innerHTML += `<option value="${n}">${n}</option>`;
 
+  // Estado del juego
   const eAb = data.entregasAbiertas;
   const pAb = data.produccionAbierta;
   document.getElementById("estadoJuego").textContent = 
     eAb ? "Fase de Entregas" : pAb ? "Fase de Producción" : "Esperando próxima ronda";
 
-  document.getElementById("avisoEntregas").textContent = eAb ? "" : "📦 Entregas cerradas";
-
-  // Mostrar entregas propias
-  const tbody = document.getElementById("misEntregas");
-  tbody.innerHTML = "";
-  neto = { trigo:0, hierro:0 };
-  for(const ent of data.historial){
-    if(ent.de === jugadorActual){
-      tbody.innerHTML += `<tr class="enviada"><td>📤 Enviada</td><td>${ent.para}</td><td>${ent.trigo}</td><td>${ent.hierro}</td></tr>`;
-      neto.trigo -= ent.trigo;
-      neto.hierro -= ent.hierro;
-    } else if(ent.para === jugadorActual){
-      tbody.innerHTML += `<tr class="recibida"><td>📥 Recibida</td><td>${ent.de}</td><td>${ent.trigo}</td><td>${ent.hierro}</td></tr>`;
-      neto.trigo += ent.trigo;
-      neto.hierro += ent.hierro;
-    }
-  }
-  document.getElementById("netoTrigo").textContent = neto.trigo.toFixed(2);
-  document.getElementById("netoHierro").textContent = neto.hierro.toFixed(2);
-
   actualizarPotencial();
 });
-
-socket.on("error", msg => alert(msg));
-
-function actualizarDestinatarios(jugadores){
-  const sel = document.getElementById("destinatario");
-  sel.innerHTML = '<option value="">--Selecciona--</option>';
-  for(const j of jugadores){
-    if(j !== jugadorActual) sel.innerHTML += `<option value="${j}">${j}</option>`;
-  }
-}
-
-function actualizarRecursos(j){
-  recursos.trigo = j.trigo;
-  recursos.hierro = j.hierro;
-  document.getElementById("trigo").textContent = j.trigo.toFixed(2);
-  document.getElementById("hierro").textContent = j.hierro.toFixed(2);
-  actualizarPotencial();
-}
 
 function actualizarPotencial(){
   const t = recursos.trigo + neto.trigo;
   const h = recursos.hierro + neto.hierro;
 
-  const prod1 = 575 * Math.min(t/280, h/12);
-  const prod2 = 20 * Math.min(t/120, h/8);
+  // Proceso 1 (Trigo)
+  const factor1_trigo = t/280;
+  const factor1_hierro = h/12;
+  const prod1 = 575 * Math.min(factor1_trigo, factor1_hierro);
+  let desperdicio1;
+  if(factor1_trigo > factor1_hierro){
+    desperdicio1 = `Se desperdicia ${t - 280*factor1_hierro} de trigo`;
+  } else if(factor1_trigo < factor1_hierro){
+    desperdicio1 = `Se desperdicia ${h - 12*factor1_trigo} de hierro`;
+  } else{
+    desperdicio1 = "Las proporciones son correctas";
+  }
+
+  // Proceso 2 (Hierro)
+  const factor2_trigo = t/120;
+  const factor2_hierro = h/8;
+  const prod2 = 20 * Math.min(factor2_trigo, factor2_hierro);
+  let desperdicio2;
+  if(factor2_trigo > factor2_hierro){
+    desperdicio2 = `Se desperdicia ${t - 120*factor2_hierro} de trigo`;
+  } else if(factor2_trigo < factor2_hierro){
+    desperdicio2 = `Se desperdicia ${h - 8*factor2_trigo} de hierro`;
+  } else{
+    desperdicio2 = "Las proporciones son correctas";
+  }
+
+  // Proceso 3 (Simplificar)
   const prod3t = t / 2;
   const prod3h = h / 2;
+  const desperdicio3 = "No hay desperdicio";
 
+  // Pintar tabla
   const tbody = document.getElementById("tablaPotencial");
   tbody.innerHTML = `
-    <tr class="${procesoElegido===1?'seleccionado':''}" onclick="elegirProceso(1)"><td>Proceso 1 (Trigo)</td><td>${prod1.toFixed(2)}</td><td>0</td></tr>
-    <tr class="${procesoElegido===2?'seleccionado':''}" onclick="elegirProceso(2)"><td>Proceso 2 (Hierro)</td><td>0</td><td>${prod2.toFixed(2)}</td></tr>
-    <tr class="${procesoElegido===3?'seleccionado':''}" onclick="elegirProceso(3)"><td>Proceso 3 (Simplificar)</td><td>${prod3t.toFixed(2)}</td><td>${prod3h.toFixed(2)}</td></tr>
+    <tr class="${procesoElegido===1?'seleccionado':''}" onclick="elegirProceso(1)">
+      <td>Proceso 1 (Trigo)</td><td>${prod1}</td><td>0</td><td>${desperdicio1}</td>
+    </tr>
+    <tr class="${procesoElegido===2?'seleccionado':''}" onclick="elegirProceso(2)">
+      <td>Proceso 2 (Hierro)</td><td>0</td><td>${prod2}</td><td>${desperdicio2}</td>
+    </tr>
+    <tr class="${procesoElegido===3?'seleccionado':''}" onclick="elegirProceso(3)">
+      <td>Proceso 3 (Simplificar)</td><td>${prod3t}</td><td>${prod3h}</td><td>${desperdicio3}</td>
+    </tr>
   `;
 }
 </script>
