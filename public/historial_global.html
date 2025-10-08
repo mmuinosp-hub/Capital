@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Historial Global</title>
-<script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
 h2 { margin-bottom: 10px; }
@@ -46,41 +45,47 @@ select, button { padding: 6px 10px; margin: 4px; }
 
 <script>
 async function listarArchivos() {
+  const tipoSelect = document.getElementById("tipoHistorial");
+  const archivoSelect = document.getElementById("archivoSeleccionado");
+  archivoSelect.innerHTML = "<option value=''>-- Cargando --</option>";
+
   try {
     const res = await fetch("/api/historiales");
+    if (!res.ok) throw new Error("No se pudo cargar la lista de archivos");
     const data = await res.json();
-
-    const tipoSelect = document.getElementById("tipoHistorial");
-    const archivoSelect = document.getElementById("archivoSeleccionado");
-    archivoSelect.innerHTML = "";
 
     const tipo = tipoSelect.value;
     const lista = data[tipo] || [];
 
+    archivoSelect.innerHTML = "";
     if (lista.length === 0) {
-      archivoSelect.innerHTML = "<option value=''>No hay archivos</option>";
+      archivoSelect.innerHTML = "<option value=''>No hay archivos disponibles</option>";
       return;
     }
 
-    for (const f of lista) {
-      archivoSelect.innerHTML += `<option value="${f}">${f}</option>`;
-    }
+    lista.forEach(f => {
+      // Escapar cualquier caracter problemático
+      const urlSafe = encodeURIComponent(f);
+      archivoSelect.innerHTML += `<option value="${urlSafe}">${f}</option>`;
+    });
   } catch (err) {
-    alert("Error cargando lista de archivos");
+    archivoSelect.innerHTML = "<option value=''>Error cargando archivos</option>";
     console.error(err);
   }
 }
 
-// Actualizar lista al cambiar tipo
 document.getElementById("tipoHistorial").addEventListener("change", listarArchivos);
 
-// Cargar archivo seleccionado
 async function cargarArchivo() {
-  const archivo = document.getElementById("archivoSeleccionado").value;
-  if (!archivo) return;
+  const archivoSelect = document.getElementById("archivoSeleccionado");
+  const archivoRaw = archivoSelect.value;
+  if (!archivoRaw) return;
+
+  const archivo = decodeURIComponent(archivoRaw);
 
   try {
     const res = await fetch(`/api/historiales/${archivo}`);
+    if (!res.ok) throw new Error("No se pudo cargar el archivo");
     const data = await res.json();
 
     document.getElementById("tablaSection").style.display = "block";
@@ -101,8 +106,7 @@ async function cargarArchivo() {
           <td>${h.hora}</td>
         </tr>`;
       });
-    } else {
-      // Producción
+    } else if (archivo.startsWith("produccion_")) {
       thead.innerHTML = "<tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Proceso</th></tr>";
       for (const [nombre, j] of Object.entries(data)) {
         tbody.innerHTML += `<tr>
@@ -112,6 +116,9 @@ async function cargarArchivo() {
           <td>${j.proceso ?? "-"}</td>
         </tr>`;
       }
+    } else {
+      thead.innerHTML = "";
+      tbody.innerHTML = "<tr><td colspan='5'>Archivo desconocido</td></tr>";
     }
   } catch (err) {
     alert("Error cargando archivo");
