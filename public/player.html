@@ -70,7 +70,7 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
   <h4>Tus entregas</h4>
   <table>
     <thead>
-      <tr><th>Tipo</th><th>Jugador</th><th>Recurso</th><th>Cantidad</th></tr>
+      <tr><th>Tipo</th><th>Jugador</th><th>Detalle</th><th>Hora</th></tr>
     </thead>
     <tbody id="misEntregas"></tbody>
   </table>
@@ -83,15 +83,15 @@ th,td{border:1px solid #ddd;padding:6px;text-align:center;}
 
   <div id="formProduccion">
     <div>
-      <button onclick="producir('proceso1')">🌾 Proceso 1: Trigo</button>
+      <button onclick="producir(1)">🌾 Proceso 1: Trigo</button>
       <div id="infoTrigo" class="proceso-info"></div>
     </div>
     <div>
-      <button onclick="producir('proceso2')">⛏️ Proceso 2: Hierro</button>
+      <button onclick="producir(2)">⛏️ Proceso 2: Hierro</button>
       <div id="infoHierro" class="proceso-info"></div>
     </div>
     <div>
-      <button onclick="producir('proceso3')">♻️ Proceso 3: Simplificar</button>
+      <button onclick="producir(3)">♻️ Proceso 3: Simplificar</button>
       <div id="infoSimplificar" class="proceso-info"></div>
     </div>
   </div>
@@ -110,27 +110,36 @@ function entrar(){
   socket.emit("entrarJugador", { sala:salaActual, nombre:jugadorActual, password });
 }
 
-function entregar(){
-  const dest = document.getElementById("destinatario").value;
+function entregar() {
+  const para = document.getElementById("destinatario").value;
   const recurso = document.getElementById("recurso").value;
   const cantidad = parseFloat(document.getElementById("cantidad").value);
-  if(!dest || cantidad<=0) return alert("Datos inválidos");
-  socket.emit("entrega",{ sala:salaActual, origen:jugadorActual, destino:dest, recurso, cantidad });
+  if (!para || cantidad <= 0) return alert("Datos inválidos");
+
+  let trigo = 0, hierro = 0;
+  if (recurso === "trigo") trigo = cantidad;
+  else hierro = cantidad;
+
+  socket.emit("enviarEntrega", {
+    sala: salaActual,
+    de: jugadorActual,
+    para,
+    trigo,
+    hierro
+  });
 }
 
-function producir(tipo){
-  socket.emit("producir",{ sala:salaActual, jugador:jugadorActual, tipo });
+function producir(proceso){
+  socket.emit("elegirProceso",{ sala:salaActual, nombre:jugadorActual, proceso });
 }
 
-socket.on("jugadorEntrado", ({ sala, jugador, datos, jugadores })=>{
+socket.on("jugadorEntrado", ({ sala, nombre })=>{
   document.getElementById("acceso").classList.add("hidden");
   document.getElementById("panel").classList.remove("hidden");
   document.getElementById("entregasPanel").classList.remove("hidden");
   document.getElementById("produccionPanel").classList.remove("hidden");
   document.getElementById("nombreSala").textContent = sala;
-  document.getElementById("nombreJugador").textContent = jugador;
-  actualizarRecursos(datos);
-  actualizarDestinatarios(jugadores);
+  document.getElementById("nombreJugador").textContent = nombre;
 });
 
 socket.on("actualizarEstado", data=>{
@@ -138,7 +147,6 @@ socket.on("actualizarEstado", data=>{
   if(!j) return;
   actualizarRecursos(j);
 
-  // Actualizar destinatarios dinámicamente
   const nombres = Object.keys(data.jugadores);
   actualizarDestinatarios(nombres);
 
@@ -152,14 +160,24 @@ socket.on("actualizarEstado", data=>{
   document.getElementById("formProduccion").style.display = pAb ? "block" : "none";
   document.getElementById("avisoProduccion").textContent = pAb ? "" : "⚙️ Producción cerrada";
 
-  // Mostrar entregas propias
+  // Mostrar entregas propias (de data.historial)
   const tbody = document.getElementById("misEntregas");
   tbody.innerHTML = "";
-  for(const ent of data.entregas){
-    if(ent.origen === jugadorActual){
-      tbody.innerHTML += `<tr class="enviada"><td>📤 Enviada</td><td>${ent.destino}</td><td>${ent.recurso}</td><td>${ent.cantidad}</td></tr>`;
-    } else if(ent.destino === jugadorActual){
-      tbody.innerHTML += `<tr class="recibida"><td>📥 Recibida</td><td>${ent.origen}</td><td>${ent.recurso}</td><td>${ent.cantidad}</td></tr>`;
+  for (const ent of data.historial) {
+    if (ent.de === jugadorActual) {
+      tbody.innerHTML += `<tr class="enviada">
+        <td>📤 Enviada</td>
+        <td>${ent.para}</td>
+        <td>Trigo: ${ent.trigo.toFixed(2)}, Hierro: ${ent.hierro.toFixed(2)}</td>
+        <td>${ent.hora}</td>
+      </tr>`;
+    } else if (ent.para === jugadorActual) {
+      tbody.innerHTML += `<tr class="recibida">
+        <td>📥 Recibida</td>
+        <td>${ent.de}</td>
+        <td>Trigo: ${ent.trigo.toFixed(2)}, Hierro: ${ent.hierro.toFixed(2)}</td>
+        <td>${ent.hora}</td>
+      </tr>`;
     }
   }
 
@@ -198,9 +216,8 @@ function actualizarInfoProcesos(){
   document.getElementById("infoHierro").textContent = 
     `⛏️ Producción posible: +${prod2.toFixed(2)} hierro (20 * min(trigo/120, hierro/8))`;
   document.getElementById("infoSimplificar").textContent = 
-    `♻️ Simplificar: trigo → ${(prod3t).toFixed(2)}, hierro → ${(prod3h).toFixed(2)} (trigo/2, hierro/2)`;
+    `♻️ Simplificar: trigo → ${prod3t.toFixed(2)}, hierro → ${prod3h.toFixed(2)} (trigo/2, hierro/2)`;
 }
 </script>
 </body>
 </html>
-
