@@ -5,21 +5,24 @@
 <title>Historial de Entregas</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body { font-family: Arial; margin: 20px; }
-table { border-collapse: collapse; width: 100%; }
-th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+body { font-family: Arial, sans-serif; margin: 20px; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { border: 1px solid #aaa; padding: 5px; text-align: center; }
+select { padding: 4px; }
 </style>
 </head>
 <body>
 <nav>
-  <a href="/">Inicio</a> | 
+  <a href="/">🏠 Inicio</a> | 
   <a href="/player.html">Jugador</a> | 
-  <a href="/estado_jugadores.html">Estado de jugadores</a> | 
-  <a href="/entregas_realizadas.html">Entregas realizadas</a>
+  <a href="/estado_jugadores.html">Historial de producción</a>
 </nav>
 
-<h2>Historial completo de entregas</h2>
-<p>Sala: <span id="nombreSala"></span></p>
+<h2>📦 Historial completo de entregas</h2>
+
+<label>Archivo: 
+  <select id="selectorArchivos"></select>
+</label>
 
 <table>
   <thead>
@@ -29,15 +32,30 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 </table>
 
 <script>
-const socket = io();
-let sala = prompt("Introduce el nombre de la sala:");
-socket.emit("entrarJugador", { sala, nombre: "__viewer__", password: "" });
+async function cargarLista() {
+  const res = await fetch("/api/historiales");
+  const archivos = await res.json();
+  const lista = archivos.filter(a => a.startsWith("entregas_"));
+  const sel = document.getElementById("selectorArchivos");
+  sel.innerHTML = "";
+  for (const a of lista) {
+    const opt = document.createElement("option");
+    opt.value = a;
+    opt.textContent = a;
+    sel.appendChild(opt);
+  }
+  if (lista.length) {
+    sel.value = lista[lista.length - 1];
+    cargarArchivo(sel.value);
+  }
+}
 
-socket.on("actualizarEstado", data => {
-  document.getElementById("nombreSala").textContent = sala;
+async function cargarArchivo(nombre) {
+  const res = await fetch("/historiales/" + nombre);
+  const data = await res.json();
   const tbody = document.getElementById("tablaHistorial");
   tbody.innerHTML = "";
-  for (const h of data.historial) {
+  for (const h of data) {
     tbody.innerHTML += `<tr>
       <td>${h.de}</td>
       <td>${h.para}</td>
@@ -46,7 +64,13 @@ socket.on("actualizarEstado", data => {
       <td>${h.hora}</td>
     </tr>`;
   }
+}
+
+document.getElementById("selectorArchivos").addEventListener("change", e => {
+  cargarArchivo(e.target.value);
 });
+
+cargarLista();
 </script>
 </body>
 </html>
