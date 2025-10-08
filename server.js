@@ -10,58 +10,37 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
-
-
-
-
-
-
-
-
-// Endpoint seguro para listar historiales
-app.get("/api/historiales", (req, res) => {
-  const dir = path.join(__dirname, "historiales");
-  if (!fs.existsSync(dir)) return res.json({ entregas: [], produccion: [] });
-
-  const files = fs.readdirSync(dir);
-  const entregas = files.filter(f => f.startsWith("entregas_")).sort();
-  const produccion = files.filter(f => f.startsWith("produccion_")).sort();
-
-  res.json({ entregas, produccion });
-});
-
-// Endpoint seguro para leer un archivo específico
-app.get("/api/historiales/:archivo", (req, res) => {
-  const dir = path.join(__dirname, "historiales");
-  const filePath = path.join(dir, req.params.archivo);
-
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Archivo no encontrado" });
-
-  try {
-    const data = fs.readFileSync(filePath, "utf-8");
-    res.json(JSON.parse(data));
-  } catch (err) {
-    res.status(500).json({ error: "Error leyendo archivo" });
-  }
-});
-
-
-
-
-
-
-
-
-
-// Generar IDs únicos
+// === UTILIDADES ===
 function generarId() {
   return Math.random().toString(36).substring(2, 10);
 }
 
-// Almacenar salas
+// === ALMACENAMIENTO DE SALAS ===
 const salas = {};
 
-// Función para guardar historial de sesiones
+// === CARGA AUTOMÁTICA DEL ESTADO SI EXISTE ===
+const estadoFile = path.join(__dirname, "estado_actual.json");
+
+if (fs.existsSync(estadoFile)) {
+  try {
+    const data = JSON.parse(fs.readFileSync(estadoFile));
+    Object.assign(salas, data);
+    console.log("✅ Estado recuperado desde disco");
+  } catch (err) {
+    console.error("⚠️ Error al cargar estado guardado:", err);
+  }
+}
+
+// === FUNCIÓN PARA GUARDAR ESTADO ===
+function guardarEstado() {
+  try {
+    fs.writeFileSync(estadoFile, JSON.stringify(salas, null, 2));
+  } catch (err) {
+    console.error("Error al guardar estado actual:", err);
+  }
+}
+
+// === FUNCIÓN PARA GUARDAR HISTORIAL DE SESIÓN ===
 function guardarHistorial(sala) {
   const data = salas[sala];
   if (!data) return;
@@ -93,7 +72,7 @@ function guardarHistorial(sala) {
   }
 }
 
-// Socket.IO
+// === SOCKET.IO ===
 io.on("connection", (socket) => {
   console.log("Usuario conectado:", socket.id);
 
@@ -107,6 +86,7 @@ io.on("connection", (socket) => {
         produccionAbierta: false,
         historial: []
       };
+      guardarEstado();
       socket.emit("salaCreada", sala);
       console.log(`Sala creada: ${sala}`);
     } else {
@@ -147,6 +127,7 @@ io.on("connection", (socket) => {
       trigoProd: 0,
       hierroProd: 0
     };
+    guardarEstado();
     io.to(sala).emit("actualizarEstado", data);
   });
 
@@ -156,7 +137,6 @@ io.on("connection", (socket) => {
     if (!data) return;
 
     if (nombre === "__viewer__") {
-      // Espectador
       socket.join(sala);
       socket.emit("jugadorEntrado", { sala, nombre });
       io.to(sala).emit("actualizarEstado", data);
@@ -190,6 +170,7 @@ io.on("connection", (socket) => {
     emisor.entregas += 1;
 
     data.historial.push({ de, para, trigo, hierro, hora: new Date().toLocaleTimeString() });
+    guardarEstado();
     io.to(sala).emit("actualizarEstado", data);
   });
 
@@ -205,6 +186,7 @@ io.on("connection", (socket) => {
         j.hierroInsumo = j.hierro;
       }
     }
+    guardarEstado();
     io.to(sala).emit("actualizarEstado", data);
   });
 
@@ -225,15 +207,15 @@ io.on("connection", (socket) => {
 
         if (proceso === 1) {
           factor = Math.min(j.trigoInsumo / 280, j.hierroInsumo / 12);
-          j.trigoProd = Math.round(575 * factor);
+          j.trigoProd = 575 * factor;
           j.hierroProd = 0;
         } else if (proceso === 2) {
           factor = Math.min(j.trigoInsumo / 120, j.hierroInsumo / 8);
           j.trigoProd = 0;
-          j.hierroProd = Math.round(20 * factor);
+          j.hierroProd = 20 * factor;
         } else {
-          j.trigoProd = Math.round(j.trigoInsumo / 2);
-          j.hierroProd = Math.round(j.hierroInsumo / 2);
+          j.trigoProd = j.trigoInsumo / 2;
+          j.hierroProd = j.hierroInsumo / 2;
         }
 
         j.trigo = j.trigoProd;
@@ -244,6 +226,7 @@ io.on("connection", (socket) => {
       guardarHistorial(sala);
     }
 
+    guardarEstado();
     io.to(sala).emit("actualizarEstado", data);
   });
 
@@ -253,6 +236,7 @@ io.on("connection", (socket) => {
     if (!data || !data.produccionAbierta) return;
     if (data.jugadores[nombre] && data.jugadores[nombre].proceso === null) {
       data.jugadores[nombre].proceso = proceso;
+      guardarEstado();
       io.to(sala).emit("actualizarEstado", data);
     }
   });
@@ -275,6 +259,8 @@ io.on("connection", (socket) => {
     data.entregasAbiertas = true;
     data.produccionAbierta = false;
     data.historial = [];
+
+    guardarEstado();
     io.to(sala).emit("actualizarEstado", data);
   });
 
@@ -283,7 +269,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Puerto dinámico para Render
+// === PUERTO ===
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Servidor iniciado en http://localhost:${PORT}`));
-
