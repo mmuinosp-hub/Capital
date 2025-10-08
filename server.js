@@ -10,6 +10,49 @@ const io = new Server(server);
 
 app.use(express.static("public"));
 
+
+
+
+
+
+
+
+
+// Endpoint seguro para listar historiales
+app.get("/api/historiales", (req, res) => {
+  const dir = path.join(__dirname, "historiales");
+  if (!fs.existsSync(dir)) return res.json({ entregas: [], produccion: [] });
+
+  const files = fs.readdirSync(dir);
+  const entregas = files.filter(f => f.startsWith("entregas_")).sort();
+  const produccion = files.filter(f => f.startsWith("produccion_")).sort();
+
+  res.json({ entregas, produccion });
+});
+
+// Endpoint seguro para leer un archivo específico
+app.get("/api/historiales/:archivo", (req, res) => {
+  const dir = path.join(__dirname, "historiales");
+  const filePath = path.join(dir, req.params.archivo);
+
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Archivo no encontrado" });
+
+  try {
+    const data = fs.readFileSync(filePath, "utf-8");
+    res.json(JSON.parse(data));
+  } catch (err) {
+    res.status(500).json({ error: "Error leyendo archivo" });
+  }
+});
+
+
+
+
+
+
+
+
+
 // Generar IDs únicos
 function generarId() {
   return Math.random().toString(36).substring(2, 10);
@@ -243,3 +286,4 @@ io.on("connection", (socket) => {
 // Puerto dinámico para Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Servidor iniciado en http://localhost:${PORT}`));
+
