@@ -7,7 +7,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Consola de Administrador</title>
+<title>Consola del Administrador</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
 body { font-family: Arial; margin: 20px; background: #f4f6f8; color: #222; }
@@ -19,7 +19,7 @@ th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
 .boton.gris { background: #ccc; cursor: not-allowed; color: #555; }
 .panel { display: none; margin-top: 10px; }
 .info-box { background: white; padding: 10px; border-radius: 8px; margin-top: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-#loginForm { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.1); width: 320px; margin: 100px auto; text-align: center; }
+#loginForm { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.1); width: 300px; margin: 100px auto; text-align: center; }
 #loginForm input { display: block; width: 90%; margin: 10px auto; padding: 6px; border-radius: 6px; border: 1px solid #aaa; }
 .botonera { text-align: center; margin-top: 15px; }
 .status-bar { margin-top: 10px; font-weight: bold; }
@@ -29,47 +29,38 @@ th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
 </head>
 <body>
 
-<!-- === FORMULARIO INICIAL === -->
+<!-- === FORMULARIO DE ACCESO === -->
 <div id="loginForm">
   <h2>Administrador</h2>
-  <input id="salaInput" placeholder="Sala" required>
+  <input id="salaInput" placeholder="Nombre de la sala" required>
   <input id="passwordInput" placeholder="Contraseña" type="password" required>
   <div class="botonera">
     <button id="crearSalaBtn" class="boton">Crear nueva sala</button>
     <button id="entrarSalaBtn" class="boton">Entrar en sala</button>
   </div>
-  <p id="loginError" style="color:red; display:none;">Error al entrar. Verifica los datos.</p>
+  <p id="loginError" style="color:red; display:none;">Completa todos los campos para continuar.</p>
 </div>
 
 <!-- === INTERFAZ DEL ADMIN === -->
 <div id="mainUI" style="display:none;">
   <h2>Consola del Administrador</h2>
-  
   <div class="info-box">
-    <p> Sala: <b><span id="nombreSala"></span></b></p>
-    <div class="status-bar">
-      Producción: <span id="estadoProduccion" class="cerrado">Desconocido</span> |
-      Entregas: <span id="estadoEntregas" class="cerrado">Desconocido</span>
-    </div>
+    <p> Sala: <b><span id="nombreSala"></span></b> </p>
+    <p>Producción: <span id="estadoProduccion" class="cerrado">Desconocido</span> | Entregas: <span id="estadoEntregas" class="cerrado">Desconocido</span></p>
+    <a href="index.html" class="boton">Volver a inicio</a>
   </div>
-  
-  <div class="botonera">
-    <button class="boton" id="btnAbrirProd">Abrir Producción</button>
-    <button class="boton" id="btnCerrarProd">Cerrar Producción</button>
-    <button class="boton" id="btnAbrirEntregas">Abrir Entregas</button>
-    <button class="boton" id="btnCerrarEntregas">Cerrar Entregas</button>
-    <a href="/" class="boton">Volver a inicio</a>
-  </div>
-  
+
   <hr>
-  
+
+  <!-- === BOTONERA PRINCIPAL === -->
   <div class="botonera">
     <button class="boton" id="btnEstados">📊 Estados actuales</button>
     <button class="boton" id="btnEntregasAct">📜 Entregas actuales</button>
     <button class="boton" id="btnHistorialEstados">📈 Historial de estados</button>
     <button class="boton" id="btnHistorialEntregas">📚 Historial de entregas</button>
   </div>
-  
+
+  <!-- === PANEL DE RESULTADOS UNIFICADO === -->
   <div id="panelDatos" class="panel info-box">
     <div id="contenidoPanel"></div>
   </div>
@@ -77,52 +68,62 @@ th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
 
 <script>
 const socket = io();
-let sala, panelVisible = null;
+let sala, ultimoEstado = {}, panelVisible = null;
 
-// === BOTONES DE LOGIN ===
+// === LOGIN ===
 document.getElementById("crearSalaBtn").onclick = () => {
   sala = document.getElementById("salaInput").value.trim();
   const password = document.getElementById("passwordInput").value.trim();
-  if (!sala || !password) return alert("Completa todos los campos.");
+  if (!sala || !password) {
+    loginError("Completa todos los campos para crear la sala.");
+    return;
+  }
   socket.emit("crearSala", { sala, password });
 };
 
 document.getElementById("entrarSalaBtn").onclick = () => {
   sala = document.getElementById("salaInput").value.trim();
   const password = document.getElementById("passwordInput").value.trim();
-  if (!sala || !password) return alert("Completa todos los campos.");
+  if (!sala || !password) {
+    loginError("Completa todos los campos para entrar en la sala.");
+    return;
+  }
   socket.emit("entrarAdmin", { sala, password });
 };
 
-// === RECIBIR ESTADO ===
-socket.on("actualizarEstado", data => {
-  if (!document.getElementById("mainUI").style.display || document.getElementById("mainUI").style.display === "none") {
-    document.getElementById("loginForm").style.display = "none";
-    document.getElementById("mainUI").style.display = "block";
-    document.getElementById("nombreSala").textContent = sala;
-  }
-  const prodAbierta = data.produccionAbierta;
-  const entAbierta = data.entregasAbiertas;
-  
-  const prodElem = document.getElementById("estadoProduccion");
-  const entElem = document.getElementById("estadoEntregas");
-  
-  prodElem.textContent = prodAbierta ? "Abierta" : "Cerrada";
-  prodElem.className = prodAbierta ? "abierto" : "cerrado";
-  
-  entElem.textContent = entAbierta ? "Abiertas" : "Cerradas";
-  entElem.className = entAbierta ? "abierto" : "cerrado";
-  
-  window.ultimoEstado = data;
+function loginError(msg) {
+  const e = document.getElementById("loginError");
+  e.textContent = msg;
+  e.style.display = "block";
+}
+
+// === AL ENTRAR ===
+socket.on("estadoAdmin", data => {
+  document.getElementById("loginForm").style.display = "none";
+  document.getElementById("mainUI").style.display = "block";
+  document.getElementById("nombreSala").textContent = sala;
+  ultimoEstado = data;
+  actualizarStatus();
 });
 
-// === BOTONES DE CONTROL ===
-document.getElementById("btnAbrirProd").onclick = () => socket.emit("abrirProduccion", { sala });
-document.getElementById("btnCerrarProd").onclick = () => socket.emit("cerrarProduccion", { sala });
-document.getElementById("btnAbrirEntregas").onclick = () => socket.emit("abrirEntregas", { sala });
-document.getElementById("btnCerrarEntregas").onclick = () => socket.emit("cerrarEntregas", { sala });
+// === ACTUALIZAR STATUS ===
+socket.on("actualizarEstado", data => {
+  ultimoEstado = data;
+  actualizarStatus();
+});
 
-// === PANEL DE DATOS ===
+function actualizarStatus() {
+  const prodAbierta = ultimoEstado.produccionAbierta;
+  const entAbierta = ultimoEstado.entregasAbiertas;
+  const prodEl = document.getElementById("estadoProduccion");
+  const entEl = document.getElementById("estadoEntregas");
+  prodEl.textContent = prodAbierta ? "Abierta" : "Cerrada";
+  prodEl.className = prodAbierta ? "abierto" : "cerrado";
+  entEl.textContent = entAbierta ? "Abiertas" : "Cerradas";
+  entEl.className = entAbierta ? "abierto" : "cerrado";
+}
+
+// === PANEL UNIFICADO ===
 function togglePanel(id, html) {
   const panel = document.getElementById("panelDatos");
   const contenido = document.getElementById("contenidoPanel");
@@ -136,42 +137,38 @@ function togglePanel(id, html) {
   }
 }
 
-// === BOTONES DE TABLAS ===
+// === BOTONES PRINCIPALES ===
 document.getElementById("btnEstados").onclick = () => {
-  if (!window.ultimoEstado?.jugadores) return;
-  const filas = Object.entries(window.ultimoEstado.jugadores).map(([n,j]) =>
-    `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`
+  if (!ultimoEstado.jugadores) return;
+  const filas = Object.entries(ultimoEstado.jugadores).map(([n,j]) =>
+    `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td></tr>`
   ).join("");
   const html = `<h3>📊 Estados actuales</h3>
-    <table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>${filas}</tbody></table>`;
+    <table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead><tbody>${filas}</tbody></table>`;
   togglePanel("estados", html);
 };
 
 document.getElementById("btnEntregasAct").onclick = () => {
-  const historial = window.ultimoEstado?.historial || [];
+  const historial = ultimoEstado.historial || [];
   const filas = historial.map(h =>
     `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`
   ).join("");
   const html = `<h3>📜 Entregas actuales</h3>
-    <table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
+    <table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></thead><tbody>${filas}</tbody></table>`;
   togglePanel("entregasAct", html);
 };
 
 document.getElementById("btnHistorialEstados").onclick = () => {
-  const hist = window.ultimoEstado?.historialEstados || [];
-  const filas = hist.map(h =>
-    `<tr><td>${h.sesion ?? h.turno ?? "-"}</td><td>${h.jugador ?? "-"}</td><td>${h.trigo ?? "-"}</td><td>${h.hierro ?? "-"}</td></tr>`
-  ).join("");
+  const hist = ultimoEstado.historialEstados || [];
+  const filas = hist.map(h => `<tr><td>${h.sesion ?? h.turno ?? "-"}</td><td>${h.jugador ?? "-"}</td><td>${h.trigo ?? "-"}</td><td>${h.hierro ?? "-"}</td></tr>`).join("");
   const html = `<h3>📈 Historial de estados</h3>
     <table><thead><tr><th>Sesión</th><th>Jugador</th><th>Trigo</th><th>Hierro</th></tr></thead><tbody>${filas || "<tr><td colspan='4'>Sin datos</td></tr>"}</tbody></table>`;
   togglePanel("histEstados", html);
 };
 
 document.getElementById("btnHistorialEntregas").onclick = () => {
-  const hist = window.ultimoEstado?.historial || [];
-  const filas = hist.map((h,i) =>
-    `<tr><td>${h.sesion ?? i+1}</td><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`
-  ).join("");
+  const hist = ultimoEstado.historial || [];
+  const filas = hist.map((h,i) => `<tr><td>${h.sesion ?? i+1}</td><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("");
   const html = `<h3>📚 Historial de entregas</h3>
     <table><thead><tr><th>Sesión</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas || "<tr><td colspan='6'>Sin datos</td></tr>"}</tbody></table>`;
   togglePanel("histEntregas", html);
