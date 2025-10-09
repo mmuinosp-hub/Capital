@@ -5,111 +5,79 @@
 <title>Consola del Jugador</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; background: #f4f6f8; }
-  h2, h3 { color: #333; }
-  .panel { background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 14px; }
-  table { border-collapse: collapse; width: 100%; margin-top: 8px; }
-  th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
-  .boton { margin: 5px; padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer; background: #1976d2; color: white; }
-  .boton:hover { background: #125ea9; }
-  .disabled { background: #ccc !important; cursor: not-allowed !important; }
-  .estado-abierto { color: green; font-weight: bold; }
-  .estado-cerrado { color: red; font-weight: bold; }
-  #panelJuego { display: none; }
-  #mensajeError { color: red; font-weight: bold; margin-top: 8px; }
-  input, select { padding: 6px; border-radius: 6px; border: 1px solid #bbb; margin: 4px; }
-  #overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center;
-  }
-  #modal {
-    background: white; padding: 20px; border-radius: 8px; width: 80%; max-height: 80%;
-    overflow: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-  }
-  #modal h3 { margin-top: 0; }
+body { font-family: Arial; margin: 20px; }
+.hidden { display: none; }
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { border: 1px solid #999; padding: 5px; text-align: center; }
+.boton { margin: 5px; padding: 5px 10px; cursor: pointer; border-radius: 6px; border: none; background: #1976d2; color: white; }
+.boton.disabled { background: #ccc; cursor: not-allowed; }
+.estado-abierto { color: green; font-weight: bold; }
+.estado-cerrado { color: red; font-weight: bold; }
+#overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); justify-content: center; align-items:center; }
+#modal { background:white; padding:20px; border-radius:10px; max-height:80%; overflow:auto; width:80%; }
+#modal h3 { margin-top:0; }
 </style>
 </head>
 <body>
 
 <h2>Consola del Jugador</h2>
 
-<!-- === FORMULARIO DE ACCESO === -->
-<div id="panelAcceso" class="panel">
-  <h3>Entrar a una sala</h3>
+<div id="panelAcceso">
+  <h3>Entrar a la sala</h3>
   <form id="formAcceso">
-    <label>Sala:</label> <input type="text" id="inputSala" required><br>
-    <label>Jugador:</label> <input type="text" id="inputNombre" required><br>
-    <label>Contraseña:</label> <input type="password" id="inputPassword" required><br>
+    Sala: <input id="inputSala" required><br><br>
+    Nombre de jugador: <input id="inputNombre" required><br><br>
+    Contraseña: <input type="password" id="inputPassword" required><br><br>
     <button type="submit" class="boton">Entrar</button>
   </form>
-  <div id="mensajeError"></div>
+  <p id="mensajeError" style="color:red"></p>
 </div>
 
-<!-- === PANEL PRINCIPAL === -->
-<div id="panelJuego">
+<div id="panelJuego" class="hidden">
+  <p>Sala: <span id="nombreSala"></span><br>
+     Jugador: <span id="nombreJugador"></span></p>
 
-  <div class="panel">
-    <p><b>Sala:</b> <span id="nombreSala"></span></p>
-    <p><b>Jugador:</b> <span id="nombreJugador"></span></p>
-    <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span> |
-       Producción: <span id="estadoProduccion" class="estado-cerrado">—</span></p>
-    <div>
-      <button class="boton" id="btnEstados">📊 Estados actuales</button>
-      <button class="boton" id="btnEntregasActuales">📦 Entregas actuales</button>
-      <button class="boton" id="btnHistorialEstados">📜 Historial de estados</button>
-      <button class="boton" id="btnHistorialEntregas">🧾 Historial de entregas</button>
-    </div>
-  </div>
+  <h3>Estado actual</h3>
+  <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span> 
+     <button class="boton" id="btnEntregasActuales">Ver entregas actuales</button></p>
+  <p>Producción: <span id="estadoProduccion" class="estado-cerrado">—</span></p>
 
-  <div class="panel">
-    <h3>Mis Recursos</h3>
-    <table>
-      <thead><tr><th>Trigo</th><th>Hierro</th><th>Entregas hechas</th><th>Proceso elegido</th></tr></thead>
-      <tbody id="tablaJugador"></tbody>
-    </table>
-  </div>
+  <h3>Enviar entrega</h3>
+  <form id="formEntrega">
+    Para:
+    <select id="para" required></select>
+    Trigo: <input id="trigo" type="number" min="0" step="any">
+    Hierro: <input id="hierro" type="number" min="0" step="any">
+    <button type="submit" class="boton">Enviar</button>
+  </form>
 
-  <div class="panel">
-    <h3>Entregas personales</h3>
-    <table id="tablaEntregasJugador">
-      <thead><tr><th>Tipo</th><th>Jugador</th><th>Trigo</th><th>Hierro</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <h3>Entregas realizadas o recibidas</h3>
+  <table id="tablaEntregasJugador">
+    <thead><tr><th>Tipo</th><th>Contraparte</th><th>Trigo</th><th>Hierro</th></tr></thead>
+    <tbody><tr><td colspan="4">Sin entregas aún</td></tr></tbody>
+  </table>
 
-  <div class="panel" id="panelEntregas">
-    <h3>Enviar Entrega</h3>
-    <form id="formEntrega">
-      Para:
-      <select id="para" required><option value="">Seleccionar receptor...</option></select>
-      Trigo: <input id="trigo" type="number" min="0" step="any">
-      Hierro: <input id="hierro" type="number" min="0" step="any">
-      <button type="submit" class="boton">Enviar</button>
-    </form>
-  </div>
+  <h3>Producción potencial</h3>
+  <table id="tablaProduccionPotencial">
+    <thead><tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Insumos desperdiciados</th></tr></thead>
+    <tbody></tbody>
+  </table>
 
-  <div class="panel" id="panelProduccion">
-    <h3>Elegir Proceso de Producción</h3>
-    <button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
-    <button class="boton" data-proceso="2">Proceso 2 (Hierro)</button>
-    <button class="boton" data-proceso="3">Proceso 3 (Simplificar)</button>
-  </div>
+  <h3>Elegir proceso</h3>
+  <button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
+  <button class="boton" data-proceso="2">Proceso 2 (Hierro)</button>
+  <button class="boton" data-proceso="3">Proceso 3 (Simplificar)</button>
 
-  <div class="panel">
-    <h3>Producción Potencial</h3>
-    <table id="tablaProduccionPotencial">
-      <thead>
-        <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Insumos desperdiciados</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
+  <hr>
 
+  <button class="boton" id="btnEstados">📊 Ver estados actuales</button>
+  <button class="boton" id="btnHistorialEstados">📈 Historial de estados</button>
+  <button class="boton" id="btnHistorialEntregas">📚 Historial de entregas</button>
 </div>
 
-<!-- === MODAL === -->
-<div id="overlay">
-  <div id="modal">
+<!-- MODAL -->
+<div id="overlay" onclick="cerrarModal()">
+  <div id="modal" onclick="event.stopPropagation()">
     <h3 id="modalTitulo"></h3>
     <div id="modalContenido"></div>
     <button class="boton" onclick="cerrarModal()">Cerrar</button>
@@ -120,7 +88,8 @@
 const socket = io();
 let sala, nombre;
 let ultimoEstado = null;
-let entregasLocales = []; // 🟢 Guardaremos aquí todas las entregas
+let entregasLocales = [];
+let procesoSeleccionado = null;
 
 // === LOGIN ===
 document.getElementById("formAcceso").onsubmit = e => {
@@ -146,14 +115,16 @@ socket.on("error", msg => {
 socket.on("actualizarEstado", data => {
   ultimoEstado = data;
   const j = data.jugadores?.[nombre];
+  procesoSeleccionado = j?.proceso ?? null;
   actualizarEstadoGeneral(data);
+  actualizarBotonesProceso();
   actualizarTablaJugador(j);
   actualizarTablaProduccion(j);
   actualizarReceptores(data);
   actualizarEntregasJugador();
 });
 
-// === ACTUALIZAR RECEPTOR ===
+// === ACTUALIZAR RECEPTORES ===
 function actualizarReceptores(data) {
   const select = document.getElementById("para");
   const jugadores = Object.keys(data.jugadores || {}).filter(n => n !== nombre);
@@ -168,62 +139,59 @@ document.getElementById("formEntrega").onsubmit = e => {
   const trigo = parseFloat(document.getElementById("trigo").value) || 0;
   const hierro = parseFloat(document.getElementById("hierro").value) || 0;
   if (!para || (trigo <= 0 && hierro <= 0)) return;
-
-  // Enviamos al servidor
   socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
-
-  // 🟢 Guardamos localmente (para mostrar sin depender del server)
-  entregasLocales.push({
-    de: nombre,
-    para,
-    trigo,
-    hierro,
-    timestamp: Date.now()
-  });
-
-  actualizarEntregasJugador(); // actualiza tabla personal
+  entregasLocales.push({ de: nombre, para, trigo, hierro, timestamp: Date.now() });
+  actualizarEntregasJugador();
   e.target.reset();
 };
-
-// === SI RECIBE ENTREGAS DE OTROS ===
-socket.on("nuevaEntrega", e => {
-  entregasLocales.push({ ...e, timestamp: Date.now() });
-  actualizarEntregasJugador();
-});
 
 // === PRODUCCIÓN ===
 document.querySelectorAll('[data-proceso]').forEach(b => {
   b.onclick = () => {
     if (b.classList.contains("disabled")) return;
-    socket.emit("elegirProceso", { sala, nombre, proceso: parseInt(b.dataset.proceso) });
+    const proceso = parseInt(b.dataset.proceso);
+    procesoSeleccionado = proceso;
+    actualizarBotonesProceso();
+    socket.emit("elegirProceso", { sala, nombre, proceso });
   };
 });
 
-// === BOTONES ===
-document.getElementById("btnEstados").onclick = () => {
-  abrirModal("📊 Estados actuales", generarTablaJugadores(ultimoEstado?.jugadores || {}));
-};
-document.getElementById("btnEntregasActuales").onclick = () => {
-  abrirModal("📦 Entregas actuales", generarTablaEntregas(entregasLocales));
-};
-document.getElementById("btnHistorialEstados").onclick = () => {
-  abrirModal("📜 Historial de estados", generarTablaHistorial(ultimoEstado?.historialEstados || []));
-};
-document.getElementById("btnHistorialEntregas").onclick = () => {
-  abrirModal("🧾 Historial de entregas", generarTablaEntregas(entregasLocales));
-};
+function actualizarBotonesProceso() {
+  document.querySelectorAll('[data-proceso]').forEach(b => {
+    const p = parseInt(b.dataset.proceso);
+    if (!ultimoEstado?.produccionAbierta) {
+      b.disabled = true;
+      b.classList.add("disabled");
+      b.style.background = "#ccc";
+      return;
+    }
+    b.disabled = false;
+    b.classList.remove("disabled");
+    if (procesoSeleccionado === p) {
+      b.style.background = "#2e7d32";
+      b.style.color = "white";
+    } else {
+      b.style.background = "#1976d2";
+      b.style.color = "white";
+    }
+  });
+}
 
-// === MODALES ===
+// === BOTONES DE CONSULTA ===
+document.getElementById("btnEstados").onclick = () => abrirModal("📊 Estados actuales", generarTablaJugadores(ultimoEstado?.jugadores || {}));
+document.getElementById("btnEntregasActuales").onclick = () => abrirModal("📦 Entregas actuales", generarTablaEntregas(entregasLocales));
+document.getElementById("btnHistorialEstados").onclick = () => abrirModal("📜 Historial de estados", generarTablaHistorial(ultimoEstado?.historial || []));
+document.getElementById("btnHistorialEntregas").onclick = () => abrirModal("🧾 Historial de entregas", generarTablaEntregas(entregasLocales));
+
+// === MODAL ===
 function abrirModal(t, html) {
   document.getElementById("modalTitulo").textContent = t;
   document.getElementById("modalContenido").innerHTML = html || "<p>No hay datos.</p>";
   document.getElementById("overlay").style.display = "flex";
 }
-function cerrarModal() {
-  document.getElementById("overlay").style.display = "none";
-}
+function cerrarModal() { document.getElementById("overlay").style.display = "none"; }
 
-// === ESTADOS Y PRODUCCIÓN ===
+// === ACTUALIZAR ESTADOS Y PRODUCCIÓN ===
 function actualizarEstadoGeneral(data) {
   const eAb = document.getElementById("estadoEntregas");
   const pAb = document.getElementById("estadoProduccion");
@@ -231,33 +199,21 @@ function actualizarEstadoGeneral(data) {
   pAb.textContent = data.produccionAbierta ? "🟢 Abierta" : "🔴 Cerrada";
   eAb.className = data.entregasAbiertas ? "estado-abierto" : "estado-cerrado";
   pAb.className = data.produccionAbierta ? "estado-abierto" : "estado-cerrado";
-
-  document.querySelectorAll('[data-proceso]').forEach(btn => {
-    if (data.produccionAbierta) {
-      btn.disabled = false;
-      btn.classList.remove("disabled");
-    } else {
-      btn.disabled = true;
-      btn.classList.add("disabled");
-    }
-  });
+  actualizarBotonesProceso();
 }
 
 function actualizarTablaJugador(j) {
   if (!j) return;
-  document.getElementById("tablaJugador").innerHTML = `
-    <tr><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`;
+  const tbody = document.getElementById("tablaJugador");
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`;
 }
 
 function actualizarEntregasJugador() {
   const t = document.querySelector("#tablaEntregasJugador tbody");
-  if (!entregasLocales.length) {
-    t.innerHTML = `<tr><td colspan="4">Sin entregas registradas</td></tr>`;
-    return;
-  }
   const propias = entregasLocales.filter(e => e.de === nombre || e.para === nombre);
   if (!propias.length) {
-    t.innerHTML = `<tr><td colspan="4">Aún no has hecho ni recibido entregas</td></tr>`;
+    t.innerHTML = `<tr><td colspan="4">Sin entregas aún</td></tr>`;
     return;
   }
   t.innerHTML = propias.map(e => `
@@ -269,25 +225,19 @@ function actualizarEntregasJugador() {
     </tr>`).join("");
 }
 
-// === TABLA PRODUCCIÓN ===
 function actualizarTablaProduccion(j) {
   if (!j) return;
   const t = document.querySelector("#tablaProduccionPotencial tbody");
   const trigo = j.trigo, hierro = j.hierro;
-
-  const f1 = Math.min(trigo / 280, hierro / 12);
+  const f1 = Math.min(trigo/280, hierro/12), f2 = Math.min(trigo/120, hierro/8);
   const desp1 = `${(trigo - 280*f1).toFixed(2)} trigo, ${(hierro - 12*f1).toFixed(2)} hierro`;
-
-  const f2 = Math.min(trigo / 120, hierro / 8);
   const desp2 = `${(trigo - 120*f2).toFixed(2)} trigo, ${(hierro - 8*f2).toFixed(2)} hierro`;
-
   t.innerHTML = `
     <tr><td>Proceso 1</td><td>${(575*f1).toFixed(2)}</td><td>0</td><td>${desp1}</td></tr>
     <tr><td>Proceso 2</td><td>0</td><td>${(20*f2).toFixed(2)}</td><td>${desp2}</td></tr>
     <tr><td>Proceso 3</td><td>${(trigo/2).toFixed(2)}</td><td>${(hierro/2).toFixed(2)}</td><td>-</td></tr>`;
 }
 
-// === TABLAS DE MODALES ===
 function generarTablaJugadores(jugadores) {
   const filas = Object.entries(jugadores).map(([n,j]) =>
     `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`).join("");
@@ -307,15 +257,13 @@ function generarTablaEntregas(entregas) {
     const fecha = new Date(e.timestamp || Date.now());
     const hora = fecha.toLocaleTimeString();
     return `<tr>
-      <td>${e.de}</td>
-      <td>${e.para}</td>
-      <td>${Number(e.trigo || 0).toFixed(2)}</td>
-      <td>${Number(e.hierro || 0).toFixed(2)}</td>
-      <td>${hora}</td>
+      <td>${e.de}</td><td>${e.para}</td><td>${Number(e.trigo||0).toFixed(2)}</td><td>${Number(e.hierro||0).toFixed(2)}</td><td>${hora}</td>
     </tr>`;
   }).join("");
   return `<table><thead><tr><th>Emisor</th><th>Receptor</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
 }
 </script>
+
 </body>
 </html>
+
