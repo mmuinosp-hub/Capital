@@ -148,8 +148,12 @@ socket.on("actualizarEstado", data => {
 
   actualizarProduccion(j);
   actualizarSelectReceptores(data);
-  actualizarEntregasJugador(data); // ✅ SIEMPRE visible
+  actualizarEntregasJugador(data);
   actualizarBotonesProceso(j, prodAbierta);
+
+  // 🔄 Si los paneles "Estados" o "Entregas actuales" están abiertos, se actualizan automáticamente
+  if (panelVisible === "estados") renderEstados();
+  if (panelVisible === "entregasAct") renderEntregasActuales();
 });
 
 // === ENVÍO DE ENTREGA ===
@@ -240,24 +244,37 @@ function togglePanel(id, html) {
   }
 }
 
-// === BOTONES ===
-document.getElementById("btnEstados").onclick = () => {
+// === FUNCIONES DE RENDER PARA ACTUALIZACIÓN DINÁMICA ===
+function renderEstados() {
   if (!ultimoEstado.jugadores) return;
   const filas = Object.entries(ultimoEstado.jugadores)
     .map(([n, j]) => `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td></tr>`)
     .join("");
   const html = `<h3>📊 Estados actuales</h3>
     <table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead><tbody>${filas}</tbody></table>`;
-  togglePanel("estados", html);
-};
+  document.getElementById("contenidoPanel").innerHTML = html;
+  document.getElementById("panelDatos").style.display = "block";
+}
 
-document.getElementById("btnEntregasAct").onclick = () => {
+function renderEntregasActuales() {
   const historial = ultimoEstado.historial || [];
   const filas = historial.map(h =>
     `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("");
   const html = `<h3>📜 Entregas actuales</h3>
     <table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
-  togglePanel("entregasAct", html);
+  document.getElementById("contenidoPanel").innerHTML = html;
+  document.getElementById("panelDatos").style.display = "block";
+}
+
+// === BOTONES ===
+document.getElementById("btnEstados").onclick = () => {
+  renderEstados();
+  panelVisible = "estados";
+};
+
+document.getElementById("btnEntregasAct").onclick = () => {
+  renderEntregasActuales();
+  panelVisible = "entregasAct";
 };
 
 document.getElementById("btnHistorialEstados").onclick = () => {
