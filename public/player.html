@@ -35,10 +35,12 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 
 <div id="panelJuego" class="hidden">
   <p>Sala: <span id="nombreSala"></span><br>
-     Jugador: <span id="nombreJugador"></span></p>
+     Jugador: <span id="nombreJugador"></span><br>
+     Trigo disponible: <span id="trigoDisponible">0</span> |
+     Hierro disponible: <span id="hierroDisponible">0</span></p>
 
   <h3>Estado actual</h3>
-  <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span> 
+  <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span>
      <button class="boton" id="btnEntregasActuales">Ver entregas actuales</button></p>
   <p>Producción: <span id="estadoProduccion" class="estado-cerrado">—</span></p>
 
@@ -75,7 +77,6 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
   <button class="boton" id="btnHistorialEntregas">📚 Historial de entregas</button>
 </div>
 
-<!-- MODAL -->
 <div id="overlay" onclick="cerrarModal()">
   <div id="modal" onclick="event.stopPropagation()">
     <h3 id="modalTitulo"></h3>
@@ -88,7 +89,6 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 const socket = io();
 let sala, nombre;
 let ultimoEstado = null;
-let entregasLocales = [];
 let procesoSeleccionado = null;
 
 // === LOGIN ===
@@ -116,13 +116,20 @@ socket.on("actualizarEstado", data => {
   ultimoEstado = data;
   const j = data.jugadores?.[nombre];
   procesoSeleccionado = j?.proceso ?? null;
+  actualizarCantidades(j);
   actualizarEstadoGeneral(data);
   actualizarBotonesProceso();
-  actualizarTablaJugador(j);
   actualizarTablaProduccion(j);
   actualizarReceptores(data);
   actualizarEntregasJugador();
 });
+
+// === ACTUALIZAR CANTIDADES DISPONIBLES ===
+function actualizarCantidades(j) {
+  if (!j) return;
+  document.getElementById("trigoDisponible").textContent = j.trigo.toFixed(2);
+  document.getElementById("hierroDisponible").textContent = j.hierro.toFixed(2);
+}
 
 // === ACTUALIZAR RECEPTORES ===
 function actualizarReceptores(data) {
@@ -140,8 +147,6 @@ document.getElementById("formEntrega").onsubmit = e => {
   const hierro = parseFloat(document.getElementById("hierro").value) || 0;
   if (!para || (trigo <= 0 && hierro <= 0)) return;
   socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
-  entregasLocales.push({ de: nombre, para, trigo, hierro, timestamp: Date.now() });
-  actualizarEntregasJugador();
   e.target.reset();
 };
 
@@ -162,26 +167,20 @@ function actualizarBotonesProceso() {
     if (!ultimoEstado?.produccionAbierta) {
       b.disabled = true;
       b.classList.add("disabled");
-      b.style.background = "#ccc";
       return;
     }
     b.disabled = false;
     b.classList.remove("disabled");
-    if (procesoSeleccionado === p) {
-      b.style.background = "#2e7d32";
-      b.style.color = "white";
-    } else {
-      b.style.background = "#1976d2";
-      b.style.color = "white";
-    }
+    if (procesoSeleccionado === p) b.style.background = "#2e7d32";
+    else b.style.background = "#1976d2";
   });
 }
 
 // === BOTONES DE CONSULTA ===
 document.getElementById("btnEstados").onclick = () => abrirModal("📊 Estados actuales", generarTablaJugadores(ultimoEstado?.jugadores || {}));
-document.getElementById("btnEntregasActuales").onclick = () => abrirModal("📦 Entregas actuales", generarTablaEntregas(entregasLocales));
+document.getElementById("btnEntregasActuales").onclick = () => abrirModal("📦 Entregas actuales", generarTablaEntregas(ultimoEstado?.historial || []));
 document.getElementById("btnHistorialEstados").onclick = () => abrirModal("📜 Historial de estados", generarTablaHistorial(ultimoEstado?.historial || []));
-document.getElementById("btnHistorialEntregas").onclick = () => abrirModal("🧾 Historial de entregas", generarTablaEntregas(entregasLocales));
+document.getElementById("btnHistorialEntregas").onclick = () => abrirModal("🧾 Historial de entregas", generarTablaEntregas(ultimoEstado?.historial || []));
 
 // === MODAL ===
 function abrirModal(t, html) {
@@ -199,30 +198,6 @@ function actualizarEstadoGeneral(data) {
   pAb.textContent = data.produccionAbierta ? "🟢 Abierta" : "🔴 Cerrada";
   eAb.className = data.entregasAbiertas ? "estado-abierto" : "estado-cerrado";
   pAb.className = data.produccionAbierta ? "estado-abierto" : "estado-cerrado";
-  actualizarBotonesProceso();
-}
-
-function actualizarTablaJugador(j) {
-  if (!j) return;
-  const tbody = document.getElementById("tablaJugador");
-  if (!tbody) return;
-  tbody.innerHTML = `<tr><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`;
-}
-
-function actualizarEntregasJugador() {
-  const t = document.querySelector("#tablaEntregasJugador tbody");
-  const propias = entregasLocales.filter(e => e.de === nombre || e.para === nombre);
-  if (!propias.length) {
-    t.innerHTML = `<tr><td colspan="4">Sin entregas aún</td></tr>`;
-    return;
-  }
-  t.innerHTML = propias.map(e => `
-    <tr>
-      <td>${e.de === nombre ? "🔼 Enviada" : "🔽 Recibida"}</td>
-      <td>${e.de === nombre ? e.para : e.de}</td>
-      <td>${Number(e.trigo || 0).toFixed(2)}</td>
-      <td>${Number(e.hierro || 0).toFixed(2)}</td>
-    </tr>`).join("");
 }
 
 function actualizarTablaProduccion(j) {
@@ -238,6 +213,7 @@ function actualizarTablaProduccion(j) {
     <tr><td>Proceso 3</td><td>${(trigo/2).toFixed(2)}</td><td>${(hierro/2).toFixed(2)}</td><td>-</td></tr>`;
 }
 
+// === GENERAR TABLAS ===
 function generarTablaJugadores(jugadores) {
   const filas = Object.entries(jugadores).map(([n,j]) =>
     `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`).join("");
@@ -246,24 +222,40 @@ function generarTablaJugadores(jugadores) {
 
 function generarTablaHistorial(historial) {
   if (!historial.length) return "<p>No hay historial.</p>";
-  return `<table><thead><tr><th>Turno</th><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Proceso</th></tr></thead><tbody>` +
-    historial.map(h => `<tr><td>${h.turno}</td><td>${h.nombre}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.proceso ?? "-"}</td></tr>`).join("") +
-  `</tbody></table>`;
+  const filas = historial.map((h,i) => `<tr>
+    <td>${i+1}</td><td>${h.de}</td><td>${h.para}</td><td>${Number(h.trigo).toFixed(2)}</td><td>${Number(h.hierro).toFixed(2)}</td><td>${h.hora}</td>
+  </tr>`).join("");
+  return `<table><thead><tr><th>Turno</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
 }
 
-function generarTablaEntregas(entregas) {
-  if (!entregas.length) return "<p>No hay entregas registradas.</p>";
-  const filas = entregas.map(e => {
-    const fecha = new Date(e.timestamp || Date.now());
-    const hora = fecha.toLocaleTimeString();
-    return `<tr>
-      <td>${e.de}</td><td>${e.para}</td><td>${Number(e.trigo||0).toFixed(2)}</td><td>${Number(e.hierro||0).toFixed(2)}</td><td>${hora}</td>
-    </tr>`;
-  }).join("");
-  return `<table><thead><tr><th>Emisor</th><th>Receptor</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
+function generarTablaEntregas(historial) {
+  if (!historial.length) return "<p>No hay entregas.</p>";
+  const filas = historial.map(h => `<tr>
+    <td>${h.de === nombre ? "Enviado" : h.para === nombre ? "Recibido" : "Otro"}</td>
+    <td>${h.de === nombre ? h.para : h.de}</td>
+    <td>${Number(h.trigo).toFixed(2)}</td>
+    <td>${Number(h.hierro).toFixed(2)}</td>
+    <td>${h.hora}</td>
+  </tr>`).join("");
+  return `<table><thead><tr><th>Tipo</th><th>Contraparte</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+// === ENTREGAS DEL JUGADOR ===
+function actualizarEntregasJugador() {
+  if (!ultimoEstado) return;
+  const j = ultimoEstado.jugadores?.[nombre];
+  if (!j) return;
+  const historial = ultimoEstado.historial || [];
+  const filas = historial.filter(h => h.de === nombre || h.para === nombre).map(h => `<tr>
+    <td>${h.de===nombre?"Enviado":"Recibido"}</td>
+    <td>${h.de===nombre?h.para:h.de}</td>
+    <td>${Number(h.trigo).toFixed(2)}</td>
+    <td>${Number(h.hierro).toFixed(2)}</td>
+    <td>${h.hora}</td>
+  </tr>`).join("");
+  document.querySelector("#tablaEntregasJugador tbody").innerHTML = filas || '<tr><td colspan="5">Sin entregas aún</td></tr>';
 }
 </script>
 
 </body>
 </html>
-
