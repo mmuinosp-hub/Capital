@@ -22,6 +22,7 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 
 <h2>Consola del Jugador</h2>
 
+<!-- === PANEL DE ACCESO === -->
 <div id="panelAcceso">
   <h3>Entrar a la sala</h3>
   <form id="formAcceso">
@@ -33,16 +34,20 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
   <p id="mensajeError" style="color:red"></p>
 </div>
 
+<!-- === PANEL DE JUEGO === -->
 <div id="panelJuego" class="hidden">
-  <p>Sala: <span id="nombreSala"></span><br>
-     Jugador: <span id="nombreJugador"></span><br>
-     Trigo disponible: <span id="trigoDisponible">0</span> |
-     Hierro disponible: <span id="hierroDisponible">0</span></p>
+  <p>
+    Sala: <span id="nombreSala"></span><br>
+    Jugador: <span id="nombreJugador"></span><br>
+    Trigo disponible: <span id="trigoDisponible">0</span> |
+    Hierro disponible: <span id="hierroDisponible">0</span>
+  </p>
 
-  <h3>Estado actual</h3>
-  <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span>
-     <button class="boton" id="btnEntregasActuales">Ver entregas actuales</button></p>
-  <p>Producción: <span id="estadoProduccion" class="estado-cerrado">—</span></p>
+  <h3>Estado general</h3>
+  <p>
+    Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span><br>
+    Producción: <span id="estadoProduccion" class="estado-cerrado">—</span>
+  </p>
 
   <h3>Enviar entrega</h3>
   <form id="formEntrega">
@@ -53,10 +58,10 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
     <button type="submit" class="boton">Enviar</button>
   </form>
 
-  <h3>Entregas realizadas o recibidas</h3>
+  <h3>Entregas personales</h3>
   <table id="tablaEntregasJugador">
-    <thead><tr><th>Tipo</th><th>Contraparte</th><th>Trigo</th><th>Hierro</th></tr></thead>
-    <tbody><tr><td colspan="4">Sin entregas aún</td></tr></tbody>
+    <thead><tr><th>Tipo</th><th>Contraparte</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+    <tbody><tr><td colspan="5">Sin entregas aún</td></tr></tbody>
   </table>
 
   <h3>Producción potencial</h3>
@@ -72,11 +77,14 @@ th, td { border: 1px solid #999; padding: 5px; text-align: center; }
 
   <hr>
 
-  <button class="boton" id="btnEstados">📊 Ver estados actuales</button>
+  <!-- Botones de consulta principales -->
+  <button class="boton" id="btnEstados">📊 Estados actuales</button>
+  <button class="boton" id="btnEntregasActuales">📦 Entregas actuales</button>
   <button class="boton" id="btnHistorialEstados">📈 Historial de estados</button>
   <button class="boton" id="btnHistorialEntregas">📚 Historial de entregas</button>
 </div>
 
+<!-- === MODAL === -->
 <div id="overlay" onclick="cerrarModal()">
   <div id="modal" onclick="event.stopPropagation()">
     <h3 id="modalTitulo"></h3>
@@ -111,7 +119,7 @@ socket.on("error", msg => {
   document.getElementById("mensajeError").textContent = "⚠️ " + msg;
 });
 
-// === ACTUALIZAR ESTADO ===
+// === ACTUALIZAR ESTADO GENERAL ===
 socket.on("actualizarEstado", data => {
   ultimoEstado = data;
   const j = data.jugadores?.[nombre];
@@ -124,7 +132,7 @@ socket.on("actualizarEstado", data => {
   actualizarEntregasJugador();
 });
 
-// === ACTUALIZAR CANTIDADES DISPONIBLES ===
+// === ACTUALIZAR CANTIDADES ===
 function actualizarCantidades(j) {
   if (!j) return;
   document.getElementById("trigoDisponible").textContent = j.trigo.toFixed(2);
@@ -171,15 +179,14 @@ function actualizarBotonesProceso() {
     }
     b.disabled = false;
     b.classList.remove("disabled");
-    if (procesoSeleccionado === p) b.style.background = "#2e7d32";
-    else b.style.background = "#1976d2";
+    b.style.background = (procesoSeleccionado === p) ? "#2e7d32" : "#1976d2";
   });
 }
 
 // === BOTONES DE CONSULTA ===
 document.getElementById("btnEstados").onclick = () => abrirModal("📊 Estados actuales", generarTablaJugadores(ultimoEstado?.jugadores || {}));
 document.getElementById("btnEntregasActuales").onclick = () => abrirModal("📦 Entregas actuales", generarTablaEntregas(ultimoEstado?.historial || []));
-document.getElementById("btnHistorialEstados").onclick = () => abrirModal("📜 Historial de estados", generarTablaHistorial(ultimoEstado?.historial || []));
+document.getElementById("btnHistorialEstados").onclick = () => abrirModal("📈 Historial de estados", generarTablaHistorialEstados(ultimoEstado?.jugadores || {}));
 document.getElementById("btnHistorialEntregas").onclick = () => abrirModal("🧾 Historial de entregas", generarTablaEntregas(ultimoEstado?.historial || []));
 
 // === MODAL ===
@@ -190,7 +197,7 @@ function abrirModal(t, html) {
 }
 function cerrarModal() { document.getElementById("overlay").style.display = "none"; }
 
-// === ACTUALIZAR ESTADOS Y PRODUCCIÓN ===
+// === ACTUALIZAR ESTADO GENERAL ===
 function actualizarEstadoGeneral(data) {
   const eAb = document.getElementById("estadoEntregas");
   const pAb = document.getElementById("estadoProduccion");
@@ -200,6 +207,34 @@ function actualizarEstadoGeneral(data) {
   pAb.className = data.produccionAbierta ? "estado-abierto" : "estado-cerrado";
 }
 
+// === TABLAS ===
+function generarTablaJugadores(jugadores) {
+  const filas = Object.entries(jugadores).map(([n,j]) =>
+    `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`).join("");
+  return `<table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+function generarTablaHistorialEstados(jugadores) {
+  const filas = Object.entries(jugadores).map(([n,j]) =>
+    `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`).join("");
+  return `<table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+function generarTablaEntregas(historial) {
+  if (!historial.length) return "<p>No hay entregas registradas.</p>";
+  const filas = historial.map((h,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${h.de}</td>
+      <td>${h.para}</td>
+      <td>${Number(h.trigo).toFixed(2)}</td>
+      <td>${Number(h.hierro).toFixed(2)}</td>
+      <td>${h.hora || "-"}</td>
+    </tr>`).join("");
+  return `<table><thead><tr><th>#</th><th>Emisor</th><th>Receptor</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
+}
+
+// === ACTUALIZAR PRODUCCIÓN POTENCIAL ===
 function actualizarTablaProduccion(j) {
   if (!j) return;
   const t = document.querySelector("#tablaProduccionPotencial tbody");
@@ -213,46 +248,19 @@ function actualizarTablaProduccion(j) {
     <tr><td>Proceso 3</td><td>${(trigo/2).toFixed(2)}</td><td>${(hierro/2).toFixed(2)}</td><td>-</td></tr>`;
 }
 
-// === GENERAR TABLAS ===
-function generarTablaJugadores(jugadores) {
-  const filas = Object.entries(jugadores).map(([n,j]) =>
-    `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`).join("");
-  return `<table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>${filas}</tbody></table>`;
-}
-
-function generarTablaHistorial(historial) {
-  if (!historial.length) return "<p>No hay historial.</p>";
-  const filas = historial.map((h,i) => `<tr>
-    <td>${i+1}</td><td>${h.de}</td><td>${h.para}</td><td>${Number(h.trigo).toFixed(2)}</td><td>${Number(h.hierro).toFixed(2)}</td><td>${h.hora}</td>
-  </tr>`).join("");
-  return `<table><thead><tr><th>Turno</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
-}
-
-function generarTablaEntregas(historial) {
-  if (!historial.length) return "<p>No hay entregas.</p>";
-  const filas = historial.map(h => `<tr>
-    <td>${h.de === nombre ? "Enviado" : h.para === nombre ? "Recibido" : "Otro"}</td>
-    <td>${h.de === nombre ? h.para : h.de}</td>
-    <td>${Number(h.trigo).toFixed(2)}</td>
-    <td>${Number(h.hierro).toFixed(2)}</td>
-    <td>${h.hora}</td>
-  </tr>`).join("");
-  return `<table><thead><tr><th>Tipo</th><th>Contraparte</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
-}
-
-// === ENTREGAS DEL JUGADOR ===
+// === ENTREGAS PERSONALES ===
 function actualizarEntregasJugador() {
   if (!ultimoEstado) return;
-  const j = ultimoEstado.jugadores?.[nombre];
-  if (!j) return;
   const historial = ultimoEstado.historial || [];
-  const filas = historial.filter(h => h.de === nombre || h.para === nombre).map(h => `<tr>
-    <td>${h.de===nombre?"Enviado":"Recibido"}</td>
-    <td>${h.de===nombre?h.para:h.de}</td>
-    <td>${Number(h.trigo).toFixed(2)}</td>
-    <td>${Number(h.hierro).toFixed(2)}</td>
-    <td>${h.hora}</td>
-  </tr>`).join("");
+  const propias = historial.filter(h => h.de === nombre || h.para === nombre);
+  const filas = propias.map(h => `
+    <tr>
+      <td>${h.de === nombre ? "Enviado" : "Recibido"}</td>
+      <td>${h.de === nombre ? h.para : h.de}</td>
+      <td>${Number(h.trigo).toFixed(2)}</td>
+      <td>${Number(h.hierro).toFixed(2)}</td>
+      <td>${h.hora || "-"}</td>
+    </tr>`).join("");
   document.querySelector("#tablaEntregasJugador tbody").innerHTML = filas || '<tr><td colspan="5">Sin entregas aún</td></tr>';
 }
 </script>
