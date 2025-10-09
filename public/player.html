@@ -76,10 +76,11 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 
   <!-- CALCULADORA -->
   <div class="info-box">
-    <h3>Producciones para</h3>
+    <h3>Calculadora de producciones para:</h3>
     Trigo: <input id="insumoTrigo" type="number" min="0" step="any" value="0">
     Hierro: <input id="insumoHierro" type="number" min="0" step="any" value="0">
     <button id="btnCalcularProd" class="boton">Calcular</button>
+    <p><b>Trigo / Hierro:</b> <span id="ratio"></span></p>
 
     <table id="tablaProduccionPotencial">
       <thead>
@@ -168,9 +169,6 @@ socket.on("actualizarEstado", data => {
   document.getElementById("insumoHierro").value = j.hierro.toFixed(2);
 
   actualizarProduccionInsumos(j.trigo, j.hierro);
-  actualizarSelectReceptores(data);
-  actualizarEntregasJugador(data);
-  actualizarBotonesProceso(j, prodAbierta);
 });
 
 // === BOTÓN INICIO ===
@@ -185,17 +183,42 @@ document.getElementById("btnCalcularProd").onclick = () => {
   actualizarProduccionInsumos(trigo, hierro);
 };
 
+// === ACTUALIZAR RATIO AUTOMÁTICAMENTE ===
+document.getElementById("insumoTrigo").addEventListener("input", () => {
+  const t = parseFloat(document.getElementById("insumoTrigo").value) || 0;
+  const h = parseFloat(document.getElementById("insumoHierro").value) || 0;
+  actualizarProduccionInsumos(t, h);
+});
+document.getElementById("insumoHierro").addEventListener("input", () => {
+  const t = parseFloat(document.getElementById("insumoTrigo").value) || 0;
+  const h = parseFloat(document.getElementById("insumoHierro").value) || 0;
+  actualizarProduccionInsumos(t, h);
+});
+
 function actualizarProduccionInsumos(trigo, hierro) {
   const t = document.querySelector("#tablaProduccionPotencial tbody");
+  const ratio = hierro > 0 ? (trigo / hierro).toFixed(2) : "∞";
+  document.getElementById("ratio").textContent = ratio;
+
   const f1 = Math.min(trigo / 280, hierro / 12);
   const f2 = Math.min(trigo / 120, hierro / 8);
-  const desperd1 = trigo + hierro - (280*f1 + 12*f1);
-  const desperd2 = trigo + hierro - (120*f2 + 8*f2);
-  const desperd3 = (trigo + hierro) / 2;
+
+  let desperdicio1 = "";
+  if (trigo / 280 > hierro / 12)
+    desperdicio1 = `Se desperdicia ${(trigo - 280 * f1).toFixed(2)} de trigo`;
+  else if (trigo / 280 < hierro / 12)
+    desperdicio1 = `Se desperdicia ${(hierro - 12 * f1).toFixed(2)} de hierro`;
+
+  let desperdicio2 = "";
+  if (trigo / 120 > hierro / 8)
+    desperdicio2 = `Se desperdicia ${(trigo - 120 * f2).toFixed(2)} de trigo`;
+  else if (trigo / 120 < hierro / 8)
+    desperdicio2 = `Se desperdicia ${(hierro - 8 * f2).toFixed(2)} de hierro`;
+
   t.innerHTML = `
-    <tr><td>Proceso 1 (Trigo)</td><td>${(575*f1).toFixed(2)}</td><td>0</td><td>${desperd1.toFixed(2)}</td></tr>
-    <tr><td>Proceso 2 (Hierro)</td><td>0</td><td>${(20*f2).toFixed(2)}</td><td>${desperd2.toFixed(2)}</td></tr>
-    <tr><td>Proceso 3 (Simplificar)</td><td>${(trigo/2).toFixed(2)}</td><td>${(hierro/2).toFixed(2)}</td><td>${desperd3.toFixed(2)}</td></tr>`;
+    <tr><td>Proceso 1 (Trigo)</td><td>${(575*f1).toFixed(2)}</td><td>0</td><td>${desperdicio1}</td></tr>
+    <tr><td>Proceso 2 (Hierro)</td><td>0</td><td>${(20*f2).toFixed(2)}</td><td>${desperdicio2}</td></tr>
+    <tr><td>Proceso 3 (Simplificar)</td><td>${(trigo/2).toFixed(2)}</td><td>${(hierro/2).toFixed(2)}</td><td></td></tr>`;
 }
 </script>
 </body>
