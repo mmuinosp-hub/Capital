@@ -19,7 +19,7 @@ th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
 .boton.gris { background: #ccc; cursor: not-allowed; color: #555; }
 .panel { display: none; margin-top: 10px; }
 .info-box { background: white; padding: 10px; border-radius: 8px; margin-top: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-#loginForm { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.1); width: 300px; margin: 100px auto; text-align: center; }
+#loginForm { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.1); width: 320px; margin: 100px auto; text-align: center; }
 #loginForm input { display: block; width: 90%; margin: 10px auto; padding: 6px; border-radius: 6px; border: 1px solid #aaa; }
 .botonera { text-align: center; margin-top: 15px; }
 .status-bar { margin-top: 10px; font-weight: bold; }
@@ -29,12 +29,15 @@ th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
 </head>
 <body>
 
-<!-- === FORMULARIO DE ACCESO === -->
+<!-- === FORMULARIO INICIAL === -->
 <div id="loginForm">
-  <h2>Entrar como Administrador</h2>
+  <h2>Administrador</h2>
   <input id="salaInput" placeholder="Sala" required>
   <input id="passwordInput" placeholder="Contraseña" type="password" required>
-  <button id="entrarBtn" class="boton">Entrar</button>
+  <div class="botonera">
+    <button id="crearSalaBtn" class="boton">Crear nueva sala</button>
+    <button id="entrarSalaBtn" class="boton">Entrar en sala</button>
+  </div>
   <p id="loginError" style="color:red; display:none;">Error al entrar. Verifica los datos.</p>
 </div>
 
@@ -74,10 +77,17 @@ th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
 
 <script>
 const socket = io();
-let sala, ultimoEstado = {}, panelVisible = null;
+let sala, panelVisible = null;
 
-// === LOGIN ===
-document.getElementById("entrarBtn").onclick = () => {
+// === BOTONES DE LOGIN ===
+document.getElementById("crearSalaBtn").onclick = () => {
+  sala = document.getElementById("salaInput").value.trim();
+  const password = document.getElementById("passwordInput").value.trim();
+  if (!sala || !password) return alert("Completa todos los campos.");
+  socket.emit("crearSala", { sala, password });
+};
+
+document.getElementById("entrarSalaBtn").onclick = () => {
   sala = document.getElementById("salaInput").value.trim();
   const password = document.getElementById("passwordInput").value.trim();
   if (!sala || !password) return alert("Completa todos los campos.");
@@ -91,10 +101,9 @@ socket.on("actualizarEstado", data => {
     document.getElementById("mainUI").style.display = "block";
     document.getElementById("nombreSala").textContent = sala;
   }
-  ultimoEstado = data;
-  
   const prodAbierta = data.produccionAbierta;
   const entAbierta = data.entregasAbiertas;
+  
   const prodElem = document.getElementById("estadoProduccion");
   const entElem = document.getElementById("estadoEntregas");
   
@@ -103,6 +112,8 @@ socket.on("actualizarEstado", data => {
   
   entElem.textContent = entAbierta ? "Abiertas" : "Cerradas";
   entElem.className = entAbierta ? "abierto" : "cerrado";
+  
+  window.ultimoEstado = data;
 });
 
 // === BOTONES DE CONTROL ===
@@ -127,8 +138,8 @@ function togglePanel(id, html) {
 
 // === BOTONES DE TABLAS ===
 document.getElementById("btnEstados").onclick = () => {
-  if (!ultimoEstado.jugadores) return;
-  const filas = Object.entries(ultimoEstado.jugadores).map(([n,j]) =>
+  if (!window.ultimoEstado?.jugadores) return;
+  const filas = Object.entries(window.ultimoEstado.jugadores).map(([n,j]) =>
     `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`
   ).join("");
   const html = `<h3>📊 Estados actuales</h3>
@@ -137,7 +148,7 @@ document.getElementById("btnEstados").onclick = () => {
 };
 
 document.getElementById("btnEntregasAct").onclick = () => {
-  const historial = ultimoEstado.historial || [];
+  const historial = window.ultimoEstado?.historial || [];
   const filas = historial.map(h =>
     `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`
   ).join("");
@@ -147,7 +158,7 @@ document.getElementById("btnEntregasAct").onclick = () => {
 };
 
 document.getElementById("btnHistorialEstados").onclick = () => {
-  const hist = ultimoEstado.historialEstados || [];
+  const hist = window.ultimoEstado?.historialEstados || [];
   const filas = hist.map(h =>
     `<tr><td>${h.sesion ?? h.turno ?? "-"}</td><td>${h.jugador ?? "-"}</td><td>${h.trigo ?? "-"}</td><td>${h.hierro ?? "-"}</td></tr>`
   ).join("");
@@ -157,7 +168,7 @@ document.getElementById("btnHistorialEstados").onclick = () => {
 };
 
 document.getElementById("btnHistorialEntregas").onclick = () => {
-  const hist = ultimoEstado.historial || [];
+  const hist = window.ultimoEstado?.historial || [];
   const filas = hist.map((h,i) =>
     `<tr><td>${h.sesion ?? i+1}</td><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`
   ).join("");
@@ -168,5 +179,3 @@ document.getElementById("btnHistorialEntregas").onclick = () => {
 </script>
 </body>
 </html>
-
-
