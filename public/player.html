@@ -50,6 +50,14 @@ th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
   </div>
 
   <div class="seccion">
+    <h4>Entregas recientes</h4>
+    <table>
+      <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+      <tbody id="tablaEntregasJugador"><tr><td colspan="5">Sin entregas</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="seccion">
     <h4>Enviar entrega</h4>
     <form id="formEntrega">
       Para: <input id="destino" required>
@@ -61,7 +69,7 @@ th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
 
   <div class="seccion">
     <button id="btnEstados">📊 Estados actuales</button>
-    <button id="btnEntregas">📜 Entregas actuales</button>
+    <button id="btnEntregas">📜 Todas las entregas (sala)</button>
   </div>
 
   <div id="panelEstados" class="panel oculto"></div>
@@ -103,6 +111,8 @@ socket.on("actualizarEstado", data=>{
     document.getElementById("miTrigo").textContent=j.trigo.toFixed(2);
     document.getElementById("miHierro").textContent=j.hierro.toFixed(2);
   }
+
+  actualizarEntregasJugador();
   if(panelVisible) actualizarPanelVisible();
 });
 
@@ -116,7 +126,26 @@ document.getElementById("formEntrega").onsubmit = e=>{
   e.target.reset();
 };
 
-// --- Paneles dinámicos ---
+// --- Mostrar solo las entregas del jugador ---
+function actualizarEntregasJugador(){
+  const todas = ultimoEstado.entregas || [];
+  const mias = todas.filter(e => e.de===nombreJugador || e.para===nombreJugador);
+  const cuerpo = document.getElementById("tablaEntregasJugador");
+  if(mias.length===0){
+    cuerpo.innerHTML="<tr><td colspan='5'>Sin entregas</td></tr>";
+  } else {
+    cuerpo.innerHTML = mias.map(h=>`
+      <tr>
+        <td>${h.de}</td>
+        <td>${h.para}</td>
+        <td>${h.trigo}</td>
+        <td>${h.hierro}</td>
+        <td>${h.hora}</td>
+      </tr>`).join("");
+  }
+}
+
+// --- Paneles dinámicos adicionales ---
 function ocultarPaneles(){ document.querySelectorAll(".panel").forEach(p=>p.classList.add("oculto")); }
 function actualizarPanelVisible(){
   if(panelVisible==="panelEstados") renderEstados();
@@ -137,7 +166,7 @@ function renderEntregas(){
   const hist=ultimoEstado.entregas||[];
   const filas=hist.map(h=>`<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("")
     ||"<tr><td colspan='5'>Sin entregas</td></tr>";
-  mostrarPanel("panelEntregas",`<h3>📜 Entregas actuales</h3>
+  mostrarPanel("panelEntregas",`<h3>📜 Entregas actuales (toda la sala)</h3>
   <table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
   <tbody>${filas}</tbody></table>`);
 }
