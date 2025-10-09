@@ -5,160 +5,181 @@
 <title>Consola del Jugador</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-  body { font-family: Arial; margin: 20px; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #999; padding: 5px; text-align: center; }
-  .boton { margin: 5px; padding: 5px 10px; }
-  iframe { width: 100%; height: 400px; border: 1px solid #ccc; border-radius: 8px; }
-  .panel { display: none; margin-top: 10px; }
+  body { font-family: Arial, sans-serif; margin: 20px; background: #f4f6f8; }
+  h2, h3 { color: #333; }
+  .panel { background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 14px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+  th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+  .boton { margin: 5px; padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer; background: #1976d2; color: white; }
+  .boton:hover { background: #125ea9; }
+  .disabled { background: #ccc !important; cursor: not-allowed; }
+  .estado-abierto { color: green; font-weight: bold; }
+  .estado-cerrado { color: red; font-weight: bold; }
 </style>
 </head>
 <body>
 
 <h2>Consola del Jugador</h2>
 
-<p>
-  Sala: <span id="nombreSala"></span><br>
-  Jugador: <span id="nombreJugador"></span>
-</p>
-
-<h3>Enviar entrega</h3>
-<form id="formEntrega">
-  Para: <input id="para" type="text" required>
-  Trigo: <input id="trigo" type="number" min="0" step="any">
-  Hierro: <input id="hierro" type="number" min="0" step="any">
-  <button type="submit">Enviar</button>
-</form>
-
-<p><b>Entregas realizadas:</b> <span id="entregas"></span></p>
-
-<h3>Producción potencial</h3>
-<p>Producciones según recursos actuales (incluyendo entregas)</p>
-<table id="tablaProduccionPotencial">
-  <thead>
-    <tr>
-      <th>Proceso</th>
-      <th>Trigo producido</th>
-      <th>Hierro producido</th>
-      <th>Insumos desperdiciados</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
-
-<h3>Elegir proceso</h3>
-<button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
-<button class="boton" data-proceso="2">Proceso 2 (Hierro)</button>
-<button class="boton" data-proceso="3">Proceso 3 (Simplificar)</button>
-
-<hr>
-
-<!-- PANEL DE ESTADOS -->
-<button class="boton" id="btnEstados">📊 Ver estados</button>
-<div id="panelEstados" class="panel">
-  <iframe src="estado_jugadores.html"></iframe>
+<div class="panel">
+  <p><b>Sala:</b> <span id="nombreSala"></span></p>
+  <p><b>Jugador:</b> <span id="nombreJugador"></span></p>
+  <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span> |
+     Producción: <span id="estadoProduccion" class="estado-cerrado">—</span></p>
 </div>
 
-<!-- PANEL DE ENTREGAS -->
-<button class="boton" id="btnEntregas">📜 Ver entregas</button>
-<div id="panelEntregas" class="panel">
-  <iframe src="entregas_realizadas.html"></iframe>
+<div class="panel">
+  <h3>Mis Recursos</h3>
+  <table>
+    <thead><tr><th>Trigo</th><th>Hierro</th><th>Entregas hechas</th><th>Proceso elegido</th></tr></thead>
+    <tbody id="tablaJugador"></tbody>
+  </table>
 </div>
 
-<!-- PANEL DE HISTORIAL DE ESTADOS -->
-<button class="boton" id="btnHistorialEstados">📈 Ver historial de estados</button>
-<div id="panelHistorialEstados" class="panel">
-  <iframe src="historial_estados.html"></iframe>
+<div class="panel" id="panelEntregas">
+  <h3>Enviar Entrega</h3>
+  <form id="formEntrega">
+    Para: <input id="para" type="text" required>
+    Trigo: <input id="trigo" type="number" min="0" step="any">
+    Hierro: <input id="hierro" type="number" min="0" step="any">
+    <button type="submit" class="boton">Enviar</button>
+  </form>
 </div>
 
-<!-- PANEL DE HISTORIAL DE ENTREGAS -->
-<button class="boton" id="btnHistorialEntregas">📚 Ver historial de entregas</button>
-<div id="panelHistorialEntregas" class="panel">
-  <iframe src="historial_entregas.html"></iframe>
+<div class="panel" id="panelProduccion">
+  <h3>Elegir Proceso de Producción</h3>
+  <button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
+  <button class="boton" data-proceso="2">Proceso 2 (Hierro)</button>
+  <button class="boton" data-proceso="3">Proceso 3 (Simplificar)</button>
+</div>
+
+<div class="panel">
+  <h3>Producción Potencial</h3>
+  <table id="tablaProduccionPotencial">
+    <thead>
+      <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Insumos desperdiciados</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 </div>
 
 <script>
 const socket = io();
-let sala, nombre;
+let sala, nombre, jugadorActual = {};
 
-function actualizarTablaProduccion(jugador) {
-  const t = document.querySelector("#tablaProduccionPotencial tbody");
-  t.innerHTML = "";
+sala = prompt("Nombre de la sala:");
+nombre = prompt("Tu nombre de jugador:");
+const password = prompt("Contraseña:");
 
-  if (!jugador) return;
-
-  const trigo = jugador.trigo;
-  const hierro = jugador.hierro;
-
-  // Proceso 1
-  let factor1 = Math.min(trigo / 280, hierro / 12);
-  let prod1_trigo = 575 * factor1;
-  let prod1_hierro = 0;
-  let desperdicio1 = (trigo / 280 > hierro / 12)
-    ? `Se desperdicia ${trigo - 280 * (hierro / 12)} de trigo`
-    : (trigo / 280 < hierro / 12)
-      ? `Se desperdicia ${hierro - 12 * (trigo / 280)} de hierro`
-      : "Proporciones correctas";
-
-  // Proceso 2
-  let factor2 = Math.min(trigo / 120, hierro / 8);
-  let prod2_trigo = 0;
-  let prod2_hierro = 20 * factor2;
-  let desperdicio2 = (trigo / 120 > hierro / 8)
-    ? `Se desperdicia ${trigo - 120 * (hierro / 8)} de trigo`
-    : (trigo / 120 < hierro / 8)
-      ? `Se desperdicia ${hierro - 8 * (trigo / 120)} de hierro`
-      : "Proporciones correctas";
-
-  // Proceso 3
-  let prod3_trigo = trigo / 2;
-  let prod3_hierro = hierro / 2;
-
-  t.innerHTML += `
-    <tr><td>Proceso 1 (Trigo)</td><td>${prod1_trigo}</td><td>${prod1_hierro}</td><td>${desperdicio1}</td></tr>
-    <tr><td>Proceso 2 (Hierro)</td><td>${prod2_trigo}</td><td>${prod2_hierro}</td><td>${desperdicio2}</td></tr>
-    <tr><td>Proceso 3 (Simplificar)</td><td>${prod3_trigo}</td><td>${prod3_hierro}</td><td>-</td></tr>`;
-}
-
-document.querySelectorAll('button[data-proceso]').forEach(b => {
-  b.onclick = () => socket.emit("elegirProceso", { sala, nombre, proceso: parseInt(b.dataset.proceso) });
-});
-
-document.getElementById("formEntrega").onsubmit = e => {
-  e.preventDefault();
-  const para = document.getElementById("para").value;
-  const trigo = parseFloat(document.getElementById("trigo").value) || 0;
-  const hierro = parseFloat(document.getElementById("hierro").value) || 0;
-  socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
-  document.getElementById("trigo").value = "";
-  document.getElementById("hierro").value = "";
-};
-
-socket.on("actualizarEstado", data => {
-  const j = data.jugadores[nombre];
-  if (!j) return;
-  document.getElementById("entregas").textContent = j.entregas;
-  actualizarTablaProduccion(j);
-});
-
-sala = prompt("Introduce el nombre de la sala:");
-nombre = prompt("Introduce tu nombre:");
-const password = prompt("Contraseña del jugador:");
-socket.emit("entrarJugador", { sala, nombre, password });
 document.getElementById("nombreSala").textContent = sala;
 document.getElementById("nombreJugador").textContent = nombre;
 
-// Toggle genérico
-function togglePanel(id) {
-  const p = document.getElementById(id);
-  p.style.display = p.style.display === "none" ? "block" : "none";
+socket.emit("entrarJugador", { sala, nombre, password });
+
+// === EVENTOS DEL SERVIDOR ===
+socket.on("actualizarEstado", data => {
+  const j = data.jugadores[nombre];
+  if (!j) return;
+
+  jugadorActual = j;
+  actualizarEstadoGeneral(data);
+  actualizarTablaJugador(j);
+  actualizarTablaProduccion(j);
+
+  // Bloquear entregas si están cerradas
+  document.querySelectorAll("#panelEntregas input, #panelEntregas button")
+    .forEach(el => el.disabled = !data.entregasAbiertas);
+
+  // Bloquear procesos si no corresponde
+  document.querySelectorAll('[data-proceso]').forEach(btn => {
+    btn.disabled = !(data.produccionAbierta && j.proceso === null);
+    btn.classList.toggle("disabled", btn.disabled);
+  });
+});
+
+// === ENVÍO DE ENTREGA ===
+document.getElementById("formEntrega").onsubmit = e => {
+  e.preventDefault();
+  const para = document.getElementById("para").value.trim();
+  const trigo = parseFloat(document.getElementById("trigo").value) || 0;
+  const hierro = parseFloat(document.getElementById("hierro").value) || 0;
+  socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
+  e.target.reset();
+};
+
+// === ELECCIÓN DE PROCESO ===
+document.querySelectorAll('[data-proceso]').forEach(b => {
+  b.onclick = () => {
+    socket.emit("elegirProceso", { sala, nombre, proceso: parseInt(b.dataset.proceso) });
+  };
+});
+
+// === ACTUALIZAR TABLAS ===
+function actualizarEstadoGeneral(data) {
+  const eAb = document.getElementById("estadoEntregas");
+  const pAb = document.getElementById("estadoProduccion");
+
+  if (data.entregasAbiertas) {
+    eAb.textContent = "🟢 Abiertas";
+    eAb.className = "estado-abierto";
+  } else {
+    eAb.textContent = "🔴 Cerradas";
+    eAb.className = "estado-cerrado";
+  }
+
+  if (data.produccionAbierta) {
+    pAb.textContent = "🟢 Abierta";
+    pAb.className = "estado-abierto";
+  } else {
+    pAb.textContent = "🔴 Cerrada";
+    pAb.className = "estado-cerrado";
+  }
 }
 
-document.getElementById("btnEstados").onclick = () => togglePanel("panelEstados");
-document.getElementById("btnEntregas").onclick = () => togglePanel("panelEntregas");
-document.getElementById("btnHistorialEstados").onclick = () => togglePanel("panelHistorialEstados");
-document.getElementById("btnHistorialEntregas").onclick = () => togglePanel("panelHistorialEntregas");
-</script>
+function actualizarTablaJugador(j) {
+  const tbody = document.getElementById("tablaJugador");
+  tbody.innerHTML = `
+    <tr>
+      <td>${j.trigo.toFixed(2)}</td>
+      <td>${j.hierro.toFixed(2)}</td>
+      <td>${j.entregas}</td>
+      <td>${j.proceso ?? "-"}</td>
+    </tr>`;
+}
 
+function actualizarTablaProduccion(j) {
+  const t = document.querySelector("#tablaProduccionPotencial tbody");
+  t.innerHTML = "";
+  const trigo = j.trigo, hierro = j.hierro;
+
+  // === Proceso 1 ===
+  const factor1 = Math.min(trigo / 280, hierro / 12);
+  const prod1_trigo = 575 * factor1, prod1_hierro = 0;
+  const desp1 = (trigo / 280 > hierro / 12)
+    ? `Desperdicia ${(trigo - 280 * (hierro / 12)).toFixed(2)} trigo`
+    : (trigo / 280 < hierro / 12)
+      ? `Desperdicia ${(hierro - 12 * (trigo / 280)).toFixed(2)} hierro`
+      : "Proporciones correctas";
+
+  // === Proceso 2 ===
+  const factor2 = Math.min(trigo / 120, hierro / 8);
+  const prod2_trigo = 0, prod2_hierro = 20 * factor2;
+  const desp2 = (trigo / 120 > hierro / 8)
+    ? `Desperdicia ${(trigo - 120 * (hierro / 8)).toFixed(2)} trigo`
+    : (trigo / 120 < hierro / 8)
+      ? `Desperdicia ${(hierro - 8 * (trigo / 120)).toFixed(2)} hierro`
+      : "Proporciones correctas";
+
+  // === Proceso 3 ===
+  const prod3_trigo = trigo / 2, prod3_hierro = hierro / 2;
+
+  t.innerHTML = `
+    <tr><td>Proceso 1 (Trigo)</td><td>${prod1_trigo.toFixed(2)}</td><td>${prod1_hierro}</td><td>${desp1}</td></tr>
+    <tr><td>Proceso 2 (Hierro)</td><td>${prod2_trigo}</td><td>${prod2_hierro.toFixed(2)}</td><td>${desp2}</td></tr>
+    <tr><td>Proceso 3 (Simplificar)</td><td>${prod3_trigo.toFixed(2)}</td><td>${prod3_hierro.toFixed(2)}</td><td>-</td></tr>`;
+}
+
+socket.on("error", msg => alert("⚠️ " + msg));
+</script>
 </body>
 </html>
