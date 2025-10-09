@@ -117,28 +117,43 @@
 <script>
 const socket = io();
 let sala, nombre, ultimoEstado = {}, procesoSeleccionado = null;
+let entro = false; // <- nuevo: para controlar la entrada
 
 // === LOGIN ===
 document.getElementById("entrarBtn").onclick = () => {
   sala = document.getElementById("salaInput").value.trim();
   nombre = document.getElementById("nombreInput").value.trim();
   const password = document.getElementById("passwordInput").value.trim();
-  if (!sala || !nombre || !password) return;
+  if (!sala || !nombre || !password) return alert("Completa todos los campos.");
   socket.emit("entrarJugador", { sala, nombre, password });
+};
 
-  socket.once("errorEntrada", () => {
-    document.getElementById("loginError").style.display = "block";
-  });
-
-  socket.once("entradaExitosa", () => {
+// === Cuando recibe el primer estado, entra automáticamente ===
+socket.on("actualizarEstado", data => {
+  if (!entro) {
     document.getElementById("loginForm").style.display = "none";
     document.getElementById("mainUI").style.display = "block";
     document.getElementById("nombreSala").textContent = sala;
     document.getElementById("nombreJugador").textContent = nombre;
-  });
-};
+    entro = true;
+  }
 
-// === ENVÍO DE ENTREGA ===
+  ultimoEstado = data;
+  const j = data.jugadores?.[nombre];
+  if (!j) return;
+
+  document.getElementById("trigoActual").textContent = j.trigo.toFixed(2);
+  document.getElementById("hierroActual").textContent = j.hierro.toFixed(2);
+  document.getElementById("entregas").textContent = j.entregas;
+  actualizarProduccion(j);
+  actualizarSelectReceptores(data);
+  actualizarTablaEstados(data);
+  actualizarTablaEntregasAct(data.historial);
+  actualizarEntregasJugador(data);
+  actualizarBotonesProceso(j, data.produccionAbierta);
+});
+
+// === Enviar entrega ===
 document.getElementById("formEntrega").onsubmit = e => {
   e.preventDefault();
   const para = document.getElementById("para").value;
@@ -148,7 +163,7 @@ document.getElementById("formEntrega").onsubmit = e => {
   e.target.reset();
 };
 
-// === PRODUCCIÓN POTENCIAL ===
+// === Funciones auxiliares ===
 function actualizarProduccion(j) {
   const t = document.querySelector("#tablaProduccionPotencial tbody");
   t.innerHTML = "";
@@ -178,22 +193,6 @@ function actualizarProduccion(j) {
     <tr><td>Proceso 2 (Hierro)</td><td>${prod2.trigo}</td><td>${prod2.hierro.toFixed(2)}</td><td>${desp2}</td></tr>
     <tr><td>Proceso 3 (Simplificar)</td><td>${prod3.trigo.toFixed(2)}</td><td>${prod3.hierro.toFixed(2)}</td><td>${desp3}</td></tr>`;
 }
-
-// === ESTADO GENERAL ===
-socket.on("actualizarEstado", data => {
-  ultimoEstado = data;
-  const j = data.jugadores?.[nombre];
-  if (!j) return;
-  document.getElementById("trigoActual").textContent = j.trigo.toFixed(2);
-  document.getElementById("hierroActual").textContent = j.hierro.toFixed(2);
-  document.getElementById("entregas").textContent = j.entregas;
-  actualizarProduccion(j);
-  actualizarSelectReceptores(data);
-  actualizarTablaEstados(data);
-  actualizarTablaEntregasAct(data.historial);
-  actualizarEntregasJugador(data);
-  actualizarBotonesProceso(j, data.produccionAbierta);
-});
 
 function actualizarSelectReceptores(data) {
   const sel = document.getElementById("para");
@@ -230,7 +229,6 @@ function actualizarEntregasJugador(data) {
   tbody.innerHTML = filas || "<tr><td colspan='5'>Sin entregas</td></tr>";
 }
 
-// === BOTONES DE PROCESO ===
 function actualizarBotonesProceso(j, produccionAbierta) {
   document.querySelectorAll("button[data-proceso]").forEach(b => {
     b.disabled = !produccionAbierta;
