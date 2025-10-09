@@ -9,7 +9,8 @@
   table { border-collapse: collapse; width: 100%; }
   th, td { border: 1px solid #999; padding: 5px; text-align: center; }
   .boton { margin: 5px; padding: 5px 10px; }
-  #panelEstados, #panelEntregas { margin-top: 10px; display: none; }
+  iframe { width: 100%; height: 400px; border: 1px solid #ccc; border-radius: 8px; }
+  .panel { display: none; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -31,15 +32,28 @@
 
 <hr>
 
-<!-- NUEVOS BOTONES -->
-<button id="toggleEstados" class="boton">📊 Ver estados</button>
-<div id="panelEstados">
-  <iframe src="estado_jugadores.html" style="width:100%; height:400px; border:1px solid #ccc; border-radius:8px;"></iframe>
+<!-- PANEL DE ESTADOS -->
+<button class="boton" id="btnEstados">📊 Ver estados</button>
+<div id="panelEstados" class="panel">
+  <iframe src="estado_jugadores.html"></iframe>
 </div>
 
-<button id="toggleEntregasHist" class="boton">📜 Ver entregas</button>
-<div id="panelEntregas">
-  <iframe src="entregas_realizadas.html" style="width:100%; height:400px; border:1px solid #ccc; border-radius:8px;"></iframe>
+<!-- PANEL DE ENTREGAS -->
+<button class="boton" id="btnEntregas">📜 Ver entregas</button>
+<div id="panelEntregas" class="panel">
+  <iframe src="entregas_realizadas.html"></iframe>
+</div>
+
+<!-- PANEL DE HISTORIAL DE ESTADOS -->
+<button class="boton" id="btnHistorialEstados">📈 Ver historial de estados</button>
+<div id="panelHistorialEstados" class="panel">
+  <iframe src="historial_estados.html"></iframe>
+</div>
+
+<!-- PANEL DE HISTORIAL DE ENTREGAS -->
+<button class="boton" id="btnHistorialEntregas">📚 Ver historial de entregas</button>
+<div id="panelHistorialEntregas" class="panel">
+  <iframe src="historial_entregas.html"></iframe>
 </div>
 
 <script>
@@ -69,18 +83,16 @@ document.getElementById("toggleEntregas").onclick = () => socket.emit("toggleEnt
 document.getElementById("toggleProduccion").onclick = () => socket.emit("toggleProduccion", sala);
 document.getElementById("nuevaSesion").onclick = () => socket.emit("nuevaSesion", sala);
 
-// Toggle panels
-const toggleEstados = document.getElementById("toggleEstados");
-const toggleEntregasHist = document.getElementById("toggleEntregasHist");
-const panelEstados = document.getElementById("panelEstados");
-const panelEntregas = document.getElementById("panelEntregas");
+// Toggle genérico
+function togglePanel(id) {
+  const p = document.getElementById(id);
+  p.style.display = p.style.display === "none" ? "block" : "none";
+}
 
-toggleEstados.addEventListener("click", () => {
-  panelEstados.style.display = panelEstados.style.display === "none" ? "block" : "none";
-});
-toggleEntregasHist.addEventListener("click", () => {
-  panelEntregas.style.display = panelEntregas.style.display === "none" ? "block" : "none";
-});
+document.getElementById("btnEstados").onclick = () => togglePanel("panelEstados");
+document.getElementById("btnEntregas").onclick = () => togglePanel("panelEntregas");
+document.getElementById("btnHistorialEstados").onclick = () => togglePanel("panelHistorialEstados");
+document.getElementById("btnHistorialEntregas").onclick = () => togglePanel("panelHistorialEntregas");
 </script>
 
 </body>
