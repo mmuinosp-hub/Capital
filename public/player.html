@@ -42,6 +42,11 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 
 <!-- === INTERFAZ DEL JUGADOR === -->
 <div id="mainUI" style="display:none;">
+  <!-- BOTÓN INICIO ARRIBA -->
+  <div class="botonera">
+    <button id="btnInicio" class="boton">🏠 Inicio</button>
+  </div>
+
   <h2>Consola del Jugador</h2>
 
   <div class="info-box">
@@ -58,7 +63,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     </div>
   </div>
 
-  <!-- === FORMULARIO DE ENTREGA === -->
+  <!-- FORMULARIO DE ENTREGA -->
   <div id="formEntregaBox" class="info-box">
     <h3>Enviar entrega</h3>
     <form id="formEntrega">
@@ -69,18 +74,13 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     </form>
   </div>
 
-  <!-- === NUEVO FORMULARIO DE INSUMOS === -->
+  <!-- CALCULADORA -->
   <div class="info-box">
-    <h3>Insumos para producción</h3>
+    <h3>Calculadora</h3>
     Trigo: <input id="insumoTrigo" type="number" min="0" step="any" value="0">
     Hierro: <input id="insumoHierro" type="number" min="0" step="any" value="0">
     <button id="btnCalcularProd" class="boton">Calcular producción</button>
-    <button id="btnInicio" class="boton">🏠 Inicio</button>
-  </div>
 
-  <!-- === PRODUCCIÓN POTENCIAL ACTUALIZADA === -->
-  <div class="info-box">
-    <h3>Producción potencial</h3>
     <table id="tablaProduccionPotencial">
       <thead>
         <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Desperdicio</th></tr>
@@ -89,8 +89,8 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     </table>
   </div>
 
-  <!-- === BOTONES DE PROCESO === -->
-  <div class="info-box">
+  <!-- BOTONES DE PROCESO: SOLO SI PRODUCCIÓN ABIERTA -->
+  <div id="procesoBox" class="info-box" style="display:none;">
     <h3>Elegir proceso de producción</h3>
     <button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
     <button class="boton" data-proceso="2">Proceso 2 (Hierro)</button>
@@ -98,7 +98,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     <p id="procesoElegido" style="margin-top:10px; font-weight:bold;"></p>
   </div>
 
-  <!-- === ENTREGAS DEL JUGADOR === -->
+  <!-- ENTREGAS DEL JUGADOR -->
   <div class="info-box">
     <h3>Entregas del jugador</h3>
     <table id="tablaEntregasJugador">
@@ -109,7 +109,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 
   <hr>
 
-  <!-- === BOTONERA PRINCIPAL === -->
+  <!-- BOTONERA PRINCIPAL -->
   <div class="botonera">
     <button class="boton" id="btnEstados">📊 Estados actuales</button>
     <button class="boton" id="btnEntregasAct">📜 Entregas actuales</button>
@@ -126,7 +126,6 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 const socket = io();
 let sala, nombre, ultimoEstado = {}, procesoSeleccionado = null;
 let entro = false, panelVisible = null;
-let insumoTrigo = 0, insumoHierro = 0;
 
 // === LOGIN ===
 document.getElementById("entrarBtn").onclick = () => {
@@ -165,7 +164,14 @@ socket.on("actualizarEstado", data => {
   document.getElementById("estadoEntregas").className = entAbierta ? "abierto" : "cerrado";
   document.getElementById("formEntregaBox").style.display = entAbierta ? "block" : "none";
 
-  actualizarProduccionInsumos(insumoTrigo, insumoHierro);
+  // Mostrar u ocultar botones de proceso según producción abierta
+  document.getElementById("procesoBox").style.display = prodAbierta ? "block" : "none";
+
+  // Inicializar insumos con recursos del jugador
+  document.getElementById("insumoTrigo").value = j.trigo.toFixed(2);
+  document.getElementById("insumoHierro").value = j.hierro.toFixed(2);
+
+  actualizarProduccionInsumos(j.trigo, j.hierro);
   actualizarSelectReceptores(data);
   actualizarEntregasJugador(data);
   actualizarBotonesProceso(j, prodAbierta);
@@ -184,11 +190,11 @@ document.getElementById("formEntrega").onsubmit = e => {
   e.target.reset();
 };
 
-// === PRODUCCIÓN SEGÚN INSUMOS ===
+// === CALCULAR PRODUCCIÓN ===
 document.getElementById("btnCalcularProd").onclick = () => {
-  insumoTrigo = parseFloat(document.getElementById("insumoTrigo").value) || 0;
-  insumoHierro = parseFloat(document.getElementById("insumoHierro").value) || 0;
-  actualizarProduccionInsumos(insumoTrigo, insumoHierro);
+  const trigo = parseFloat(document.getElementById("insumoTrigo").value) || 0;
+  const hierro = parseFloat(document.getElementById("insumoHierro").value) || 0;
+  actualizarProduccionInsumos(trigo, hierro);
 };
 
 function actualizarProduccionInsumos(trigo, hierro) {
@@ -205,9 +211,11 @@ function actualizarProduccionInsumos(trigo, hierro) {
 document.getElementById("btnInicio").onclick = () => {
   procesoSeleccionado = null;
   document.getElementById("procesoElegido").textContent = "";
-  document.getElementById("insumoTrigo").value = 0;
-  document.getElementById("insumoHierro").value = 0;
-  actualizarProduccionInsumos(0, 0);
+  const trigo = parseFloat(document.getElementById("trigoActual").textContent) || 0;
+  const hierro = parseFloat(document.getElementById("hierroActual").textContent) || 0;
+  document.getElementById("insumoTrigo").value = trigo;
+  document.getElementById("insumoHierro").value = hierro;
+  actualizarProduccionInsumos(trigo, hierro);
 };
 
 // === SELECT DE RECEPTORES ===
