@@ -16,6 +16,7 @@
   .info-box { background: white; padding: 10px; border-radius: 8px; margin-top: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
   #loginForm { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.1); width: 300px; margin: 100px auto; text-align: center; }
   #loginForm input { display: block; width: 90%; margin: 10px auto; padding: 6px; border-radius: 6px; border: 1px solid #aaa; }
+  .botonera { text-align: center; margin-top: 15px; }
 </style>
 </head>
 <body>
@@ -30,7 +31,7 @@
   <p id="loginError" style="color:red; display:none;">Error al entrar. Verifica los datos.</p>
 </div>
 
-<!-- === INTERFAZ DEL JUGADOR (oculta al inicio) === -->
+<!-- === INTERFAZ DEL JUGADOR === -->
 <div id="mainUI" style="display:none;">
 
   <h2>Consola del Jugador</h2>
@@ -86,38 +87,24 @@
 
   <hr>
 
-  <div>
+  <!-- === BOTONERA PRINCIPAL === -->
+  <div class="botonera">
     <button class="boton" id="btnEstados">📊 Estados actuales</button>
     <button class="boton" id="btnEntregasAct">📜 Entregas actuales</button>
-  </div>
-
-  <div id="panelEstados" class="panel">
-    <table id="tablaEstados">
-      <thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="panelEntregasAct" class="panel">
-    <table id="tablaEntregasAct">
-      <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div>
     <button class="boton" id="btnHistorialEstados">📈 Historial de estados</button>
     <button class="boton" id="btnHistorialEntregas">📚 Historial de entregas</button>
   </div>
 
-  <div id="panelHistorialEstados" class="panel"></div>
-  <div id="panelHistorialEntregas" class="panel"></div>
+  <!-- === PANEL DE RESULTADOS UNIFICADO === -->
+  <div id="panelDatos" class="panel info-box">
+    <div id="contenidoPanel"></div>
+  </div>
 </div>
 
 <script>
 const socket = io();
 let sala, nombre, ultimoEstado = {}, procesoSeleccionado = null;
-let entro = false; // <- nuevo: para controlar la entrada
+let entro = false;
 
 // === LOGIN ===
 document.getElementById("entrarBtn").onclick = () => {
@@ -128,7 +115,7 @@ document.getElementById("entrarBtn").onclick = () => {
   socket.emit("entrarJugador", { sala, nombre, password });
 };
 
-// === Cuando recibe el primer estado, entra automáticamente ===
+// === Cuando recibe el primer estado ===
 socket.on("actualizarEstado", data => {
   if (!entro) {
     document.getElementById("loginForm").style.display = "none";
@@ -147,8 +134,6 @@ socket.on("actualizarEstado", data => {
   document.getElementById("entregas").textContent = j.entregas;
   actualizarProduccion(j);
   actualizarSelectReceptores(data);
-  actualizarTablaEstados(data);
-  actualizarTablaEntregasAct(data.historial);
   actualizarEntregasJugador(data);
   actualizarBotonesProceso(j, data.produccionAbierta);
 });
@@ -163,7 +148,7 @@ document.getElementById("formEntrega").onsubmit = e => {
   e.target.reset();
 };
 
-// === Funciones auxiliares ===
+// === Producción potencial ===
 function actualizarProduccion(j) {
   const t = document.querySelector("#tablaProduccionPotencial tbody");
   t.innerHTML = "";
@@ -194,6 +179,7 @@ function actualizarProduccion(j) {
     <tr><td>Proceso 3 (Simplificar)</td><td>${prod3.trigo.toFixed(2)}</td><td>${prod3.hierro.toFixed(2)}</td><td>${desp3}</td></tr>`;
 }
 
+// === Select de receptores ===
 function actualizarSelectReceptores(data) {
   const sel = document.getElementById("para");
   sel.innerHTML = "";
@@ -202,24 +188,7 @@ function actualizarSelectReceptores(data) {
   });
 }
 
-function actualizarTablaEstados(data) {
-  const tbody = document.querySelector("#tablaEstados tbody");
-  tbody.innerHTML = Object.entries(data.jugadores).map(([n,j]) =>
-    `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`
-  ).join("");
-}
-
-function actualizarTablaEntregasAct(historial) {
-  const tbody = document.querySelector("#tablaEntregasAct tbody");
-  if (!historial?.length) {
-    tbody.innerHTML = "<tr><td colspan='5'>Sin entregas</td></tr>";
-    return;
-  }
-  tbody.innerHTML = historial.map(h =>
-    `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`
-  ).join("");
-}
-
+// === Entregas del jugador ===
 function actualizarEntregasJugador(data) {
   const historial = data.historial || [];
   const tbody = document.querySelector("#tablaEntregasJugador tbody");
@@ -229,6 +198,7 @@ function actualizarEntregasJugador(data) {
   tbody.innerHTML = filas || "<tr><td colspan='5'>Sin entregas</td></tr>";
 }
 
+// === Botones de proceso ===
 function actualizarBotonesProceso(j, produccionAbierta) {
   document.querySelectorAll("button[data-proceso]").forEach(b => {
     b.disabled = !produccionAbierta;
@@ -239,7 +209,6 @@ function actualizarBotonesProceso(j, produccionAbierta) {
     document.getElementById("procesoElegido").textContent = `Has elegido el proceso ${j.proceso}`;
   }
 }
-
 document.querySelectorAll("button[data-proceso]").forEach(b => {
   b.onclick = () => {
     const proceso = parseInt(b.dataset.proceso);
@@ -253,14 +222,40 @@ document.querySelectorAll("button[data-proceso]").forEach(b => {
   };
 });
 
-function togglePanel(id) {
-  const p = document.getElementById(id);
-  p.style.display = (p.style.display === "block") ? "none" : "block";
+// === PANEL UNIFICADO DE DATOS ===
+function mostrarPanel(html) {
+  document.getElementById("contenidoPanel").innerHTML = html;
+  document.getElementById("panelDatos").style.display = "block";
 }
-document.getElementById("btnEstados").onclick = () => togglePanel("panelEstados");
-document.getElementById("btnEntregasAct").onclick = () => togglePanel("panelEntregasAct");
-document.getElementById("btnHistorialEstados").onclick = () => togglePanel("panelHistorialEstados");
-document.getElementById("btnHistorialEntregas").onclick = () => togglePanel("panelHistorialEntregas");
+
+// === Botones principales ===
+document.getElementById("btnEstados").onclick = () => {
+  if (!ultimoEstado.jugadores) return;
+  const filas = Object.entries(ultimoEstado.jugadores).map(([n,j]) =>
+    `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso??"-"}</td></tr>`
+  ).join("");
+  mostrarPanel(`<h3>📊 Estados actuales</h3><table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>${filas}</tbody></table>`);
+};
+
+document.getElementById("btnEntregasAct").onclick = () => {
+  const historial = ultimoEstado.historial || [];
+  const filas = historial.map(h => `<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("");
+  mostrarPanel(`<h3>📜 Entregas actuales</h3><table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`);
+};
+
+document.getElementById("btnHistorialEstados").onclick = () => {
+  const hist = ultimoEstado.historialEstados || [];
+  if (!hist.length) return mostrarPanel("<p>No hay historial de estados.</p>");
+  const filas = hist.map(h => `<tr><td>${h.turno ?? "-"}</td><td>${h.jugador ?? "-"}</td><td>${h.trigo ?? "-"}</td><td>${h.hierro ?? "-"}</td></tr>`).join("");
+  mostrarPanel(`<h3>📈 Historial de estados</h3><table><thead><tr><th>Turno</th><th>Jugador</th><th>Trigo</th><th>Hierro</th></tr></thead><tbody>${filas}</tbody></table>`);
+};
+
+document.getElementById("btnHistorialEntregas").onclick = () => {
+  const hist = ultimoEstado.historial || [];
+  if (!hist.length) return mostrarPanel("<p>No hay historial de entregas.</p>");
+  const filas = hist.map((h,i) => `<tr><td>${i+1}</td><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("");
+  mostrarPanel(`<h3>📚 Historial de entregas</h3><table><thead><tr><th>#</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`);
+};
 </script>
 </body>
 </html>
