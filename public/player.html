@@ -180,13 +180,36 @@ document.getElementById("formEntrega").onsubmit = e => {
 function actualizarProduccion(j) {
   const t = document.querySelector("#tablaProduccionPotencial tbody");
   const trigo = j.trigo, hierro = j.hierro;
+  t.innerHTML = "";
+
+  // Proceso 1 (Trigo)
   const f1 = Math.min(trigo / 280, hierro / 12);
+  const trigo1 = 575 * f1;
+  const hierro1 = 0;
+  let desperdicio1 = "";
+  if (trigo / 280 > hierro / 12)
+    desperdicio1 = `Se desperdicia ${(trigo - 280 * f1).toFixed(2)} de trigo`;
+  else if (trigo / 280 < hierro / 12)
+    desperdicio1 = `Se desperdicia ${(hierro - 12 * f1).toFixed(2)} de hierro`;
+  t.innerHTML += `<tr><td>Proceso 1 (Trigo)</td><td>${trigo1.toFixed(2)}</td><td>${hierro1.toFixed(2)}</td><td>${desperdicio1}</td></tr>`;
+
+  // Proceso 2 (Hierro)
   const f2 = Math.min(trigo / 120, hierro / 8);
-  t.innerHTML = `
-    <tr><td>Proceso 1 (Trigo)</td><td>${(575*f1).toFixed(2)}</td><td>0</td><td>-</td></tr>
-    <tr><td>Proceso 2 (Hierro)</td><td>0</td><td>${(20*f2).toFixed(2)}</td><td>-</td></tr>
-    <tr><td>Proceso 3 (Simplificar)</td><td>${(trigo/2).toFixed(2)}</td><td>${(hierro/2).toFixed(2)}</td><td>-</td></tr>`;
+  const trigo2 = 0;
+  const hierro2 = 20 * f2;
+  let desperdicio2 = "";
+  if (trigo / 120 > hierro / 8)
+    desperdicio2 = `Se desperdicia ${(trigo - 120 * f2).toFixed(2)} de trigo`;
+  else if (trigo / 120 < hierro / 8)
+    desperdicio2 = `Se desperdicia ${(hierro - 8 * f2).toFixed(2)} de hierro`;
+  t.innerHTML += `<tr><td>Proceso 2 (Hierro)</td><td>${trigo2.toFixed(2)}</td><td>${hierro2.toFixed(2)}</td><td>${desperdicio2}</td></tr>`;
+
+  // Proceso 3 (Simplificar)
+  const trigo3 = trigo / 2;
+  const hierro3 = hierro / 2;
+  t.innerHTML += `<tr><td>Proceso 3 (Simplificar)</td><td>${trigo3.toFixed(2)}</td><td>${hierro3.toFixed(2)}</td><td></td></tr>`;
 }
+
 
 // === SELECT DE RECEPTORES ===
 function actualizarSelectReceptores(data) {
@@ -303,3 +326,4 @@ document.getElementById("btnHistorialEntregas").onclick = () => {
 </script>
 </body>
 </html>
+
