@@ -58,26 +58,17 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     </div>
   </div>
 
-  <div id="formEntregaBox" class="info-box">
-    <h3>Enviar entrega</h3>
-    <form id="formEntrega">
-      Para: <select id="para" required></select>
-      Trigo: <input id="trigo" type="number" min="0" step="any">
-      Hierro: <input id="hierro" type="number" min="0" step="any">
-      <button type="submit" class="boton">Enviar</button>
-    </form>
-  </div>
-
   <div class="info-box">
-    <h3>Producción potencial</h3>
+    <h3>Calculadora</h3>
     <p>
       Trigo disponible: <input type="number" id="inputTrigo" step="any" style="width:80px;">
       Hierro disponible: <input type="number" id="inputHierro" step="any" style="width:80px;">
       <button class="boton" id="btnActualizarProduccion">Actualizar</button>
+      <button class="boton" onclick="location.href='/'" style="background:#555;">🏠 Inicio</button>
     </p>
     <table id="tablaProduccionPotencial">
       <thead>
-        <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Desperdicio</th></tr>
+        <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Trigo/Hierro</th><th>Desperdicio</th></tr>
       </thead>
       <tbody></tbody>
     </table>
@@ -173,7 +164,6 @@ socket.on("actualizarEstado", data => {
   actualizarEntregasJugador(data);
   actualizarBotonesProceso(j, prodAbierta);
 
-  // 🔄 Si los paneles "Estados" o "Entregas actuales" están abiertos, se actualizan automáticamente
   if (panelVisible === "estados") renderEstados();
   if (panelVisible === "entregasAct") renderEntregasActuales();
 });
@@ -188,42 +178,40 @@ document.getElementById("formEntrega").onsubmit = e => {
   e.target.reset();
 };
 
-// === PRODUCCIÓN POTENCIAL ===
+// === PRODUCCIÓN POTENCIAL / CALCULADORA ===
 function actualizarProduccion() {
   const t = document.querySelector("#tablaProduccionPotencial tbody");
   const trigoInput = parseFloat(document.getElementById("inputTrigo").value) || 0;
   const hierroInput = parseFloat(document.getElementById("inputHierro").value) || 0;
   t.innerHTML = "";
 
-  // Proceso 1 (Trigo)
-  const f1 = Math.min(trigoInput / 280, hierroInput / 12);
-  const trigo1 = 575 * f1;
-  const hierro1 = 0;
-  let desperdicio1 = "";
-  if (trigoInput / 280 > hierroInput / 12)
-    desperdicio1 = `Se desperdicia ${(trigoInput - 280 * f1).toFixed(2)} de trigo`;
-  else if (trigoInput / 280 < hierroInput / 12)
-    desperdicio1 = `Se desperdicia ${(hierroInput - 12 * f1).toFixed(2)} de hierro`;
-  t.innerHTML += `<tr><td>Proceso 1 (Trigo)</td><td>${trigo1.toFixed(2)}</td><td>${hierro1.toFixed(2)}</td><td>${desperdicio1}</td></tr>`;
+  const procesos = [
+    { nombre: "Proceso 1 (Trigo)", f: Math.min(trigoInput / 280, hierroInput / 12), trigoProd: 575, hierroProd: 0 },
+    { nombre: "Proceso 2 (Hierro)", f: Math.min(trigoInput / 120, hierroInput / 8), trigoProd: 0, hierroProd: 20 },
+    { nombre: "Proceso 3 (Simplificar)", f: 1, trigoProd: trigoInput / 2, hierroProd: hierroInput / 2 }
+  ];
 
-  // Proceso 2 (Hierro)
-  const f2 = Math.min(trigoInput / 120, hierroInput / 8);
-  const trigo2 = 0;
-  const hierro2 = 20 * f2;
-  let desperdicio2 = "";
-  if (trigoInput / 120 > hierroInput / 8)
-    desperdicio2 = `Se desperdicia ${(trigoInput - 120 * f2).toFixed(2)} de trigo`;
-  else if (trigoInput / 120 < hierroInput / 8)
-    desperdicio2 = `Se desperdicia ${(hierroInput - 8 * f2).toFixed(2)} de hierro`;
-  t.innerHTML += `<tr><td>Proceso 2 (Hierro)</td><td>${trigo2.toFixed(2)}</td><td>${hierro2.toFixed(2)}</td><td>${desperdicio2}</td></tr>`;
+  procesos.forEach(p => {
+    let trigoRes = p.nombre === "Proceso 3 (Simplificar)" ? p.trigoProd : p.trigoProd * p.f;
+    let hierroRes = p.nombre === "Proceso 3 (Simplificar)" ? p.hierroProd : p.hierroProd * p.f;
+    let desperdicio = "";
 
-  // Proceso 3 (Simplificar)
-  const trigo3 = trigoInput / 2;
-  const hierro3 = hierroInput / 2;
-  t.innerHTML += `<tr><td>Proceso 3 (Simplificar)</td><td>${trigo3.toFixed(2)}</td><td>${hierro3.toFixed(2)}</td><td></td></tr>`;
+    if (p.nombre === "Proceso 1 (Trigo)" || p.nombre === "Proceso 2 (Hierro)") {
+      if (p.nombre === "Proceso 1 (Trigo)" && trigoInput / 280 > hierroInput / 12)
+        desperdicio = `Se desperdicia ${(trigoInput - 280 * p.f).toFixed(2)} de trigo`;
+      else if (trigoInput / 280 < hierroInput / 12)
+        desperdicio = `Se desperdicia ${(hierroInput - 12 * p.f).toFixed(2)} de hierro`;
+      if (p.nombre === "Proceso 2 (Hierro)" && trigoInput / 120 > hierroInput / 8)
+        desperdicio = `Se desperdicia ${(trigoInput - 120 * p.f).toFixed(2)} de trigo`;
+      else if (trigoInput / 120 < hierroInput / 8)
+        desperdicio = `Se desperdicia ${(hierroInput - 8 * p.f).toFixed(2)} de hierro`;
+    }
+
+    const proporcion = hierroRes === 0 ? "∞" : (trigoRes / hierroRes).toFixed(2);
+    t.innerHTML += `<tr><td>${p.nombre}</td><td>${trigoRes.toFixed(2)}</td><td>${hierroRes.toFixed(2)}</td><td>${proporcion}</td><td>${desperdicio}</td></tr>`;
+  });
 }
 
-// Actualizar producción al hacer click en el botón
 document.getElementById("btnActualizarProduccion").onclick = () => {
   actualizarProduccion();
 };
