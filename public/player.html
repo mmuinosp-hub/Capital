@@ -15,72 +15,112 @@
   .disabled { background: #ccc !important; cursor: not-allowed; }
   .estado-abierto { color: green; font-weight: bold; }
   .estado-cerrado { color: red; font-weight: bold; }
+  #panelJuego { display: none; }
+  #mensajeError { color: red; font-weight: bold; margin-top: 8px; }
+  input[type=text], input[type=password] {
+    padding: 6px; border-radius: 6px; border: 1px solid #bbb; margin: 4px;
+  }
 </style>
 </head>
 <body>
 
 <h2>Consola del Jugador</h2>
 
-<div class="panel">
-  <p><b>Sala:</b> <span id="nombreSala"></span></p>
-  <p><b>Jugador:</b> <span id="nombreJugador"></span></p>
-  <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span> |
-     Producción: <span id="estadoProduccion" class="estado-cerrado">—</span></p>
-</div>
-
-<div class="panel">
-  <h3>Mis Recursos</h3>
-  <table>
-    <thead><tr><th>Trigo</th><th>Hierro</th><th>Entregas hechas</th><th>Proceso elegido</th></tr></thead>
-    <tbody id="tablaJugador"></tbody>
-  </table>
-</div>
-
-<div class="panel" id="panelEntregas">
-  <h3>Enviar Entrega</h3>
-  <form id="formEntrega">
-    Para: <input id="para" type="text" required>
-    Trigo: <input id="trigo" type="number" min="0" step="any">
-    Hierro: <input id="hierro" type="number" min="0" step="any">
-    <button type="submit" class="boton">Enviar</button>
+<!-- === FORMULARIO DE ACCESO === -->
+<div id="panelAcceso" class="panel">
+  <h3>Entrar a una sala</h3>
+  <form id="formAcceso">
+    <label>Sala:</label> <input type="text" id="inputSala" required><br>
+    <label>Jugador:</label> <input type="text" id="inputNombre" required><br>
+    <label>Contraseña:</label> <input type="password" id="inputPassword" required><br>
+    <button type="submit" class="boton">Entrar</button>
   </form>
+  <div id="mensajeError"></div>
 </div>
 
-<div class="panel" id="panelProduccion">
-  <h3>Elegir Proceso de Producción</h3>
-  <button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
-  <button class="boton" data-proceso="2">Proceso 2 (Hierro)</button>
-  <button class="boton" data-proceso="3">Proceso 3 (Simplificar)</button>
-</div>
+<!-- === PANEL PRINCIPAL DEL JUEGO === -->
+<div id="panelJuego">
 
-<div class="panel">
-  <h3>Producción Potencial</h3>
-  <table id="tablaProduccionPotencial">
-    <thead>
-      <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Insumos desperdiciados</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="panel">
+    <p><b>Sala:</b> <span id="nombreSala"></span></p>
+    <p><b>Jugador:</b> <span id="nombreJugador"></span></p>
+    <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span> |
+       Producción: <span id="estadoProduccion" class="estado-cerrado">—</span></p>
+  </div>
+
+  <div class="panel">
+    <h3>Mis Recursos</h3>
+    <table>
+      <thead><tr><th>Trigo</th><th>Hierro</th><th>Entregas hechas</th><th>Proceso elegido</th></tr></thead>
+      <tbody id="tablaJugador"></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="panelEntregas">
+    <h3>Enviar Entrega</h3>
+    <form id="formEntrega">
+      Para: <input id="para" type="text" required>
+      Trigo: <input id="trigo" type="number" min="0" step="any">
+      Hierro: <input id="hierro" type="number" min="0" step="any">
+      <button type="submit" class="boton">Enviar</button>
+    </form>
+  </div>
+
+  <div class="panel" id="panelProduccion">
+    <h3>Elegir Proceso de Producción</h3>
+    <button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
+    <button class="boton" data-proceso="2">Proceso 2 (Hierro)</button>
+    <button class="boton" data-proceso="3">Proceso 3 (Simplificar)</button>
+  </div>
+
+  <div class="panel">
+    <h3>Producción Potencial</h3>
+    <table id="tablaProduccionPotencial">
+      <thead>
+        <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Insumos desperdiciados</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
 </div>
 
 <script>
 const socket = io();
 let sala, nombre, jugadorActual = {};
+let conectado = false;
 
-sala = prompt("Nombre de la sala:");
-nombre = prompt("Tu nombre de jugador:");
-const password = prompt("Contraseña:");
+// === FORMULARIO DE ACCESO ===
+document.getElementById("formAcceso").onsubmit = e => {
+  e.preventDefault();
+  sala = document.getElementById("inputSala").value.trim();
+  nombre = document.getElementById("inputNombre").value.trim();
+  const password = document.getElementById("inputPassword").value.trim();
+  if (!sala || !nombre || !password) return;
+  socket.emit("entrarJugador", { sala, nombre, password });
+};
 
-document.getElementById("nombreSala").textContent = sala;
-document.getElementById("nombreJugador").textContent = nombre;
+// === RESPUESTAS DEL SERVIDOR ===
+socket.on("jugadorEntrado", ({ sala: s, nombre: n }) => {
+  conectado = true;
+  document.getElementById("panelAcceso").style.display = "none";
+  document.getElementById("panelJuego").style.display = "block";
+  document.getElementById("nombreSala").textContent = s;
+  document.getElementById("nombreJugador").textContent = n;
+});
 
-socket.emit("entrarJugador", { sala, nombre, password });
+socket.on("error", msg => {
+  if (!conectado) {
+    document.getElementById("mensajeError").textContent = "⚠️ " + msg;
+  } else {
+    alert("⚠️ " + msg);
+  }
+});
 
-// === EVENTOS DEL SERVIDOR ===
+// === ACTUALIZAR ESTADO ===
 socket.on("actualizarEstado", data => {
   const j = data.jugadores[nombre];
   if (!j) return;
-
   jugadorActual = j;
   actualizarEstadoGeneral(data);
   actualizarTablaJugador(j);
@@ -109,12 +149,10 @@ document.getElementById("formEntrega").onsubmit = e => {
 
 // === ELECCIÓN DE PROCESO ===
 document.querySelectorAll('[data-proceso]').forEach(b => {
-  b.onclick = () => {
-    socket.emit("elegirProceso", { sala, nombre, proceso: parseInt(b.dataset.proceso) });
-  };
+  b.onclick = () => socket.emit("elegirProceso", { sala, nombre, proceso: parseInt(b.dataset.proceso) });
 });
 
-// === ACTUALIZAR TABLAS ===
+// === FUNCIONES AUXILIARES ===
 function actualizarEstadoGeneral(data) {
   const eAb = document.getElementById("estadoEntregas");
   const pAb = document.getElementById("estadoProduccion");
@@ -178,8 +216,6 @@ function actualizarTablaProduccion(j) {
     <tr><td>Proceso 2 (Hierro)</td><td>${prod2_trigo}</td><td>${prod2_hierro.toFixed(2)}</td><td>${desp2}</td></tr>
     <tr><td>Proceso 3 (Simplificar)</td><td>${prod3_trigo.toFixed(2)}</td><td>${prod3_hierro.toFixed(2)}</td><td>-</td></tr>`;
 }
-
-socket.on("error", msg => alert("⚠️ " + msg));
 </script>
 </body>
 </html>
