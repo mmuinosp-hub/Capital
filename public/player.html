@@ -5,27 +5,29 @@
 <title>Jugador - Simulador Capitalista</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-body{font-family:Arial,sans-serif;margin:20px;background:#f8f9fa;}
-h2,h3{margin:0 0 10px 0;}
-button{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;margin:6px 4px;background:#388e3c;color:#fff;}
-button:hover{background:#2e7d32;}
-button.secondary{background:#616161;}
-table{border-collapse:collapse;width:100%;margin-top:10px;}
-th,td{border:1px solid #ccc;padding:6px;text-align:center;}
-.seccion{background:#fff;padding:12px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.1);margin-bottom:16px;}
-.panel{background:#fff;border-radius:8px;padding:12px;margin-top:10px;box-shadow:0 2px 6px rgba(0,0,0,0.1);}
-.oculto{display:none;}
+body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }
+h2,h3 { margin: 0 0 10px 0; }
+button { padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; margin: 6px 4px; background:#388e3c; color:#fff; }
+button:hover { background:#2e7d32; }
+button.secondary { background:#616161; }
+table { border-collapse: collapse; width: 100%; margin-top:10px; }
+th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
+.seccion { background:#fff; padding:12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-bottom:16px; }
+.panel { background:#fff; border-radius:8px; padding:12px; margin-top:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.oculto { display:none; }
 </style>
 </head>
 <body>
 
 <h2>Jugador</h2>
 
+<!-- Inicio -->
 <div id="panelInicio" class="seccion">
   <button id="btnEntrar">🎮 Entrar en sala</button>
   <button class="secondary" onclick="window.location.href='/'">🏠 Volver a inicio</button>
 </div>
 
+<!-- Acceso -->
 <div id="panelAcceso" class="seccion oculto">
   <h3>Entrar en sala</h3>
   <form id="formAcceso">
@@ -36,6 +38,7 @@ th,td{border:1px solid #ccc;padding:6px;text-align:center;}
   </form>
 </div>
 
+<!-- Juego -->
 <div id="panelJuego" class="oculto">
   <h3>Jugador: <span id="nombreJugador"></span></h3>
   <p>Sala: <span id="nombreSala"></span></p>
@@ -66,15 +69,17 @@ th,td{border:1px solid #ccc;padding:6px;text-align:center;}
 </div>
 
 <script>
-const socket=io();
+const socket = io();
 let salaActual="", nombreJugador="", ultimoEstado={}, panelVisible=null;
 
-document.getElementById("btnEntrar").onclick=()=>{
+// --- Navegación inicial ---
+document.getElementById("btnEntrar").onclick = ()=>{
   document.getElementById("panelInicio").classList.add("oculto");
   document.getElementById("panelAcceso").classList.remove("oculto");
 };
 
-document.getElementById("formAcceso").onsubmit=e=>{
+// --- Acceso ---
+document.getElementById("formAcceso").onsubmit = e=>{
   e.preventDefault();
   salaActual=document.getElementById("sala").value.trim();
   nombreJugador=document.getElementById("nombre").value.trim();
@@ -82,14 +87,16 @@ document.getElementById("formAcceso").onsubmit=e=>{
   socket.emit("entrarJugador",{ sala:salaActual, nombre:nombreJugador, password });
 };
 
-socket.on("jugadorEntrado",data=>{
+// --- Confirmación de entrada ---
+socket.on("jugadorEntrado", ()=>{
   document.getElementById("panelAcceso").classList.add("oculto");
   document.getElementById("panelJuego").classList.remove("oculto");
-  document.getElementById("nombreJugador").textContent=nombreJugador;
-  document.getElementById("nombreSala").textContent=salaActual;
+  document.getElementById("nombreJugador").textContent = nombreJugador;
+  document.getElementById("nombreSala").textContent = salaActual;
 });
 
-socket.on("actualizarEstado",data=>{
+// --- Estado dinámico ---
+socket.on("actualizarEstado", data=>{
   ultimoEstado=data;
   const j=data.jugadores?.[nombreJugador];
   if(j){
@@ -99,7 +106,8 @@ socket.on("actualizarEstado",data=>{
   if(panelVisible) actualizarPanelVisible();
 });
 
-document.getElementById("formEntrega").onsubmit=e=>{
+// --- Enviar entrega ---
+document.getElementById("formEntrega").onsubmit = e=>{
   e.preventDefault();
   const destino=document.getElementById("destino").value.trim();
   const trigo=parseFloat(document.getElementById("trigo").value);
@@ -108,34 +116,46 @@ document.getElementById("formEntrega").onsubmit=e=>{
   e.target.reset();
 };
 
+// --- Paneles dinámicos ---
 function ocultarPaneles(){ document.querySelectorAll(".panel").forEach(p=>p.classList.add("oculto")); }
 function actualizarPanelVisible(){
   if(panelVisible==="panelEstados") renderEstados();
   if(panelVisible==="panelEntregas") renderEntregas();
 }
 
+// --- Renderizados ---
 function renderEstados(){
-  const filas=Object.entries(ultimoEstado.jugadores||{}).map(([n,j])=>`<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td></tr>`).join("");
-  mostrarPanel("panelEstados",`<h3>📊 Estados actuales</h3><table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th></tr></thead><tbody>${filas}</tbody></table>`);
+  const filas = Object.entries(ultimoEstado.jugadores||{})
+    .map(([n,j])=>`<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td></tr>`)
+    .join("");
+  mostrarPanel("panelEstados",`<h3>📊 Estados actuales</h3>
+  <table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th></tr></thead>
+  <tbody>${filas}</tbody></table>`);
 }
+
 function renderEntregas(){
   const hist=ultimoEstado.entregas||[];
-  const filas=hist.map(h=>`<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("")||"<tr><td colspan='5'>Sin entregas</td></tr>";
-  mostrarPanel("panelEntregas",`<h3>📜 Entregas actuales</h3><table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`);
+  const filas=hist.map(h=>`<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("")
+    ||"<tr><td colspan='5'>Sin entregas</td></tr>";
+  mostrarPanel("panelEntregas",`<h3>📜 Entregas actuales</h3>
+  <table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+  <tbody>${filas}</tbody></table>`);
 }
-function mostrarPanel(id,html){
+
+function mostrarPanel(id, html){
   const p=document.getElementById(id);
-  const visible=panelVisible===id;
+  const visible = panelVisible===id;
   ocultarPaneles();
-  if(visible){panelVisible=null;return;}
+  if(visible){ panelVisible=null; return; }
   p.innerHTML=html;
   p.classList.remove("oculto");
   panelVisible=id;
 }
-document.getElementById("btnEstados").onclick=renderEstados;
-document.getElementById("btnEntregas").onclick=renderEntregas;
 
-socket.on("error",msg=>alert("⚠️ "+msg));
+document.getElementById("btnEstados").onclick = renderEstados;
+document.getElementById("btnEntregas").onclick = renderEntregas;
+
+socket.on("error", msg=>alert("⚠️ "+msg));
 </script>
 </body>
 </html>
