@@ -3,6 +3,7 @@
 Licencia: Creative Commons Atribución-NoComercial-SinDerivadas 4.0 Internacional (CC BY-NC-ND 4.0)
 https://creativecommons.org/licenses/by-nc-nd/4.0/
 -->
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -57,6 +58,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     </div>
   </div>
 
+  <!-- === FORMULARIO DE ENTREGA === -->
   <div id="formEntregaBox" class="info-box">
     <h3>Enviar entrega</h3>
     <form id="formEntrega">
@@ -67,6 +69,16 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     </form>
   </div>
 
+  <!-- === NUEVO FORMULARIO DE INSUMOS === -->
+  <div class="info-box">
+    <h3>Insumos para producción</h3>
+    Trigo: <input id="insumoTrigo" type="number" min="0" step="any" value="0">
+    Hierro: <input id="insumoHierro" type="number" min="0" step="any" value="0">
+    <button id="btnCalcularProd" class="boton">Calcular producción</button>
+    <button id="btnInicio" class="boton">🏠 Inicio</button>
+  </div>
+
+  <!-- === PRODUCCIÓN POTENCIAL ACTUALIZADA === -->
   <div class="info-box">
     <h3>Producción potencial</h3>
     <table id="tablaProduccionPotencial">
@@ -77,6 +89,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     </table>
   </div>
 
+  <!-- === BOTONES DE PROCESO === -->
   <div class="info-box">
     <h3>Elegir proceso de producción</h3>
     <button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
@@ -85,7 +98,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     <p id="procesoElegido" style="margin-top:10px; font-weight:bold;"></p>
   </div>
 
-  <!-- === ENTREGAS SIEMPRE VISIBLES === -->
+  <!-- === ENTREGAS DEL JUGADOR === -->
   <div class="info-box">
     <h3>Entregas del jugador</h3>
     <table id="tablaEntregasJugador">
@@ -113,6 +126,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 const socket = io();
 let sala, nombre, ultimoEstado = {}, procesoSeleccionado = null;
 let entro = false, panelVisible = null;
+let insumoTrigo = 0, insumoHierro = 0;
 
 // === LOGIN ===
 document.getElementById("entrarBtn").onclick = () => {
@@ -151,12 +165,11 @@ socket.on("actualizarEstado", data => {
   document.getElementById("estadoEntregas").className = entAbierta ? "abierto" : "cerrado";
   document.getElementById("formEntregaBox").style.display = entAbierta ? "block" : "none";
 
-  actualizarProduccion(j);
+  actualizarProduccionInsumos(insumoTrigo, insumoHierro);
   actualizarSelectReceptores(data);
   actualizarEntregasJugador(data);
   actualizarBotonesProceso(j, prodAbierta);
 
-  // 🔄 Si los paneles "Estados" o "Entregas actuales" están abiertos, se actualizan automáticamente
   if (panelVisible === "estados") renderEstados();
   if (panelVisible === "entregasAct") renderEntregasActuales();
 });
@@ -171,10 +184,15 @@ document.getElementById("formEntrega").onsubmit = e => {
   e.target.reset();
 };
 
-// === PRODUCCIÓN POTENCIAL ===
-function actualizarProduccion(j) {
+// === PRODUCCIÓN SEGÚN INSUMOS ===
+document.getElementById("btnCalcularProd").onclick = () => {
+  insumoTrigo = parseFloat(document.getElementById("insumoTrigo").value) || 0;
+  insumoHierro = parseFloat(document.getElementById("insumoHierro").value) || 0;
+  actualizarProduccionInsumos(insumoTrigo, insumoHierro);
+};
+
+function actualizarProduccionInsumos(trigo, hierro) {
   const t = document.querySelector("#tablaProduccionPotencial tbody");
-  const trigo = j.trigo, hierro = j.hierro;
   const f1 = Math.min(trigo / 280, hierro / 12);
   const f2 = Math.min(trigo / 120, hierro / 8);
   t.innerHTML = `
@@ -182,6 +200,15 @@ function actualizarProduccion(j) {
     <tr><td>Proceso 2 (Hierro)</td><td>0</td><td>${(20*f2).toFixed(2)}</td><td>-</td></tr>
     <tr><td>Proceso 3 (Simplificar)</td><td>${(trigo/2).toFixed(2)}</td><td>${(hierro/2).toFixed(2)}</td><td>-</td></tr>`;
 }
+
+// === BOTÓN INICIO ===
+document.getElementById("btnInicio").onclick = () => {
+  procesoSeleccionado = null;
+  document.getElementById("procesoElegido").textContent = "";
+  document.getElementById("insumoTrigo").value = 0;
+  document.getElementById("insumoHierro").value = 0;
+  actualizarProduccionInsumos(0, 0);
+};
 
 // === SELECT DE RECEPTORES ===
 function actualizarSelectReceptores(data) {
@@ -249,7 +276,7 @@ function togglePanel(id, html) {
   }
 }
 
-// === FUNCIONES DE RENDER PARA ACTUALIZACIÓN DINÁMICA ===
+// === FUNCIONES DE RENDER ===
 function renderEstados() {
   if (!ultimoEstado.jugadores) return;
   const filas = Object.entries(ultimoEstado.jugadores)
@@ -271,7 +298,7 @@ function renderEntregasActuales() {
   document.getElementById("panelDatos").style.display = "block";
 }
 
-// === BOTONES ===
+// === BOTONES PRINCIPALES ===
 document.getElementById("btnEstados").onclick = () => {
   renderEstados();
   panelVisible = "estados";
@@ -302,4 +329,3 @@ document.getElementById("btnHistorialEntregas").onclick = () => {
 </script>
 </body>
 </html>
-
