@@ -1,156 +1,142 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Administrador - Simulador Capitalista</title>
-  <link rel="stylesheet" href="/style.css" />
-  <script src="/socket.io/socket.io.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      margin: 2em;
-    }
-    h1 {
-      margin-bottom: 1em;
-    }
-    .botones-inicio {
-      display: flex;
-      flex-direction: column;
-      gap: 1em;
-      margin-bottom: 2em;
-    }
-    button {
-      padding: 0.6em 1.2em;
-      font-size: 1em;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      background-color: #1d4ed8;
-      color: white;
-      transition: background-color 0.3s;
-    }
-    button:hover {
-      background-color: #2563eb;
-    }
-    .oculto {
-      display: none;
-    }
-    #panelAdmin {
-      margin-top: 2em;
-    }
-    #volver {
-      background-color: #6b7280;
-    }
-    #volver:hover {
-      background-color: #4b5563;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Administrador - Simulador Capitalista</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }
+h2,h3 { margin: 0 0 10px 0; }
+button { padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; margin: 6px 4px; background:#1976d2; color:#fff; }
+button:hover { background:#125aa0; }
+button.secondary { background:#616161; }
+table { border-collapse: collapse; width: 100%; margin-top:10px; }
+th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
+.seccion { background:#fff; padding:12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-bottom:16px; }
+.oculto { display:none; }
+.estado-abierto { color:green; font-weight:bold; }
+.estado-cerrado { color:red; font-weight:bold; }
+</style>
 </head>
 <body>
-  <h1>Panel de Administración</h1>
 
-  <!-- Controles iniciales -->
-  <div id="inicio" class="botones-inicio">
-    <button id="btnCrearSala">Crear nueva sala</button>
-    <button id="btnEntrarSala">Entrar en una sala existente</button>
-    <button id="volver" onclick="window.location.href='/'">Volver a la página inicial</button>
+<h2>Consola del Administrador</h2>
+
+<!-- Inicio -->
+<div id="panelInicio" class="seccion">
+  <button class="boton" id="btnCrearSala">➕ Crear nueva sala</button>
+  <button class="boton" id="btnAccederSala">🔑 Entrar a sala existente</button>
+  <button class="boton secondary" onclick="window.location.href='/'">🏠 Volver a inicio</button>
+</div>
+
+<!-- Acceso/creación -->
+<div id="panelAcceso" class="seccion oculto">
+  <h3 id="tituloAcceso"></h3>
+  <form id="formAcceso">
+    <label>Nombre de sala:</label><br>
+    <input type="text" id="nombreSalaInput" required><br><br>
+    <label>Contraseña:</label><br>
+    <input type="password" id="passwordSalaInput" required><br><br>
+    <button type="submit" class="boton">Entrar</button>
+  </form>
+</div>
+
+<!-- Panel principal -->
+<div id="panelGestion" class="oculto">
+
+  <h3>Sala: <span id="nombreSala"></span></h3>
+
+  <div class="seccion">
+    <h4>Estado actual</h4>
+    <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span></p>
+    <p>Producción: <span id="estadoProduccion" class="estado-cerrado">—</span></p>
+    <button class="boton" id="toggleEntregas">Abrir/Cerrar entregas</button>
+    <button class="boton" id="toggleProduccion">Abrir/Cerrar producción</button>
+    <button class="boton" id="nuevaSesion">Nueva sesión</button>
   </div>
 
-  <!-- Panel de administración oculto al inicio -->
-  <div id="panelAdmin" class="oculto">
-    <h2>Administrando sala: <span id="nombreSala"></span></h2>
+  <!-- Crear jugador -->
+  <div class="seccion">
+    <h4>Crear jugador</h4>
+    <form id="formJugador">
+      Nombre: <input id="nombreJugador" required>
+      Contraseña: <input id="passwordJugador" required>
+      Trigo inicial: <input id="trigoInicial" type="number" min="0" step="any" required>
+      Hierro inicial: <input id="hierroInicial" type="number" min="0" step="any" required>
+      <button type="submit" class="boton">Añadir jugador</button>
+    </form>
+  </div>
 
-    <div>
-      <button id="btnAbrirEntregas">Abrir entregas</button>
-      <button id="btnCerrarEntregas">Cerrar entregas</button>
-      <button id="btnProcesarProduccion">Procesar producción</button>
-      <button id="btnNuevaSesion">Nueva sesión</button>
-    </div>
-
-    <h3>Jugadores registrados</h3>
-    <table border="1" cellpadding="5" id="tablaJugadores">
-      <thead>
-        <tr>
-          <th>Jugador</th>
-          <th>Trigo</th>
-          <th>Hierro</th>
-          <th>Proceso</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
+  <!-- Lista de jugadores -->
+  <div class="seccion">
+    <h4>Jugadores en la sala</h4>
+    <table>
+      <thead><tr><th>Nombre</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead>
+      <tbody id="tablaJugadores"></tbody>
     </table>
-
-    <h3>Estado</h3>
-    <p id="estadoSala">Sin datos aún</p>
   </div>
+</div>
 
-  <script>
-    const socket = io();
-    const inicio = document.getElementById('inicio');
-    const panelAdmin = document.getElementById('panelAdmin');
-    const nombreSalaEl = document.getElementById('nombreSala');
-    const tablaJugadores = document.getElementById('tablaJugadores').querySelector('tbody');
-    const estadoSala = document.getElementById('estadoSala');
+<script>
+const socket = io();
+let salaActual="", adminPassword="";
 
-    let salaActual = null;
+document.getElementById("btnCrearSala").onclick = ()=>{
+  document.getElementById("panelInicio").classList.add("oculto");
+  document.getElementById("panelAcceso").classList.remove("oculto");
+  document.getElementById("tituloAcceso").textContent="Crear nueva sala";
+};
+document.getElementById("btnAccederSala").onclick = ()=>{
+  document.getElementById("panelInicio").classList.add("oculto");
+  document.getElementById("panelAcceso").classList.remove("oculto");
+  document.getElementById("tituloAcceso").textContent="Entrar a sala existente";
+};
 
-    document.getElementById('btnCrearSala').onclick = () => {
-      const nombre = prompt("Nombre para la nueva sala:");
-      if (!nombre) return;
-      socket.emit('admin_crear_sala', nombre);
-      salaActual = nombre;
-      iniciarPanel(nombre);
-    };
+document.getElementById("formAcceso").onsubmit = e=>{
+  e.preventDefault();
+  salaActual = document.getElementById("nombreSalaInput").value.trim();
+  adminPassword = document.getElementById("passwordSalaInput").value.trim();
+  const modo = document.getElementById("tituloAcceso").textContent.includes("Crear") ? "crear" : "acceder";
+  if(modo==="crear") socket.emit("crearSala",{ sala:salaActual, password: adminPassword });
+  else socket.emit("entrarAdmin",{ sala:salaActual, password: adminPassword });
+};
 
-    document.getElementById('btnEntrarSala').onclick = () => {
-      const nombre = prompt("Nombre de la sala existente:");
-      if (!nombre) return;
-      socket.emit('admin_entrar_sala', nombre);
-      salaActual = nombre;
-      iniciarPanel(nombre);
-    };
+socket.on("salaCreada", s=> socket.emit("entrarAdmin",{ sala:s, password: adminPassword }));
+socket.on("adminEntrado", s=>{
+  document.getElementById("panelAcceso").classList.add("oculto");
+  document.getElementById("panelGestion").classList.remove("oculto");
+  document.getElementById("nombreSala").textContent = s;
+});
 
-    function iniciarPanel(nombre) {
-      inicio.classList.add('oculto');
-      panelAdmin.classList.remove('oculto');
-      nombreSalaEl.textContent = nombre;
-    }
+socket.on("actualizarEstado", data=>{
+  const tbody=document.getElementById("tablaJugadores");
+  tbody.innerHTML="";
+  for(const [nombre,j] of Object.entries(data.jugadores)){
+    tbody.innerHTML+=`<tr><td>${nombre}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso??"-"}</td></tr>`;
+  }
 
-    document.getElementById('btnAbrirEntregas').onclick = () => {
-      socket.emit('admin_abrir_entregas', salaActual);
-    };
+  document.getElementById("estadoEntregas").textContent = data.entregasAbiertas?"🟢 Abiertas":"🔴 Cerradas";
+  document.getElementById("estadoEntregas").className = data.entregasAbiertas?"estado-abierto":"estado-cerrado";
 
-    document.getElementById('btnCerrarEntregas').onclick = () => {
-      socket.emit('admin_cerrar_entregas', salaActual);
-    };
+  document.getElementById("estadoProduccion").textContent = data.produccionAbierta?"🟢 Abierta":"🔴 Cerrada";
+  document.getElementById("estadoProduccion").className = data.produccionAbierta?"estado-abierto":"estado-cerrado";
+});
 
-    document.getElementById('btnProcesarProduccion').onclick = () => {
-      socket.emit('admin_procesar_produccion', salaActual);
-    };
+document.getElementById("formJugador").onsubmit = e=>{
+  e.preventDefault();
+  const nombre=document.getElementById("nombreJugador").value.trim();
+  const password=document.getElementById("passwordJugador").value.trim();
+  const trigo=parseFloat(document.getElementById("trigoInicial").value);
+  const hierro=parseFloat(document.getElementById("hierroInicial").value);
+  socket.emit("crearJugador",{ sala:salaActual, nombre, password, trigo, hierro });
+  e.target.reset();
+};
 
-    document.getElementById('btnNuevaSesion').onclick = () => {
-      socket.emit('admin_nueva_sesion', salaActual);
-    };
+document.getElementById("toggleEntregas").onclick = ()=>socket.emit("toggleEntregas",salaActual);
+document.getElementById("toggleProduccion").onclick = ()=>socket.emit("toggleProduccion",salaActual);
+document.getElementById("nuevaSesion").onclick = ()=>socket.emit("nuevaSesion",salaActual);
 
-    socket.on('actualizacion_sala', datos => {
-      actualizarTabla(datos.jugadores);
-      estadoSala.textContent = datos.estado;
-    });
-
-    function actualizarTabla(jugadores) {
-      tablaJugadores.innerHTML = '';
-      jugadores.forEach(j => {
-        const fila = document.createElement('tr');
-        fila.innerHTML = `
-          <td>${j.nombre}</td>
-          <td>${j.trigo}</td>
-          <td>${j.hierro}</td>
-          <td>${j.proceso}</td>
-        `;
-        tablaJugadores.appendChild(fila);
-      });
-    }
-  </script>
+socket.on("error", msg=>alert("⚠️ "+msg));
+</script>
 </body>
 </html>
