@@ -70,6 +70,11 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 
   <div class="info-box">
     <h3>Producción potencial</h3>
+    <p>
+      Trigo disponible: <input type="number" id="inputTrigo" step="any" style="width:80px;">
+      Hierro disponible: <input type="number" id="inputHierro" step="any" style="width:80px;">
+      <button class="boton" id="btnActualizarProduccion">Actualizar</button>
+    </p>
     <table id="tablaProduccionPotencial">
       <thead>
         <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Desperdicio</th></tr>
@@ -115,6 +120,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 const socket = io();
 let sala, nombre, ultimoEstado = {}, procesoSeleccionado = null;
 let entro = false, panelVisible = null;
+let recursos = { trigo: 0, hierro: 0 };
 
 // === LOGIN ===
 document.getElementById("entrarBtn").onclick = () => {
@@ -140,9 +146,15 @@ socket.on("actualizarEstado", data => {
   if (!j) return;
 
   // Recursos
+  recursos.trigo = j.trigo;
+  recursos.hierro = j.hierro;
   document.getElementById("trigoActual").textContent = j.trigo.toFixed(2);
   document.getElementById("hierroActual").textContent = j.hierro.toFixed(2);
   document.getElementById("entregas").textContent = j.entregas;
+
+  // Inicializar inputs de producción
+  document.getElementById("inputTrigo").value = recursos.trigo.toFixed(2);
+  document.getElementById("inputHierro").value = recursos.hierro.toFixed(2);
 
   // Estados
   const prodAbierta = data.produccionAbierta;
@@ -156,7 +168,7 @@ socket.on("actualizarEstado", data => {
   // 🔽 Mostrar u ocultar la sección de producción según el estado
   document.getElementById("seccionProduccion").style.display = prodAbierta ? "block" : "none";
 
-  actualizarProduccion(j);
+  actualizarProduccion();
   actualizarSelectReceptores(data);
   actualizarEntregasJugador(data);
   actualizarBotonesProceso(j, prodAbierta);
@@ -177,39 +189,44 @@ document.getElementById("formEntrega").onsubmit = e => {
 };
 
 // === PRODUCCIÓN POTENCIAL ===
-function actualizarProduccion(j) {
+function actualizarProduccion() {
   const t = document.querySelector("#tablaProduccionPotencial tbody");
-  const trigo = j.trigo, hierro = j.hierro;
+  const trigoInput = parseFloat(document.getElementById("inputTrigo").value) || 0;
+  const hierroInput = parseFloat(document.getElementById("inputHierro").value) || 0;
   t.innerHTML = "";
 
   // Proceso 1 (Trigo)
-  const f1 = Math.min(trigo / 280, hierro / 12);
+  const f1 = Math.min(trigoInput / 280, hierroInput / 12);
   const trigo1 = 575 * f1;
   const hierro1 = 0;
   let desperdicio1 = "";
-  if (trigo / 280 > hierro / 12)
-    desperdicio1 = `Se desperdicia ${(trigo - 280 * f1).toFixed(2)} de trigo`;
-  else if (trigo / 280 < hierro / 12)
-    desperdicio1 = `Se desperdicia ${(hierro - 12 * f1).toFixed(2)} de hierro`;
+  if (trigoInput / 280 > hierroInput / 12)
+    desperdicio1 = `Se desperdicia ${(trigoInput - 280 * f1).toFixed(2)} de trigo`;
+  else if (trigoInput / 280 < hierroInput / 12)
+    desperdicio1 = `Se desperdicia ${(hierroInput - 12 * f1).toFixed(2)} de hierro`;
   t.innerHTML += `<tr><td>Proceso 1 (Trigo)</td><td>${trigo1.toFixed(2)}</td><td>${hierro1.toFixed(2)}</td><td>${desperdicio1}</td></tr>`;
 
   // Proceso 2 (Hierro)
-  const f2 = Math.min(trigo / 120, hierro / 8);
+  const f2 = Math.min(trigoInput / 120, hierroInput / 8);
   const trigo2 = 0;
   const hierro2 = 20 * f2;
   let desperdicio2 = "";
-  if (trigo / 120 > hierro / 8)
-    desperdicio2 = `Se desperdicia ${(trigo - 120 * f2).toFixed(2)} de trigo`;
-  else if (trigo / 120 < hierro / 8)
-    desperdicio2 = `Se desperdicia ${(hierro - 8 * f2).toFixed(2)} de hierro`;
+  if (trigoInput / 120 > hierroInput / 8)
+    desperdicio2 = `Se desperdicia ${(trigoInput - 120 * f2).toFixed(2)} de trigo`;
+  else if (trigoInput / 120 < hierroInput / 8)
+    desperdicio2 = `Se desperdicia ${(hierroInput - 8 * f2).toFixed(2)} de hierro`;
   t.innerHTML += `<tr><td>Proceso 2 (Hierro)</td><td>${trigo2.toFixed(2)}</td><td>${hierro2.toFixed(2)}</td><td>${desperdicio2}</td></tr>`;
 
   // Proceso 3 (Simplificar)
-  const trigo3 = trigo / 2;
-  const hierro3 = hierro / 2;
+  const trigo3 = trigoInput / 2;
+  const hierro3 = hierroInput / 2;
   t.innerHTML += `<tr><td>Proceso 3 (Simplificar)</td><td>${trigo3.toFixed(2)}</td><td>${hierro3.toFixed(2)}</td><td></td></tr>`;
 }
 
+// Actualizar producción al hacer click en el botón
+document.getElementById("btnActualizarProduccion").onclick = () => {
+  actualizarProduccion();
+};
 
 // === SELECT DE RECEPTORES ===
 function actualizarSelectReceptores(data) {
@@ -326,4 +343,3 @@ document.getElementById("btnHistorialEntregas").onclick = () => {
 </script>
 </body>
 </html>
-
