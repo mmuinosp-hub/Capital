@@ -36,7 +36,6 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
   <input id="nombreInput" placeholder="Jugador" required>
   <input id="passwordInput" placeholder="Contraseña" type="password" required>
   <button id="entrarBtn" class="boton">Entrar</button>
-  <a href="/" class="boton" style="background:#555; text-decoration:none; display:inline-block;">🏠 Inicio</a>
   <p id="loginError" style="color:red; display:none;">Error al entrar. Verifica los datos.</p>
 </div>
 
@@ -69,13 +68,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
   </div>
 
   <div class="info-box">
-    <h3>Calculadora</h3>
-    <p>
-      Trigo disponible: <input type="number" id="inputTrigo" step="any" style="width:80px;">
-      Hierro disponible: <input type="number" id="inputHierro" step="any" style="width:80px;">
-      <button class="boton" id="btnActualizarProduccion">Actualizar</button>
-    </p>
-    <p><b>Trigo / Hierro:</b> <span id="proporcionTrigoHierro">—</span></p>
+    <h3>Producción potencial</h3>
     <table id="tablaProduccionPotencial">
       <thead>
         <tr><th>Proceso</th><th>Trigo producido</th><th>Hierro producido</th><th>Desperdicio</th></tr>
@@ -84,8 +77,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     </table>
   </div>
 
-  <!-- 🔽 ESTA SECCIÓN SOLO SE MOSTRARÁ CUANDO LA PRODUCCIÓN ESTÉ ABIERTA -->
-  <div class="info-box" id="seccionProduccion">
+  <div class="info-box">
     <h3>Elegir proceso de producción</h3>
     <button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
     <button class="boton" data-proceso="2">Proceso 2 (Hierro)</button>
@@ -110,7 +102,6 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     <button class="boton" id="btnEntregasAct">📜 Entregas actuales</button>
     <button class="boton" id="btnHistorialEstados">📈 Historial de estados</button>
     <button class="boton" id="btnHistorialEntregas">📚 Historial de entregas</button>
-    <a href="/" class="boton" style="background:#555; text-decoration:none; display:inline-block;">🏠 Inicio</a>
   </div>
 
   <div id="panelDatos" class="panel info-box">
@@ -122,7 +113,6 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 const socket = io();
 let sala, nombre, ultimoEstado = {}, procesoSeleccionado = null;
 let entro = false, panelVisible = null;
-let recursos = { trigo: 0, hierro: 0 };
 
 // === LOGIN ===
 document.getElementById("entrarBtn").onclick = () => {
@@ -148,15 +138,9 @@ socket.on("actualizarEstado", data => {
   if (!j) return;
 
   // Recursos
-  recursos.trigo = j.trigo;
-  recursos.hierro = j.hierro;
   document.getElementById("trigoActual").textContent = j.trigo.toFixed(2);
   document.getElementById("hierroActual").textContent = j.hierro.toFixed(2);
   document.getElementById("entregas").textContent = j.entregas;
-
-  // Inicializar inputs de producción
-  document.getElementById("inputTrigo").value = recursos.trigo.toFixed(2);
-  document.getElementById("inputHierro").value = recursos.hierro.toFixed(2);
 
   // Estados
   const prodAbierta = data.produccionAbierta;
@@ -167,14 +151,12 @@ socket.on("actualizarEstado", data => {
   document.getElementById("estadoEntregas").className = entAbierta ? "abierto" : "cerrado";
   document.getElementById("formEntregaBox").style.display = entAbierta ? "block" : "none";
 
-  // 🔽 Mostrar u ocultar la sección de producción según el estado
-  document.getElementById("seccionProduccion").style.display = prodAbierta ? "block" : "none";
-
-  actualizarProduccion();
+  actualizarProduccion(j);
   actualizarSelectReceptores(data);
   actualizarEntregasJugador(data);
   actualizarBotonesProceso(j, prodAbierta);
 
+  // 🔄 Si los paneles "Estados" o "Entregas actuales" están abiertos, se actualizan automáticamente
   if (panelVisible === "estados") renderEstados();
   if (panelVisible === "entregasAct") renderEntregasActuales();
 });
@@ -189,50 +171,17 @@ document.getElementById("formEntrega").onsubmit = e => {
   e.target.reset();
 };
 
-// === CALCULADORA DE PRODUCCIÓN ===
-function actualizarProduccion() {
+// === PRODUCCIÓN POTENCIAL ===
+function actualizarProduccion(j) {
   const t = document.querySelector("#tablaProduccionPotencial tbody");
-  const trigoInput = parseFloat(document.getElementById("inputTrigo").value) || 0;
-  const hierroInput = parseFloat(document.getElementById("inputHierro").value) || 0;
-
-  // Actualizar proporción Trigo / Hierro
-  let proporcion = hierroInput !== 0 ? (trigoInput / hierroInput).toFixed(2) : "∞";
-  document.getElementById("proporcionTrigoHierro").textContent = proporcion;
-
-  t.innerHTML = "";
-
-  // Proceso 1 (Trigo)
-  const f1 = Math.min(trigoInput / 280, hierroInput / 12);
-  const trigo1 = 575 * f1;
-  const hierro1 = 0;
-  let desperdicio1 = "";
-  if (trigoInput / 280 > hierroInput / 12)
-    desperdicio1 = `Se desperdicia ${(trigoInput - 280 * f1).toFixed(2)} de trigo`;
-  else if (trigoInput / 280 < hierroInput / 12)
-    desperdicio1 = `Se desperdicia ${(hierroInput - 12 * f1).toFixed(2)} de hierro`;
-  t.innerHTML += `<tr><td>Proceso 1 (Trigo)</td><td>${trigo1.toFixed(2)}</td><td>${hierro1.toFixed(2)}</td><td>${desperdicio1}</td></tr>`;
-
-  // Proceso 2 (Hierro)
-  const f2 = Math.min(trigoInput / 120, hierroInput / 8);
-  const trigo2 = 0;
-  const hierro2 = 20 * f2;
-  let desperdicio2 = "";
-  if (trigoInput / 120 > hierroInput / 8)
-    desperdicio2 = `Se desperdicia ${(trigoInput - 120 * f2).toFixed(2)} de trigo`;
-  else if (trigoInput / 120 < hierroInput / 8)
-    desperdicio2 = `Se desperdicia ${(hierroInput - 8 * f2).toFixed(2)} de hierro`;
-  t.innerHTML += `<tr><td>Proceso 2 (Hierro)</td><td>${trigo2.toFixed(2)}</td><td>${hierro2.toFixed(2)}</td><td>${desperdicio2}</td></tr>`;
-
-  // Proceso 3 (Simplificar)
-  const trigo3 = trigoInput / 2;
-  const hierro3 = hierroInput / 2;
-  t.innerHTML += `<tr><td>Proceso 3 (Simplificar)</td><td>${trigo3.toFixed(2)}</td><td>${hierro3.toFixed(2)}</td><td></td></tr>`;
+  const trigo = j.trigo, hierro = j.hierro;
+  const f1 = Math.min(trigo / 280, hierro / 12);
+  const f2 = Math.min(trigo / 120, hierro / 8);
+  t.innerHTML = `
+    <tr><td>Proceso 1 (Trigo)</td><td>${(575*f1).toFixed(2)}</td><td>0</td><td>-</td></tr>
+    <tr><td>Proceso 2 (Hierro)</td><td>0</td><td>${(20*f2).toFixed(2)}</td><td>-</td></tr>
+    <tr><td>Proceso 3 (Simplificar)</td><td>${(trigo/2).toFixed(2)}</td><td>${(hierro/2).toFixed(2)}</td><td>-</td></tr>`;
 }
-
-// Botón actualizar
-document.getElementById("btnActualizarProduccion").onclick = () => {
-  actualizarProduccion();
-};
 
 // === SELECT DE RECEPTORES ===
 function actualizarSelectReceptores(data) {
@@ -263,6 +212,10 @@ function actualizarEntregasJugador(data) {
 
 // === BOTONES DE PROCESO ===
 function actualizarBotonesProceso(j, produccionAbierta) {
+  document.querySelectorAll("button[data-proceso]").forEach(b => {
+    b.disabled = !produccionAbierta;
+    b.classList.toggle("gris", !produccionAbierta);
+  });
   if (j.proceso) {
     procesoSeleccionado = j.proceso;
     document.getElementById("procesoElegido").textContent = `Has elegido el proceso ${j.proceso}`;
@@ -349,3 +302,4 @@ document.getElementById("btnHistorialEntregas").onclick = () => {
 </script>
 </body>
 </html>
+
