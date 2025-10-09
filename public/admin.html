@@ -6,198 +6,109 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Administrador - Simulador Capitalista</title>
-<script src="/socket.io/socket.io.js"></script>
-<style>
-body { font-family: Arial, sans-serif; margin: 20px; background: #f8f9fa; }
-h2,h3 { margin: 0 0 10px 0; }
-button { padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; margin: 6px 4px; background:#1976d2; color:#fff; }
-button:hover { background:#125aa0; }
-button.secondary { background:#616161; }
-table { border-collapse: collapse; width: 100%; margin-top:10px; }
-th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
-.seccion { background:#fff; padding:12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-bottom:16px; }
-.oculto { display:none; }
-.estado-abierto { color:green; font-weight:bold; }
-.estado-cerrado { color:red; font-weight:bold; }
-.panel { background:#fff; border-radius:8px; padding:12px; margin-top:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
-</style>
+  <meta charset="UTF-8">
+  <title>Capitalismo Simulado - Panel de Control</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+    h1 { background: #222; color: #fff; margin: 0; padding: 10px; text-align: center; }
+    .container { padding: 20px; max-width: 900px; margin: auto; }
+    button { margin: 5px; padding: 8px 14px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    td, th { border: 1px solid #ccc; padding: 5px; text-align: center; }
+    th { background: #ddd; }
+    .top-bar { display: flex; justify-content: space-between; align-items: center; }
+    a.inicio-link { text-decoration: none; color: #007bff; margin-left: 10px; }
+    a.inicio-link:hover { text-decoration: underline; }
+  </style>
 </head>
 <body>
-
-<h2>Consola del Administrador</h2>
-
-<!-- Inicio -->
-<div id="panelInicio" class="seccion">
-  <button class="boton" id="btnCrearSala">➕ Crear nueva sala</button>
-  <button class="boton" id="btnAccederSala">🔑 Entrar a sala existente</button>
-  <button class="boton secondary" onclick="window.location.href='/'">🏠 Volver a inicio</button>
-</div>
-
-<!-- Acceso -->
-<div id="panelAcceso" class="seccion oculto">
-  <h3 id="tituloAcceso"></h3>
-  <form id="formAcceso">
-    <label>Nombre de sala:</label><br>
-    <input type="text" id="nombreSalaInput" required><br><br>
-    <label>Contraseña:</label><br>
-    <input type="password" id="passwordSalaInput" required><br><br>
-    <button type="submit" class="boton">Entrar</button>
-  </form>
-</div>
-
-<!-- Panel principal -->
-<div id="panelGestion" class="oculto">
-  <h3>Sala: <span id="nombreSala"></span></h3>
-
-  <div class="seccion">
-    <h4>Estado actual</h4>
-    <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">—</span></p>
-    <p>Producción: <span id="estadoProduccion" class="estado-cerrado">—</span></p>
-    <button class="boton" id="toggleEntregas">Abrir/Cerrar entregas</button>
-    <button class="boton" id="toggleProduccion">Abrir/Cerrar producción</button>
-    <button class="boton" id="nuevaSesion">Nueva sesión</button>
-  </div>
-
-  <div class="seccion">
-    <h4>Crear jugador</h4>
-    <form id="formJugador">
-      Nombre: <input id="nombreJugador" required>
-      Contraseña: <input id="passwordJugador" required>
-      Trigo inicial: <input id="trigoInicial" type="number" min="0" step="any" required>
-      Hierro inicial: <input id="hierroInicial" type="number" min="0" step="any" required>
-      <button type="submit" class="boton">Añadir jugador</button>
+  <h1>Capitalismo Simulado - Panel de Control</h1>
+  <div class="container" id="login">
+    <h3>Ingresar al panel</h3>
+    <form id="loginForm">
+      <label>Nombre del administrador:</label><br>
+      <input type="text" id="nombre" required><br><br>
+      <label>Sala:</label><br>
+      <input type="text" id="sala" required><br><br>
+      <label>Contraseña:</label><br>
+      <input type="password" id="pass"><br><br>
+      <button type="submit">Entrar</button>
+      <a href="/" class="inicio-link">🏠 Volver al inicio</a>
     </form>
   </div>
 
-  <div class="seccion">
-    <h4>Jugadores en la sala</h4>
-    <table>
-      <thead><tr><th>Nombre</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead>
-      <tbody id="tablaJugadores"></tbody>
+  <div class="container" id="panel" style="display:none;">
+    <div class="top-bar">
+      <h2 id="tituloSala"></h2>
+      <a href="/" class="inicio-link">🏠 Inicio</a>
+    </div>
+
+    <div>
+      <button id="toggleEntregas">Abrir/Cerrar entregas</button>
+      <button id="toggleProduccion">Abrir producción/Nueva sesión</button>
+      <!-- Botón "Nueva sesión" eliminado -->
+      <button id="guardarEstado">Guardar estado</button>
+    </div>
+
+    <h3>Jugadores</h3>
+    <table id="tablaJugadores">
+      <thead>
+        <tr>
+          <th>Jugador</th>
+          <th>Trigo</th>
+          <th>Hierro</th>
+          <th>Pan</th>
+          <th>Herramientas</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
     </table>
   </div>
 
-  <!-- Botones al final -->
-  <div class="seccion">
-    <button id="btnEstados">📊 Estados actuales</button>
-    <button id="btnEntregas">📜 Entregas actuales</button>
-    <button id="btnHistorialEstados">📈 Historial de estados</button>
-    <button id="btnHistorialEntregas">📚 Historial de entregas</button>
-  </div>
+  <script>
+    const socket = io();
+    const loginDiv = document.getElementById('login');
+    const panelDiv = document.getElementById('panel');
+    const loginForm = document.getElementById('loginForm');
+    const tituloSala = document.getElementById('tituloSala');
+    const tablaJugadores = document.getElementById('tablaJugadores').querySelector('tbody');
+    const toggleEntregasBtn = document.getElementById('toggleEntregas');
+    const toggleProduccionBtn = document.getElementById('toggleProduccion');
+    const guardarEstadoBtn = document.getElementById('guardarEstado');
 
-  <div id="panelEstados" class="panel oculto"></div>
-  <div id="panelEntregas" class="panel oculto"></div>
-  <div id="panelHistorialEstados" class="panel oculto"></div>
-  <div id="panelHistorialEntregas" class="panel oculto"></div>
-</div>
+    loginForm.addEventListener('submit', e => {
+      e.preventDefault();
+      socket.emit('login_admin', {
+        nombre: document.getElementById('nombre').value,
+        sala: document.getElementById('sala').value,
+        pass: document.getElementById('pass').value
+      });
+    });
 
-<script>
-const socket = io();
-let salaActual="", adminPassword="", ultimoEstado={}, panelVisible=null;
+    socket.on('admin_ok', sala => {
+      loginDiv.style.display = 'none';
+      panelDiv.style.display = 'block';
+      tituloSala.textContent = `Sala: ${sala}`;
+    });
 
-// --- Inicio ---
-document.getElementById("btnCrearSala").onclick = ()=>{
-  document.getElementById("panelInicio").classList.add("oculto");
-  document.getElementById("panelAcceso").classList.remove("oculto");
-  document.getElementById("tituloAcceso").textContent="Crear nueva sala";
-};
-document.getElementById("btnAccederSala").onclick = ()=>{
-  document.getElementById("panelInicio").classList.add("oculto");
-  document.getElementById("panelAcceso").classList.remove("oculto");
-  document.getElementById("tituloAcceso").textContent="Entrar a sala existente";
-};
+    socket.on('estado_actualizado', estado => {
+      tablaJugadores.innerHTML = '';
+      for (const [nombre, rec] of Object.entries(estado.jugadores)) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${nombre}</td>
+          <td>${rec.trigo}</td>
+          <td>${rec.hierro}</td>
+          <td>${rec.pan}</td>
+          <td>${rec.herramientas}</td>`;
+        tablaJugadores.appendChild(tr);
+      }
+    });
 
-// --- Acceso ---
-document.getElementById("formAcceso").onsubmit = e=>{
-  e.preventDefault();
-  salaActual=document.getElementById("nombreSalaInput").value.trim();
-  adminPassword=document.getElementById("passwordSalaInput").value.trim();
-  const crear = document.getElementById("tituloAcceso").textContent.includes("Crear");
-  if(crear) socket.emit("crearSala",{ sala:salaActual, password:adminPassword });
-  else socket.emit("entrarAdmin",{ sala:salaActual, password:adminPassword });
-};
-socket.on("salaCreada", s=>socket.emit("entrarAdmin",{ sala:s, password:adminPassword }));
-socket.on("adminEntrado", s=>{
-  document.getElementById("panelAcceso").classList.add("oculto");
-  document.getElementById("panelGestion").classList.remove("oculto");
-  document.getElementById("nombreSala").textContent=s;
-});
-
-// --- Actualización dinámica ---
-socket.on("actualizarEstado", data=>{
-  ultimoEstado=data;
-  const tbody=document.getElementById("tablaJugadores");
-  tbody.innerHTML="";
-  for(const [n,j] of Object.entries(data.jugadores||{}))
-    tbody.innerHTML+=`<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso??"-"}</td></tr>`;
-  document.getElementById("estadoEntregas").textContent=data.entregasAbiertas?"🟢 Abiertas":"🔴 Cerradas";
-  document.getElementById("estadoProduccion").textContent=data.produccionAbierta?"🟢 Abierta":"🔴 Cerrada";
-  if(panelVisible) actualizarPanelVisible();
-});
-
-// --- Crear jugador ---
-document.getElementById("formJugador").onsubmit = e=>{
-  e.preventDefault();
-  const nombre=document.getElementById("nombreJugador").value.trim();
-  const password=document.getElementById("passwordJugador").value.trim();
-  const trigo=parseFloat(document.getElementById("trigoInicial").value);
-  const hierro=parseFloat(document.getElementById("hierroInicial").value);
-  socket.emit("crearJugador",{ sala:salaActual, nombre, password, trigo, hierro });
-  e.target.reset();
-};
-
-// --- Control global ---
-document.getElementById("toggleEntregas").onclick=()=>socket.emit("toggleEntregas",salaActual);
-document.getElementById("toggleProduccion").onclick=()=>socket.emit("toggleProduccion",salaActual);
-document.getElementById("nuevaSesion").onclick=()=>socket.emit("nuevaSesion",salaActual);
-
-function ocultarPaneles(){ document.querySelectorAll(".panel").forEach(p=>p.classList.add("oculto")); }
-
-function actualizarPanelVisible(){
-  if(panelVisible==="panelEstados") renderEstados();
-  if(panelVisible==="panelEntregas") renderEntregas();
-  if(panelVisible==="panelHistorialEstados") renderHistorialEstados();
-  if(panelVisible==="panelHistorialEntregas") renderHistorialEntregas();
-}
-
-// --- Renderizados ---
-function renderEstados(){
-  const filas=Object.entries(ultimoEstado.jugadores||{}).map(([n,j])=>`<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso??"-"}</td></tr>`).join("");
-  mostrarPanel("panelEstados",`<h3>📊 Estados actuales</h3><table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>${filas}</tbody></table>`);
-}
-function renderEntregas(){
-  const hist=ultimoEstado.entregas||[];
-  const filas=hist.map(h=>`<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("")||"<tr><td colspan='5'>Sin entregas</td></tr>";
-  mostrarPanel("panelEntregas",`<h3>📜 Entregas actuales</h3><table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`);
-}
-function renderHistorialEstados(){
-  const hist=ultimoEstado.historialEstados||[];
-  const filas=hist.map(h=>`<tr><td>${h.sesion??"-"}</td><td>${h.jugador??"-"}</td><td>${h.trigo??"-"}</td><td>${h.hierro??"-"}</td></tr>`).join("")||"<tr><td colspan='4'>Sin datos</td></tr>";
-  mostrarPanel("panelHistorialEstados",`<h3>📈 Historial de estados</h3><table><thead><tr><th>Sesión</th><th>Jugador</th><th>Trigo</th><th>Hierro</th></tr></thead><tbody>${filas}</tbody></table>`);
-}
-function renderHistorialEntregas(){
-  const hist=ultimoEstado.historial||[];
-  const filas=hist.map(h=>`<tr><td>${h.sesion??"-"}</td><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("")||"<tr><td colspan='6'>Sin datos</td></tr>";
-  mostrarPanel("panelHistorialEntregas",`<h3>📚 Historial de entregas</h3><table><thead><tr><th>Sesión</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`);
-}
-function mostrarPanel(id,html){
-  const p=document.getElementById(id);
-  const visible=panelVisible===id;
-  ocultarPaneles();
-  if(visible){ panelVisible=null; return; }
-  p.innerHTML=html;
-  p.classList.remove("oculto");
-  panelVisible=id;
-}
-
-document.getElementById("btnEstados").onclick=renderEstados;
-document.getElementById("btnEntregas").onclick=renderEntregas;
-document.getElementById("btnHistorialEstados").onclick=renderHistorialEstados;
-document.getElementById("btnHistorialEntregas").onclick=renderHistorialEntregas;
-
-socket.on("error", msg=>alert("⚠️ "+msg));
-</script>
+    toggleEntregasBtn.onclick = () => socket.emit('toggle_entregas');
+    toggleProduccionBtn.onclick = () => socket.emit('toggle_produccion');
+    guardarEstadoBtn.onclick = () => socket.emit('guardar_estado');
+  </script>
 </body>
 </html>
