@@ -1,3 +1,9 @@
+/*
+© 2025 Manuel Muiños
+Licencia: CC BY-NC-ND 4.0 (Creative Commons Attribution-NonCommercial-NoDerivatives 4.0)
+https://creativecommons.org/licenses/by-nc-nd/4.0/
+*/
+
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -272,3 +278,4 @@ io.on("connection", (socket) => {
 // === PUERTO ===
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Servidor iniciado en http://localhost:${PORT}`));
+
