@@ -78,7 +78,8 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
     </table>
   </div>
 
-  <div class="info-box">
+  <!-- 🔽 ESTA SECCIÓN SOLO SE MOSTRARÁ CUANDO LA PRODUCCIÓN ESTÉ ABIERTA -->
+  <div class="info-box" id="seccionProduccion">
     <h3>Elegir proceso de producción</h3>
     <button class="boton" data-proceso="1">Proceso 1 (Trigo)</button>
     <button class="boton" data-proceso="2">Proceso 2 (Hierro)</button>
@@ -152,6 +153,9 @@ socket.on("actualizarEstado", data => {
   document.getElementById("estadoEntregas").className = entAbierta ? "abierto" : "cerrado";
   document.getElementById("formEntregaBox").style.display = entAbierta ? "block" : "none";
 
+  // 🔽 Mostrar u ocultar la sección de producción según el estado
+  document.getElementById("seccionProduccion").style.display = prodAbierta ? "block" : "none";
+
   actualizarProduccion(j);
   actualizarSelectReceptores(data);
   actualizarEntregasJugador(data);
@@ -213,10 +217,6 @@ function actualizarEntregasJugador(data) {
 
 // === BOTONES DE PROCESO ===
 function actualizarBotonesProceso(j, produccionAbierta) {
-  document.querySelectorAll("button[data-proceso]").forEach(b => {
-    b.disabled = !produccionAbierta;
-    b.classList.toggle("gris", !produccionAbierta);
-  });
   if (j.proceso) {
     procesoSeleccionado = j.proceso;
     document.getElementById("procesoElegido").textContent = `Has elegido el proceso ${j.proceso}`;
