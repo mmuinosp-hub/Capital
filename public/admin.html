@@ -16,7 +16,7 @@ th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
 .oculto { display:none; }
 .estado-abierto { color:green; font-weight:bold; }
 .estado-cerrado { color:red; font-weight:bold; }
-.panel { display:none; margin-top:10px; background:#fff; padding:12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.panel { background:#fff; border-radius:8px; padding:12px; margin-top:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
 </style>
 </head>
 <body>
@@ -30,7 +30,7 @@ th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
   <button class="boton secondary" onclick="window.location.href='/'">🏠 Volver a inicio</button>
 </div>
 
-<!-- Acceso/creación -->
+<!-- Acceso -->
 <div id="panelAcceso" class="seccion oculto">
   <h3 id="tituloAcceso"></h3>
   <form id="formAcceso">
@@ -44,7 +44,6 @@ th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
 
 <!-- Panel principal -->
 <div id="panelGestion" class="oculto">
-
   <h3>Sala: <span id="nombreSala"></span></h3>
 
   <div class="seccion">
@@ -56,7 +55,6 @@ th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
     <button class="boton" id="nuevaSesion">Nueva sesión</button>
   </div>
 
-  <!-- Crear jugador -->
   <div class="seccion">
     <h4>Crear jugador</h4>
     <form id="formJugador">
@@ -68,7 +66,6 @@ th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
     </form>
   </div>
 
-  <!-- Lista de jugadores -->
   <div class="seccion">
     <h4>Jugadores en la sala</h4>
     <table>
@@ -77,26 +74,23 @@ th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
     </table>
   </div>
 
-  <!-- Botones de consulta -->
+  <!-- Botones al final -->
   <div class="seccion">
-    <button class="boton" id="btnEstados">📊 Estados actuales</button>
-    <button class="boton" id="btnEntregas">📜 Entregas actuales</button>
-    <button class="boton" id="btnHistorialEstados">📈 Historial de estados</button>
-    <button class="boton" id="btnHistorialEntregas">📚 Historial de entregas</button>
-
-    <div id="panelEstados" class="panel"></div>
-    <div id="panelEntregas" class="panel"></div>
-    <div id="panelHistorialEstados" class="panel"></div>
-    <div id="panelHistorialEntregas" class="panel"></div>
+    <button id="btnEstados">📊 Estados actuales</button>
+    <button id="btnEntregas">📜 Entregas actuales</button>
+    <button id="btnHistorialEstados">📈 Historial de estados</button>
+    <button id="btnHistorialEntregas">📚 Historial de entregas</button>
   </div>
 
+  <div id="panelEstados" class="panel oculto"></div>
+  <div id="panelEntregas" class="panel oculto"></div>
+  <div id="panelHistorialEstados" class="panel oculto"></div>
+  <div id="panelHistorialEntregas" class="panel oculto"></div>
 </div>
 
 <script>
 const socket = io();
-let salaActual="", adminPassword="";
-let ultimoEstado={};
-let panelVisible=null;
+let salaActual="", adminPassword="", ultimoEstado={}, panelVisible=null;
 
 // --- Inicio ---
 document.getElementById("btnCrearSala").onclick = ()=>{
@@ -110,35 +104,32 @@ document.getElementById("btnAccederSala").onclick = ()=>{
   document.getElementById("tituloAcceso").textContent="Entrar a sala existente";
 };
 
+// --- Acceso ---
 document.getElementById("formAcceso").onsubmit = e=>{
   e.preventDefault();
-  salaActual = document.getElementById("nombreSalaInput").value.trim();
-  adminPassword = document.getElementById("passwordSalaInput").value.trim();
-  const modo = document.getElementById("tituloAcceso").textContent.includes("Crear") ? "crear" : "acceder";
-  if(modo==="crear") socket.emit("crearSala",{ sala:salaActual, password: adminPassword });
-  else socket.emit("entrarAdmin",{ sala:salaActual, password: adminPassword });
+  salaActual=document.getElementById("nombreSalaInput").value.trim();
+  adminPassword=document.getElementById("passwordSalaInput").value.trim();
+  const crear = document.getElementById("tituloAcceso").textContent.includes("Crear");
+  if(crear) socket.emit("crearSala",{ sala:salaActual, password:adminPassword });
+  else socket.emit("entrarAdmin",{ sala:salaActual, password:adminPassword });
 };
-
-socket.on("salaCreada", s=> socket.emit("entrarAdmin",{ sala:s, password: adminPassword }));
+socket.on("salaCreada", s=>socket.emit("entrarAdmin",{ sala:s, password:adminPassword }));
 socket.on("adminEntrado", s=>{
   document.getElementById("panelAcceso").classList.add("oculto");
   document.getElementById("panelGestion").classList.remove("oculto");
-  document.getElementById("nombreSala").textContent = s;
+  document.getElementById("nombreSala").textContent=s;
 });
 
-// --- Actualizar estado ---
+// --- Actualización dinámica ---
 socket.on("actualizarEstado", data=>{
   ultimoEstado=data;
   const tbody=document.getElementById("tablaJugadores");
   tbody.innerHTML="";
-  for(const [nombre,j] of Object.entries(data.jugadores||{})){
-    tbody.innerHTML+=`<tr><td>${nombre}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso??"-"}</td></tr>`;
-  }
-
-  document.getElementById("estadoEntregas").textContent = data.entregasAbiertas?"🟢 Abiertas":"🔴 Cerradas";
-  document.getElementById("estadoEntregas").className = data.entregasAbiertas?"estado-abierto":"estado-cerrado";
-  document.getElementById("estadoProduccion").textContent = data.produccionAbierta?"🟢 Abierta":"🔴 Cerrada";
-  document.getElementById("estadoProduccion").className = data.produccionAbierta?"estado-abierto":"estado-cerrado";
+  for(const [n,j] of Object.entries(data.jugadores||{}))
+    tbody.innerHTML+=`<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso??"-"}</td></tr>`;
+  document.getElementById("estadoEntregas").textContent=data.entregasAbiertas?"🟢 Abiertas":"🔴 Cerradas";
+  document.getElementById("estadoProduccion").textContent=data.produccionAbierta?"🟢 Abierta":"🔴 Cerrada";
+  if(panelVisible) actualizarPanelVisible();
 });
 
 // --- Crear jugador ---
@@ -152,43 +143,56 @@ document.getElementById("formJugador").onsubmit = e=>{
   e.target.reset();
 };
 
-// --- Controles ---
-document.getElementById("toggleEntregas").onclick = ()=>socket.emit("toggleEntregas",salaActual);
-document.getElementById("toggleProduccion").onclick = ()=>socket.emit("toggleProduccion",salaActual);
-document.getElementById("nuevaSesion").onclick = ()=>socket.emit("nuevaSesion",salaActual);
+// --- Control global ---
+document.getElementById("toggleEntregas").onclick=()=>socket.emit("toggleEntregas",salaActual);
+document.getElementById("toggleProduccion").onclick=()=>socket.emit("toggleProduccion",salaActual);
+document.getElementById("nuevaSesion").onclick=()=>socket.emit("nuevaSesion",salaActual);
 
-// --- Paneles desplegables ---
-function togglePanel(id, html){
-  const panel=document.getElementById(id);
-  if(panelVisible===id){ panel.style.display="none"; panelVisible=null; return; }
-  panel.innerHTML=html;
-  panel.style.display="block";
+function ocultarPaneles(){ document.querySelectorAll(".panel").forEach(p=>p.classList.add("oculto")); }
+
+function actualizarPanelVisible(){
+  if(panelVisible==="panelEstados") renderEstados();
+  if(panelVisible==="panelEntregas") renderEntregas();
+  if(panelVisible==="panelHistorialEstados") renderHistorialEstados();
+  if(panelVisible==="panelHistorialEntregas") renderHistorialEntregas();
+}
+
+// --- Renderizados ---
+function renderEstados(){
+  const filas=Object.entries(ultimoEstado.jugadores||{}).map(([n,j])=>`<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso??"-"}</td></tr>`).join("");
+  mostrarPanel("panelEstados",`<h3>📊 Estados actuales</h3><table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>${filas}</tbody></table>`);
+}
+function renderEntregas(){
+  const hist=ultimoEstado.entregas||[];
+  const filas=hist.map(h=>`<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("")||"<tr><td colspan='5'>Sin entregas</td></tr>";
+  mostrarPanel("panelEntregas",`<h3>📜 Entregas actuales</h3><table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`);
+}
+function renderHistorialEstados(){
+  const hist=ultimoEstado.historialEstados||[];
+  const filas=hist.map(h=>`<tr><td>${h.sesion??"-"}</td><td>${h.jugador??"-"}</td><td>${h.trigo??"-"}</td><td>${h.hierro??"-"}</td></tr>`).join("")||"<tr><td colspan='4'>Sin datos</td></tr>";
+  mostrarPanel("panelHistorialEstados",`<h3>📈 Historial de estados</h3><table><thead><tr><th>Sesión</th><th>Jugador</th><th>Trigo</th><th>Hierro</th></tr></thead><tbody>${filas}</tbody></table>`);
+}
+function renderHistorialEntregas(){
+  const hist=ultimoEstado.historial||[];
+  const filas=hist.map(h=>`<tr><td>${h.sesion??"-"}</td><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("")||"<tr><td colspan='6'>Sin datos</td></tr>";
+  mostrarPanel("panelHistorialEntregas",`<h3>📚 Historial de entregas</h3><table><thead><tr><th>Sesión</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`);
+}
+function mostrarPanel(id,html){
+  const p=document.getElementById(id);
+  const visible=panelVisible===id;
+  ocultarPaneles();
+  if(visible){ panelVisible=null; return; }
+  p.innerHTML=html;
+  p.classList.remove("oculto");
   panelVisible=id;
 }
 
-// --- Botones de consulta ---
-document.getElementById("btnEstados").onclick = ()=>{
-  const filas = Object.entries(ultimoEstado.jugadores||{}).map(([n,j])=>`<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso??"-"}</td></tr>`).join("");
-  togglePanel("panelEstados", `<h3>📊 Estados actuales</h3><table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>${filas}</tbody></table>`);
-};
-document.getElementById("btnEntregas").onclick = ()=>{
-  const hist = ultimoEstado.historial||[];
-  const filas = hist.map(h=>`<tr><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("");
-  togglePanel("panelEntregas", `<h3>📜 Entregas actuales</h3><table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`);
-};
-document.getElementById("btnHistorialEstados").onclick = ()=>{
-  const hist = ultimoEstado.historialEstados||[];
-  const filas = hist.map(h=>`<tr><td>${h.sesion??"-"}</td><td>${h.jugador??"-"}</td><td>${h.trigo??"-"}</td><td>${h.hierro??"-"}</td></tr>`).join("");
-  togglePanel("panelHistorialEstados", `<h3>📈 Historial de estados</h3><table><thead><tr><th>Sesión</th><th>Jugador</th><th>Trigo</th><th>Hierro</th></tr></thead><tbody>${filas||"<tr><td colspan='4'>Sin datos</td></tr>"}</tbody></table>`);
-};
-document.getElementById("btnHistorialEntregas").onclick = ()=>{
-  const hist = ultimoEstado.historial||[];
-  const filas = hist.map((h,i)=>`<tr><td>${h.sesion??i+1}</td><td>${h.de}</td><td>${h.para}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.hora}</td></tr>`).join("");
-  togglePanel("panelHistorialEntregas", `<h3>📚 Historial de entregas</h3><table><thead><tr><th>Sesión</th><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas||"<tr><td colspan='6'>Sin datos</td></tr>"}</tbody></table>`);
-};
+document.getElementById("btnEstados").onclick=renderEstados;
+document.getElementById("btnEntregas").onclick=renderEntregas;
+document.getElementById("btnHistorialEstados").onclick=renderHistorialEstados;
+document.getElementById("btnHistorialEntregas").onclick=renderHistorialEntregas;
 
 socket.on("error", msg=>alert("⚠️ "+msg));
 </script>
-
 </body>
 </html>
