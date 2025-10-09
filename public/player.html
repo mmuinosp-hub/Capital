@@ -118,7 +118,9 @@
 
 <script>
 const socket = io();
-let sala, nombre, ultimoEstado = null;
+let sala, nombre;
+let ultimoEstado = null;
+let entregasLocales = []; // 🟢 Guardaremos aquí todas las entregas
 
 // === LOGIN ===
 document.getElementById("formAcceso").onsubmit = e => {
@@ -143,18 +145,18 @@ socket.on("error", msg => {
 // === ACTUALIZAR ESTADO ===
 socket.on("actualizarEstado", data => {
   ultimoEstado = data;
-  const j = data.jugadores[nombre];
+  const j = data.jugadores?.[nombre];
   actualizarEstadoGeneral(data);
   actualizarTablaJugador(j);
   actualizarTablaProduccion(j);
   actualizarReceptores(data);
-  actualizarEntregasJugador(data, nombre);
+  actualizarEntregasJugador();
 });
 
-// === RECEPTOR ===
+// === ACTUALIZAR RECEPTOR ===
 function actualizarReceptores(data) {
   const select = document.getElementById("para");
-  const jugadores = Object.keys(data.jugadores).filter(n => n !== nombre);
+  const jugadores = Object.keys(data.jugadores || {}).filter(n => n !== nombre);
   select.innerHTML = `<option value="">Seleccionar receptor...</option>` +
     jugadores.map(j => `<option value="${j}">${j}</option>`).join("");
 }
@@ -165,9 +167,29 @@ document.getElementById("formEntrega").onsubmit = e => {
   const para = document.getElementById("para").value;
   const trigo = parseFloat(document.getElementById("trigo").value) || 0;
   const hierro = parseFloat(document.getElementById("hierro").value) || 0;
+  if (!para || (trigo <= 0 && hierro <= 0)) return;
+
+  // Enviamos al servidor
   socket.emit("enviarEntrega", { sala, de: nombre, para, trigo, hierro });
+
+  // 🟢 Guardamos localmente (para mostrar sin depender del server)
+  entregasLocales.push({
+    de: nombre,
+    para,
+    trigo,
+    hierro,
+    timestamp: Date.now()
+  });
+
+  actualizarEntregasJugador(); // actualiza tabla personal
   e.target.reset();
 };
+
+// === SI RECIBE ENTREGAS DE OTROS ===
+socket.on("nuevaEntrega", e => {
+  entregasLocales.push({ ...e, timestamp: Date.now() });
+  actualizarEntregasJugador();
+});
 
 // === PRODUCCIÓN ===
 document.querySelectorAll('[data-proceso]').forEach(b => {
@@ -177,18 +199,18 @@ document.querySelectorAll('[data-proceso]').forEach(b => {
   };
 });
 
-// === BOTONES DE CONSULTA ===
+// === BOTONES ===
 document.getElementById("btnEstados").onclick = () => {
-  abrirModal("📊 Estados actuales", generarTablaJugadores(ultimoEstado.jugadores));
+  abrirModal("📊 Estados actuales", generarTablaJugadores(ultimoEstado?.jugadores || {}));
 };
 document.getElementById("btnEntregasActuales").onclick = () => {
-  abrirModal("📦 Entregas actuales", generarTablaEntregas(ultimoEstado.entregas || ultimoEstado.historialEntregas || []));
+  abrirModal("📦 Entregas actuales", generarTablaEntregas(entregasLocales));
 };
 document.getElementById("btnHistorialEstados").onclick = () => {
-  abrirModal("📜 Historial de estados", generarTablaHistorial(ultimoEstado.historialEstados || []));
+  abrirModal("📜 Historial de estados", generarTablaHistorial(ultimoEstado?.historialEstados || []));
 };
 document.getElementById("btnHistorialEntregas").onclick = () => {
-  abrirModal("🧾 Historial de entregas", generarTablaEntregas(ultimoEstado.historialEntregas || []));
+  abrirModal("🧾 Historial de entregas", generarTablaEntregas(entregasLocales));
 };
 
 // === MODALES ===
@@ -201,13 +223,13 @@ function cerrarModal() {
   document.getElementById("overlay").style.display = "none";
 }
 
-// === ACTUALIZAR ESTADO GENERAL ===
+// === ESTADOS Y PRODUCCIÓN ===
 function actualizarEstadoGeneral(data) {
   const eAb = document.getElementById("estadoEntregas");
   const pAb = document.getElementById("estadoProduccion");
   eAb.textContent = data.entregasAbiertas ? "🟢 Abiertas" : "🔴 Cerradas";
-  eAb.className = data.entregasAbiertas ? "estado-abierto" : "estado-cerrado";
   pAb.textContent = data.produccionAbierta ? "🟢 Abierta" : "🔴 Cerrada";
+  eAb.className = data.entregasAbiertas ? "estado-abierto" : "estado-cerrado";
   pAb.className = data.produccionAbierta ? "estado-abierto" : "estado-cerrado";
 
   document.querySelectorAll('[data-proceso]').forEach(btn => {
@@ -221,76 +243,78 @@ function actualizarEstadoGeneral(data) {
   });
 }
 
-// === TABLAS ===
 function actualizarTablaJugador(j) {
+  if (!j) return;
   document.getElementById("tablaJugador").innerHTML = `
     <tr><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`;
 }
 
-function actualizarEntregasJugador(data, nombre) {
-  const entregas = data.historialEntregas || data.entregas || [];
+function actualizarEntregasJugador() {
   const t = document.querySelector("#tablaEntregasJugador tbody");
-  if (!entregas.length) { t.innerHTML = `<tr><td colspan="4">Sin entregas</td></tr>`; return; }
-  t.innerHTML = entregas
-    .filter(e => e.de === nombre || e.para === nombre)
-    .map(e => `
-      <tr>
-        <td>${e.de === nombre ? "🔼 Enviada" : "🔽 Recibida"}</td>
-        <td>${e.de === nombre ? e.para : e.de}</td>
-        <td>${e.trigo.toFixed(2)}</td>
-        <td>${e.hierro.toFixed(2)}</td>
-      </tr>`).join("");
+  if (!entregasLocales.length) {
+    t.innerHTML = `<tr><td colspan="4">Sin entregas registradas</td></tr>`;
+    return;
+  }
+  const propias = entregasLocales.filter(e => e.de === nombre || e.para === nombre);
+  if (!propias.length) {
+    t.innerHTML = `<tr><td colspan="4">Aún no has hecho ni recibido entregas</td></tr>`;
+    return;
+  }
+  t.innerHTML = propias.map(e => `
+    <tr>
+      <td>${e.de === nombre ? "🔼 Enviada" : "🔽 Recibida"}</td>
+      <td>${e.de === nombre ? e.para : e.de}</td>
+      <td>${Number(e.trigo || 0).toFixed(2)}</td>
+      <td>${Number(e.hierro || 0).toFixed(2)}</td>
+    </tr>`).join("");
 }
 
-// === PRODUCCIÓN POTENCIAL ===
+// === TABLA PRODUCCIÓN ===
 function actualizarTablaProduccion(j) {
+  if (!j) return;
   const t = document.querySelector("#tablaProduccionPotencial tbody");
   const trigo = j.trigo, hierro = j.hierro;
 
-  const factor1 = Math.min(trigo / 280, hierro / 12);
-  const prod1_trigo = 575 * factor1;
-  const desp1_trigo = trigo - 280 * factor1;
-  const desp1_hierro = hierro - 12 * factor1;
-  const desp1 = `${desp1_trigo > 0 ? desp1_trigo.toFixed(2) + " trigo" : ""} ${desp1_hierro > 0 ? desp1_hierro.toFixed(2) + " hierro" : ""}` || "-";
+  const f1 = Math.min(trigo / 280, hierro / 12);
+  const desp1 = `${(trigo - 280*f1).toFixed(2)} trigo, ${(hierro - 12*f1).toFixed(2)} hierro`;
 
-  const factor2 = Math.min(trigo / 120, hierro / 8);
-  const prod2_hierro = 20 * factor2;
-  const desp2_trigo = trigo - 120 * factor2;
-  const desp2_hierro = hierro - 8 * factor2;
-  const desp2 = `${desp2_trigo > 0 ? desp2_trigo.toFixed(2) + " trigo" : ""} ${desp2_hierro > 0 ? desp2_hierro.toFixed(2) + " hierro" : ""}` || "-";
-
-  const prod3_trigo = trigo / 2, prod3_hierro = hierro / 2;
+  const f2 = Math.min(trigo / 120, hierro / 8);
+  const desp2 = `${(trigo - 120*f2).toFixed(2)} trigo, ${(hierro - 8*f2).toFixed(2)} hierro`;
 
   t.innerHTML = `
-    <tr><td>Proceso 1 (Trigo)</td><td>${prod1_trigo.toFixed(2)}</td><td>0</td><td>${desp1}</td></tr>
-    <tr><td>Proceso 2 (Hierro)</td><td>0</td><td>${prod2_hierro.toFixed(2)}</td><td>${desp2}</td></tr>
-    <tr><td>Proceso 3 (Simplificar)</td><td>${prod3_trigo.toFixed(2)}</td><td>${prod3_hierro.toFixed(2)}</td><td>-</td></tr>`;
+    <tr><td>Proceso 1</td><td>${(575*f1).toFixed(2)}</td><td>0</td><td>${desp1}</td></tr>
+    <tr><td>Proceso 2</td><td>0</td><td>${(20*f2).toFixed(2)}</td><td>${desp2}</td></tr>
+    <tr><td>Proceso 3</td><td>${(trigo/2).toFixed(2)}</td><td>${(hierro/2).toFixed(2)}</td><td>-</td></tr>`;
 }
 
 // === TABLAS DE MODALES ===
 function generarTablaJugadores(jugadores) {
-  let html = `<table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>`;
-  for (const [n, j] of Object.entries(jugadores)) {
-    html += `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`;
-  }
-  html += "</tbody></table>";
-  return html;
+  const filas = Object.entries(jugadores).map(([n,j]) =>
+    `<tr><td>${n}</td><td>${j.trigo.toFixed(2)}</td><td>${j.hierro.toFixed(2)}</td><td>${j.entregas}</td><td>${j.proceso ?? "-"}</td></tr>`).join("");
+  return `<table><thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead><tbody>${filas}</tbody></table>`;
 }
 
 function generarTablaHistorial(historial) {
-  if (!historial.length) return "<p>No hay historial de estados.</p>";
-  let html = `<table><thead><tr><th>Turno</th><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Proceso</th></tr></thead><tbody>`;
-  historial.forEach(h => html += `<tr><td>${h.turno}</td><td>${h.nombre}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.proceso ?? "-"}</td></tr>`);
-  html += "</tbody></table>";
-  return html;
+  if (!historial.length) return "<p>No hay historial.</p>";
+  return `<table><thead><tr><th>Turno</th><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Proceso</th></tr></thead><tbody>` +
+    historial.map(h => `<tr><td>${h.turno}</td><td>${h.nombre}</td><td>${h.trigo}</td><td>${h.hierro}</td><td>${h.proceso ?? "-"}</td></tr>`).join("") +
+  `</tbody></table>`;
 }
 
 function generarTablaEntregas(entregas) {
   if (!entregas.length) return "<p>No hay entregas registradas.</p>";
-  let html = `<table><thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th></tr></thead><tbody>`;
-  entregas.forEach(e => html += `<tr><td>${e.de}</td><td>${e.para}</td><td>${e.trigo.toFixed(2)}</td><td>${e.hierro.toFixed(2)}</td></tr>`);
-  html += "</tbody></table>";
-  return html;
+  const filas = entregas.map(e => {
+    const fecha = new Date(e.timestamp || Date.now());
+    const hora = fecha.toLocaleTimeString();
+    return `<tr>
+      <td>${e.de}</td>
+      <td>${e.para}</td>
+      <td>${Number(e.trigo || 0).toFixed(2)}</td>
+      <td>${Number(e.hierro || 0).toFixed(2)}</td>
+      <td>${hora}</td>
+    </tr>`;
+  }).join("");
+  return `<table><thead><tr><th>Emisor</th><th>Receptor</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead><tbody>${filas}</tbody></table>`;
 }
 </script>
 </body>
