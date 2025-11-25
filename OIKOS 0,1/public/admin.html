@@ -1,0 +1,573 @@
+<!--
+© 2025 Manuel Muiños
+Licencia: Creative Commons Atribución-NoComercial-SinDerivadas 4.0 Internacional (CC BY-NC-ND 4.0)
+https://creativecommons.org/licenses/by-nc-nd/4.0/
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Administrador - Simulador Capitalista</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; background: #ff8000; color: #222; }
+  h2,h3,h4 { margin: 0 0 10px 0; }
+  button { padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; margin: 6px 4px; background:#1976d2; color:#fff; }
+  button:hover { background:#125aa0; }
+  button.secondary { background:#616161; }
+  table { border-collapse: collapse; width: 100%; margin-top:10px; background:#fff; }
+  th,td { border: 1px solid #ccc; padding: 6px; text-align:center; }
+  .seccion { background:#fff; padding:12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.1); margin-bottom:16px; }
+  .oculto { display:none; }
+  .estado-abierto { color:green; font-weight:bold; }
+  .estado-cerrado { color:red; font-weight:bold; }
+  .panel { background:#fff; border-radius:8px; padding:12px; margin-top:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); position:relative; }
+  .cerrar-panel { position:absolute; top:6px; right:6px; background:#ccc; color:#222; border:none; border-radius:4px; cursor:pointer; padding:2px 6px; }
+  .admin-indicator { font-size:0.9em; margin-left:8px; padding:6px 8px; border-radius:6px; background:#fff8; }
+  input[type="number"] { width:80px; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:6px; }
+</style>
+</head>
+<body>
+
+<!-- Inicio -->
+<div id="panelInicio" class="seccion">
+  <h2>OIKOS: consola del Administrador</h2>
+  <button class="boton" id="btnCrearSala">➕ Crear nueva sala</button>
+  <button class="boton" id="btnAccederSala">🔑 Entrar a sala existente</button>
+  <a href="index.html"><button class="boton secondary">🏠 Volver a inicio</button></a>
+</div>
+
+<!-- Acceso -->
+<div id="panelAcceso" class="seccion oculto">
+  <h2>OIKOS: consola del Administrador</h2>
+  <h3 id="tituloAcceso"></h3>
+  <form id="formAcceso">
+    <input type="text" id="nombreSalaInput" placeholder="Nombre de la sala" required><br><br>
+    <input type="password" id="passwordSalaInput" placeholder="Contraseña" required><br><br>
+    <button type="submit" class="boton">Entrar</button>
+    <button type="button" class="boton secondary" onclick="window.location.href='/'">🏠 Volver a inicio</button>
+  </form>
+</div>
+
+<!-- Dashboard -->
+<div id="panelDashboard" class="oculto">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h2>OIKOS: Dashboard Admin</h2>
+    <div style="display:flex; align-items:center;">
+      <h3>Sala: <span id="nombreSala"></span></h3>
+      <div id="adminBadge" class="admin-indicator">Estado admin: —</div>
+    </div>
+    <button class="boton secondary" onclick="window.location.href='/'">🏠 Inicio</button>
+  </div>
+
+  <!-- Estado y control de ciclo -->
+  <div class="seccion">
+    <h4>Estado actual</h4>
+    <p>Entregas: <span id="estadoEntregas" class="estado-cerrado">🔴 Cerradas</span></p>
+    <p>Producción: <span id="estadoProduccion" class="estado-cerrado">🔴 Cerrada</span></p>
+    <div class="toolbar">
+      <button class="boton" id="btnCiclo">▶️ Iniciar ciclo</button>
+      <button class="boton secondary" id="btnExportEstados">💾 Exportar estados CSV</button>
+      <button class="boton secondary" id="btnExportEntregas">📦 Exportar entregas CSV</button>
+    </div>
+  </div>
+
+  <!-- Gestión de jugadores -->
+  <div class="seccion">
+    <h4>Gestión de jugadores</h4>
+    <form id="formJugador">
+      <input id="nombreJugador" placeholder="Nombre" required>
+      <input id="passwordJugador" placeholder="Contraseña" required>
+      <input id="trigoInicial" placeholder="Trigo" type="number" min="0" step="any" required>
+      <input id="hierroInicial" placeholder="Hierro" type="number" min="0" step="any" required>
+      <button type="submit" class="boton">Añadir jugador</button>
+    </form>
+    <br>
+    <label>Importar jugadores (.xlsx o .csv): </label>
+    <input type="file" id="archivoJugadores" accept=".csv,.xlsx">
+    <button class="boton" id="btnImportarJugadores">Importar</button>
+    <p class="small">La hoja .xlxs/.csv debe tener como cabeceras: <b>nombre, password, trigo, hierro</b></p>
+  </div>
+
+  <!-- Botonera de paneles (sin Procesos) -->
+  <div class="seccion">
+    <div class="toolbar">
+      <button class="boton" id="btnEstados">📊 Estados actuales</button>
+      <button class="boton" id="btnEntregas">📜 Entregas actuales</button>
+      <button class="boton" id="btnHistorialEstados">📈 Historial de estados</button>
+      <button class="boton" id="btnHistorialEntregas">📚 Historial de entregas</button>
+    </div>
+  </div>
+
+  <!-- Paneles dinámicos -->
+  <div id="panelEstados" class="panel oculto"></div>
+  <div id="panelEntregas" class="panel oculto"></div>
+  <div id="panelHistorialEstados" class="panel oculto"></div>
+  <div id="panelHistorialEntregas" class="panel oculto"></div>
+</div>
+
+<script>
+/* ----------------- Conexión y estado ----------------- */
+const socket = io();
+let sala = "", nombre = "", fase = 0;
+
+const store = {
+  jugadores: {},
+  entregas: [],
+  historialEntregas: [],   // array de sesiones: { fecha, entregas: [...] }
+  historialEstados: [],    // array de sesiones: { fecha, jugadores: {...} }
+  _seenEntregas: new Set()
+};
+
+/* ---------- Inicio / Acceso (crear / entrar) ---------- */
+document.getElementById("btnCrearSala").onclick = () => {
+  document.getElementById("panelInicio").classList.add("oculto");
+  document.getElementById("panelAcceso").classList.remove("oculto");
+  document.getElementById("tituloAcceso").textContent = "Crear nueva sala";
+};
+document.getElementById("btnAccederSala").onclick = () => {
+  document.getElementById("panelInicio").classList.add("oculto");
+  document.getElementById("panelAcceso").classList.remove("oculto");
+  document.getElementById("tituloAcceso").textContent = "Entrar a sala existente";
+};
+
+document.getElementById("formAcceso").onsubmit = (e) => {
+  e.preventDefault();
+  sala = document.getElementById("nombreSalaInput").value.trim();
+  nombre = document.getElementById("passwordSalaInput").value.trim(); // contraseña admin
+  const crear = document.getElementById("tituloAcceso").textContent.includes("Crear");
+  if (!sala || !nombre) return alert("Completa nombre de sala y contraseña.");
+  if (crear) socket.emit("crearSala", { sala, password: nombre });
+  else socket.emit("entrarAdmin", { sala, password: nombre });
+};
+
+// Cuando el servidor confirma la creación, entramos automáticamente
+socket.on("salaCreada", (s) => {
+  // s puede ser el nombre de la sala creado por el servidor
+  sala = s || sala;
+  socket.emit("entrarAdmin", { sala, password: nombre });
+});
+
+// Confirmación de entrada como admin
+socket.on("adminEntrado", (s) => {
+  document.getElementById("panelAcceso").classList.add("oculto");
+  document.getElementById("panelDashboard").classList.remove("oculto");
+  document.getElementById("nombreSala").textContent = s || sala;
+  document.getElementById("adminBadge").textContent = "Estado admin: conectado";
+});
+
+/* ---------- Actualización automática desde servidor ---------- */
+socket.on("actualizarEstado", (data) => {
+  data = data || {};
+  const jugadores = data.jugadores || {};
+  const entregasLote = data.entregas || data.historial || []; // compatibilidad
+
+  // Actualizar indicadores de fases
+  const entAbiertas = !!data.entregasAbiertas;
+  const prodAbierta = !!data.produccionAbierta;
+  document.getElementById("estadoEntregas").textContent = entAbiertas ? "🟢 Abiertas" : "🔴 Cerradas";
+  document.getElementById("estadoProduccion").textContent = prodAbierta ? "🟢 Abierta" : "🔴 Cerrada";
+  if (!entAbiertas && !prodAbierta) fase = 0;
+  else if (entAbiertas) fase = 1;
+  else if (prodAbierta) fase = 2;
+  actualizarBotonCiclo();
+
+  // --- Actualizar jugadores y generar snapshot si hubo cambios reales ---
+  const changed = jugadoresCambiaron(store.jugadores, jugadores);
+  store.jugadores = jugadores;
+  if (changed) {
+    const fecha = new Date().toLocaleTimeString();
+    // Este snapshot sigue guardando cambios intrasesión (puedes mantenerlo o comentarlo)
+    store.historialEstados.push({
+      fecha,
+      jugadores: JSON.parse(JSON.stringify(jugadores))
+    });
+  }
+
+  // --- Entregas: deduplicar y acumular en historial local (intrasesión) ---
+  store.entregas = Array.isArray(entregasLote) ? entregasLote : [];
+  for (const e of store.entregas) {
+    const hora = e.hora || new Date().toLocaleTimeString();
+    const key = `${e.de}|${e.para}|${Number(e.trigo)}|${Number(e.hierro)}|${hora}`;
+    if (!store._seenEntregas.has(key)) {
+      store._seenEntregas.add(key);
+      // guardamos entregas "planas" para historial intrasesión
+      store.historialEntregas.push({ ...e, hora });
+    }
+  }
+
+  autoRefreshIfOpen();
+});
+
+/* ---------- Al recibir nuevaSesion: archivar sesión completa ---------- */
+socket.on("nuevaSesion", () => {
+  const fecha = new Date().toLocaleString();
+
+  // Archivar estados actuales como una sesión (jugadores actuales)
+  store.historialEstados.push({
+    fecha,
+    jugadores: JSON.parse(JSON.stringify(store.jugadores))
+  });
+
+  // Archivar entregas de la sesión actual (store.entregas) como una entrada por sesión
+  store.historialEntregas.push({
+    fecha,
+    entregas: JSON.parse(JSON.stringify(store.entregas || []))
+  });
+
+  // Limpiar datos para la nueva sesión
+  store.entregas = [];
+  store.jugadores = {};
+  store._seenEntregas.clear();
+  autoRefreshIfOpen();
+});
+
+/* ---------- Control del ciclo ---------- */
+const btnCiclo = document.getElementById("btnCiclo");
+btnCiclo.onclick = () => {
+  if (fase === 0) {
+    if (confirm("⚠️ Vas a abrir las entregas. Esta acción es irreversible hasta cerrar la fase.")) {
+      socket.emit("toggleEntregas", sala);
+      fase = 1;
+    }
+  } else if (fase === 1) {
+    if (confirm("⚠️ Vas a cerrar entregas y abrir producción. Los jugadores ya no podrán entregar.")) {
+      socket.emit("toggleEntregas", sala);
+      socket.emit("toggleProduccionAbierta", sala);
+      fase = 2;
+    }
+  } else if (fase === 2) {
+    if (confirm("⚠️ Vas a cerrar la producción, aplicar los procesos y comenzar una nueva sesión. Esta acción es irreversible.")) {
+      socket.emit("toggleProduccion", sala);
+      // Pedimos al servidor que inicie la nueva sesión; el servidor debe emitir "nuevaSesion"
+      setTimeout(() => socket.emit("nuevaSesion", sala), 500);
+      // Forzar entregas cerradas tras nueva sesión
+      setTimeout(() => socket.emit("toggleEntregas", sala), 700);
+      fase = 0;
+    }
+  }
+  actualizarBotonCiclo();
+};
+
+function actualizarBotonCiclo() {
+  if (fase === 0) btnCiclo.textContent = "▶️ Abrir entregas";
+  else if (fase === 1) btnCiclo.textContent = "⏹️ Cerrar entregas y abrir producción";
+  else if (fase === 2) btnCiclo.textContent = "⚙️ Cerrar producción y nueva sesión";
+}
+
+/* ---------- Añadir jugador ---------- */
+document.getElementById("formJugador").onsubmit = (e) => {
+  e.preventDefault();
+  const n = document.getElementById("nombreJugador").value.trim();
+  const p = document.getElementById("passwordJugador").value.trim();
+  const t = parseFloat(document.getElementById("trigoInicial").value);
+  const h = parseFloat(document.getElementById("hierroInicial").value);
+  if (!n || !p) return alert("Completa nombre y contraseña.");
+  socket.emit("crearJugador", { sala, nombre: n, password: p, trigo: t, hierro: h });
+  e.target.reset();
+};
+
+/* ---------- Importar jugadores ---------- */
+document.getElementById("btnImportarJugadores").onclick = async () => {
+  const file = document.getElementById("archivoJugadores").files[0];
+  if (!file) return alert("Selecciona un archivo CSV o Excel.");
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    let jugadores = [];
+    if (file.name.endsWith(".csv")) {
+      const lines = e.target.result.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const headers = (lines.shift() || "").split(",").map(h => h.trim());
+      for (const line of lines) {
+        const values = line.split(",");
+        const obj = {};
+        headers.forEach((h, i) => obj[h] = values[i] ? values[i].trim() : "");
+        obj.trigo = parseFloat(obj.trigo) || 0;
+        obj.hierro = parseFloat(obj.hierro) || 0;
+        jugadores.push(obj);
+      }
+    } else {
+      const XLSX = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+      const wb = XLSX.read(e.target.result, { type: "binary" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      jugadores = XLSX.utils.sheet_to_json(ws);
+      jugadores.forEach(j => {
+        j.trigo = parseFloat(j.trigo) || 0;
+        j.hierro = parseFloat(j.hierro) || 0;
+      });
+    }
+    socket.emit("importarJugadores", { sala, jugadores });
+    alert(`Se importaron ${jugadores.length} jugadores.`);
+  };
+  if (file.name.endsWith(".xlsx")) reader.readAsBinaryString(file);
+  else reader.readAsText(file);
+};
+
+/* ---------- Exportaciones CSV (rápidas) ---------- */
+document.getElementById("btnExportEstados").onclick = () => {
+  const filas = [["Jugador","Trigo","Hierro","Entregas","Proceso"]];
+  Object.entries(store.jugadores).forEach(([n,j])=>{
+    filas.push([n, num(j.trigo), num(j.hierro), j.entregas ?? 0, j.proceso ?? ""]);
+  });
+  downloadCSV(filas, `estados_${sala}.csv`);
+};
+
+document.getElementById("btnExportEntregas").onclick = () => {
+  const filas = [["De","Para","Trigo","Hierro","Hora"]];
+  // Exporta entregas intrasesión (historialEntregas plano) --> también puedes exportar historial por sesión con botones en panel
+  store.historialEntregas.forEach(e=>{
+    // si el elemento es de forma {fecha, entregas: [...]}, ignoramos en esta exportación rápida
+    if (e.de && e.para) filas.push([e.de, e.para, num(e.trigo), num(e.hierro), e.hora || ""]);
+  });
+  downloadCSV(filas, `entregas_${sala}.csv`);
+};
+
+function downloadCSV(rows, filename){
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- Helpers de comparación y util ---------- */
+function jugadoresCambiaron(prev, next){
+  const pKeys = Object.keys(prev||{});
+  const nKeys = Object.keys(next||{});
+  if (pKeys.length !== nKeys.length) return true;
+  for (const k of nKeys) {
+    const pj = prev[k] || {};
+    const nj = next[k] || {};
+    if (num(pj.trigo) !== num(nj.trigo)) return true;
+    if (num(pj.hierro) !== num(nj.hierro)) return true;
+    if ((pj.entregas ?? 0) !== (nj.entregas ?? 0)) return true;
+    if ((pj.proceso ?? null) !== (nj.proceso ?? null)) return true;
+  }
+  return false;
+}
+function num(x){ return Number(x ?? 0).toFixed(2); }
+
+function autoRefreshIfOpen(){
+  if (isOpen("panelEstados")) renderEstados();
+  if (isOpen("panelEntregas")) renderEntregas();
+  if (isOpen("panelHistorialEstados")) renderHistorialEstados();
+  if (isOpen("panelHistorialEntregas")) renderHistorialEntregas();
+}
+function isOpen(id){ return document.getElementById(id).style.display === "block"; }
+
+/* ---------- Mostrar panel genérico ---------- */
+function mostrarPanel(panelId, html){
+  const panel = document.getElementById(panelId);
+  panel.innerHTML = `<button class="cerrar-panel" onclick="this.parentNode.style.display='none'">✖</button>` + html;
+  panel.style.display = "block";
+}
+
+/* ---------- Renderizados ---------- */
+function renderEstados(){
+  const jugadores = store.jugadores || {};
+  if (Object.keys(jugadores).length === 0) {
+    mostrarPanel("panelEstados","<p>No hay jugadores aún.</p>");
+    return;
+  }
+  const filas = Object.entries(jugadores).map(([n,j]) =>
+    `<tr><td>${n}</td><td>${num(j.trigo)}</td><td>${num(j.hierro)}</td><td>${j.entregas ?? 0}</td><td>${j.proceso ?? "-"}</td></tr>`
+  ).join("");
+  const html = `
+    <h3>📊 Estados actuales</h3>
+    <table>
+      <thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`;
+  mostrarPanel("panelEstados", html);
+}
+
+function renderEntregas(){
+  // Muestra el formato solicitado: De | Para | Trigo | Hierro | Hora
+  // Aquí preferimos mostrar las entregas intrasesión (store.historialEntregas plano) si existen,
+  // pero también mostramos entregas agregadas por sesión si las hubiera (tienen forma {fecha, entregas: [...]})
+  const lista = [];
+  store.historialEntregas.forEach(e=>{
+    if (e && Array.isArray(e.entregas)) {
+      // elemento por sesión
+      e.entregas.forEach(er => lista.push({...er, hora: er.hora || "-", sesion: e.fecha}));
+    } else if (e && e.de && e.para) {
+      lista.push({ ...e, hora: e.hora || "-" });
+    }
+  });
+
+  if (!Array.isArray(lista) || lista.length === 0) {
+    mostrarPanel("panelEntregas","<p>No hay entregas registradas aún.</p>");
+    return;
+  }
+  const filas = lista.slice().reverse().map(e =>
+    `<tr><td>${e.de}</td><td>${e.para}</td><td>${num(e.trigo)}</td><td>${num(e.hierro)}</td><td>${e.hora || "-"}</td></tr>`
+  ).join("");
+  const html = `
+    <h3>📜 Entregas actuales</h3>
+    <table>
+      <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+      <tbody>${filas}</tbody>
+    </table>`;
+  mostrarPanel("panelEntregas", html);
+}
+
+/* ---------- Renderizado de historiales por sesión + botones export ---------- */
+
+/* Export helpers: CSV + Excel (xlsx) */
+function exportarHistorialEstados(formato = "csv") {
+  const hist = store.historialEstados || [];
+  if (hist.length === 0) return alert("No hay historial de estados aún.");
+  if (formato === "csv") {
+    const filas = [["Sesión","Jugador","Trigo","Hierro","Entregas","Proceso"]];
+    hist.forEach(s=>{
+      Object.entries(s.jugadores||{}).forEach(([n,j])=>{
+        filas.push([s.fecha,n,num(j.trigo),num(j.hierro),j.entregas??0,j.proceso??""]);
+      });
+    });
+    downloadCSV(filas,`historial_estados_${sala}.csv`);
+  } else {
+    exportarExcel(hist,"Estados");
+  }
+}
+
+function exportarHistorialEntregas(formato = "csv") {
+  const hist = store.historialEntregas || [];
+  if (hist.length === 0) return alert("No hay historial de entregas aún.");
+  if (formato === "csv") {
+    const filas = [["Sesión","De","Para","Trigo","Hierro","Hora"]];
+    hist.forEach(s=>{
+      if (Array.isArray(s.entregas)) {
+        s.entregas.forEach(e=>{
+          filas.push([s.fecha||"", e.de, e.para, num(e.trigo), num(e.hierro), e.hora || ""]);
+        });
+      } else if (s.de && s.para) {
+        filas.push([s.fecha||"", s.de, s.para, num(s.trigo), num(s.hierro), s.hora || ""]);
+      }
+    });
+    downloadCSV(filas,`historial_entregas_${sala}.csv`);
+  } else {
+    exportarExcel(hist,"Entregas");
+  }
+}
+
+async function exportarExcel(hist,tipo){
+  const XLSX = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
+  // Opción simple: una hoja con todas las filas
+  let filas=[];
+  if (tipo==="Estados"){
+    filas.push(["Sesión","Jugador","Trigo","Hierro","Entregas","Proceso"]);
+    hist.forEach(s=>{
+      Object.entries(s.jugadores||{}).forEach(([n,j])=>{
+        filas.push([s.fecha,n,j.trigo,j.hierro,j.entregas??0,j.proceso??""]);
+      });
+    });
+    const ws=XLSX.utils.aoa_to_sheet(filas);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Estados");
+    XLSX.writeFile(wb,`historial_estados_${sala}.xlsx`);
+  } else {
+    filas.push(["Sesión","De","Para","Trigo","Hierro","Hora"]);
+    hist.forEach(s=>{
+      if (Array.isArray(s.entregas)) {
+        s.entregas.forEach(e=>{
+          filas.push([s.fecha||"", e.de, e.para, e.trigo, e.hierro, e.hora||""]);
+        });
+      } else if (s.de && s.para) {
+        filas.push([s.fecha||"", s.de, s.para, s.trigo, s.hierro, s.hora||""]);
+      }
+    });
+    const ws=XLSX.utils.aoa_to_sheet(filas);
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"Entregas");
+    XLSX.writeFile(wb,`historial_entregas_${sala}.xlsx`);
+  }
+}
+
+function renderHistorialEstados(){
+  const hist = store.historialEstados || [];
+  if (hist.length === 0) {
+    mostrarPanel("panelHistorialEstados","<p>No hay sesiones pasadas aún.</p>");
+    return;
+  }
+
+  const html = `
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3>📈 Historial de sesiones anteriores</h3>
+      <div>
+        <button class="boton secondary" onclick="exportarHistorialEstados('csv')">⬇️ CSV</button>
+        <button class="boton secondary" onclick="exportarHistorialEstados('xlsx')">⬇️ Excel</button>
+      </div>
+    </div>
+    ${hist.slice().reverse().map(s => {
+      const filas = Object.entries(s.jugadores || {}).map(([n,j]) =>
+        `<tr><td>${n}</td><td>${num(j.trigo)}</td><td>${num(j.hierro)}</td><td>${j.entregas ?? 0}</td><td>${j.proceso ?? "-"}</td></tr>`
+      ).join("");
+      return `
+        <h4>Sesión del ${s.fecha}</h4>
+        <table>
+          <thead><tr><th>Jugador</th><th>Trigo</th><th>Hierro</th><th>Entregas</th><th>Proceso</th></tr></thead>
+          <tbody>${filas}</tbody>
+        </table><br>`;
+    }).join("")}`;
+
+  mostrarPanel("panelHistorialEstados", html);
+}
+
+function renderHistorialEntregas(){
+  const hist = store.historialEntregas || [];
+  if (hist.length === 0) {
+    mostrarPanel("panelHistorialEntregas","<p>No hay sesiones pasadas aún.</p>");
+    return;
+  }
+
+  const htmlHeader = `
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3>📚 Historial de entregas por sesión</h3>
+      <div>
+        <button class="boton secondary" onclick="exportarHistorialEntregas('csv')">⬇️ CSV</button>
+        <button class="boton secondary" onclick="exportarHistorialEntregas('xlsx')">⬇️ Excel</button>
+      </div>
+    </div>`;
+
+  const bodyHtml = hist.slice().reverse().map(s => {
+    // si s tiene .entregas -> es una sesión completa
+    if (Array.isArray(s.entregas)) {
+      const filas = s.entregas.map(e =>
+        `<tr><td>${e.de}</td><td>${e.para}</td><td>${num(e.trigo)}</td><td>${num(e.hierro)}</td><td>${e.hora || "-"}</td></tr>`
+      ).join("");
+      return `<h4>Sesión del ${s.fecha}</h4>
+        <table>
+          <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+          <tbody>${filas}</tbody>
+        </table><br>`;
+    } else if (s.de && s.para) {
+      // elemento simple intrasesión
+      return `<tr><td>${s.de}</td><td>${s.para}</td><td>${num(s.trigo)}</td><td>${num(s.hierro)}</td><td>${s.hora || "-"}</td></tr>`;
+    } else {
+      return "";
+    }
+  }).join("");
+
+  const combined = htmlHeader + (bodyHtml.trim().startsWith("<tr") ? `
+    <table>
+      <thead><tr><th>De</th><th>Para</th><th>Trigo</th><th>Hierro</th><th>Hora</th></tr></thead>
+      <tbody>${bodyHtml}</tbody>
+    </table>` : bodyHtml);
+
+  mostrarPanel("panelHistorialEntregas", combined);
+}
+
+/* ---------- Asignación de botones de paneles ---------- */
+document.getElementById("btnEstados").onclick = renderEstados;
+document.getElementById("btnEntregas").onclick = renderEntregas;
+document.getElementById("btnHistorialEstados").onclick = renderHistorialEstados;
+document.getElementById("btnHistorialEntregas").onclick = renderHistorialEntregas;
+
+/* ---------- Errores globales ---------- */
+socket.on("error", (msg) => alert("⚠️ " + msg));
+</script>
+</body>
+</html>
