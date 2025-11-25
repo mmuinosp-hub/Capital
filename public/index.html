@@ -1,0 +1,148 @@
+<!--
+© 2025 Manuel Muiños
+Licencia: CC BY-NC-ND 4.0 (Creative Commons Attribution-NonCommercial-NoDerivatives 4.0)
+https://creativecommons.org/licenses/by-nc-nd/4.0/
+-->
+ 
+<!DOCTYPE html>
+<html lang="es"> 
+<head>
+<meta charset="UTF-8">
+<title>OIKOS</title>
+<style>
+    body { font-family: Arial; margin: 20px; background: #ff8000; color: #222; }
+    h2 { margin-bottom: 10px; }
+    table { border-collapse: collapse; background: white; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; }
+    .boton { margin: 5px; padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer; background: #1976d2; color: white; }
+    .boton:hover { background: #1565c0; }
+    .boton.gris { background: #ccc; cursor: not-allowed; color: #555; }
+    .panel { display: none; margin-top: 10px; }
+    .info-box { background: white; padding: 10px; border-radius: 8px; margin-top: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    #loginForm { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.1); width: 300px; margin: 100px auto; text-align: center; }
+    #loginForm input { display: block; width: 90%; margin: 10px auto; padding: 6px; border-radius: 6px; border: 1px solid #aaa; }
+    .botonera { text-align: center; margin-top: 15px; }
+    .status-bar { margin-top: 10px; font-weight: bold; }
+    .abierto { color: green; }
+    .cerrado { color: red; }
+  </style>
+</head>
+<body>
+
+  
+<!-- Opciones iniciales -->
+
+<div class="info-box">
+
+<h1 align=center>OIKOS</h1>
+<h2 align=center>Con las cosas de comer no se juega</h2>
+
+<center>
+<a href="admin.html"><button class="boton">Entrar como Administrador</button></a>
+<a href="player.html"><button class="boton">Entrar como Jugador</button></a>
+</center>
+
+<P align="Justify">Cada jugador inicia el juego con unas cantidades de trigo y hierro.
+<P align="Justify">El juego se desarrolla en <b>sesiones sucesivas, con dos fases</b> en cada una:
+<ul>
+<li>Fase 1: <b>Entregas:</b>
+<ul>
+<li>Cada jugador puede realizar hasta cinco entregas del trigo y/o del hierro de los que dispone a otros jugadores.
+</ul>
+<br>
+<li>Fase 2: <b>Producción:</b>
+<ul>
+<li>Cada jugador elige un único proceso de producción, que puede ser diferente en cada sesión:
+<ul>
+<li>Proceso 1: Usa 280 de trigo y 12 de hierro para producir 575 de trigo (o proporción equivalente).
+<li>Proceso 2: Usa 120 de trigo y 8 de hierro para producir 20 de hierro (o proporción equivalente).
+<li>Proceso 3: Los materiales disponibles se reducen a la mitad.
+</ul>
+<li>En los procesos se consumen todos los materiales, y tras la producción solo se dispone del producto obtenido.
+</ul>
+</ul>
+<P align="Justify">El ciclo de entregas y producción <b>se repite en cada sesión</b>.
+
+</div>
+
+<div class="info-box">
+
+<p align="Justify">La aplicación <i>OIKOS</i> permite varios juegos:
+
+<h3>Juego 1: Capital</h3>
+<ul>
+<p align="Justify">Simulamos un capitalismo en su forma más esencial: agentes que <b>intercambian</b> y producen para maximizar <b>su beneficio</b>.
+<p align="Justify">Gana el que obtenga la mayor cantidad <I>trigo·a&nbsp;+&nbsp;hierro·b</i> en la última sesión, donde los <i>a</i> y <i>b</i> los establece el administrador y no se hacen públicos hasta finalizar el juego. Tampoco se anuncia la última sesión.
+<p align="Justify">Pueden suscribirse contratos con hasta cuatro jugadores, para garantizar intercambios o empresas. Su incumplimiento implica perder el juego, pero sin contrato es lícito no corresponder a una entrega. Los miembros de una empresa tienen que cumplir sus contratos solidariamente y se reparten sus recursos por igual al finalizar el juego.
+</ul>
+
+<h3>Juego 2: Anarquía</h3>
+<ul>
+<p align="Justify">Simulamos un mercado con objetivos diferentes: agentes que <b>intercambian</B> y producen para maximizar <b>sus objetivos particulares</b>. 
+<p align="Justify">Los objetivos pueden establecerse:
+<ol>
+<li>Iguales para todos los jugadores: por ejemplo, gana el que consiga que la multiplicación de sus cantidades consumidas de trigo en todas las sesiones sea mayor.
+<li>Diferentes para cada jugador: entonces un jugador no se contrasta con los demás sino consigo mismo, en comparación con otros juegos o sesiones anteriores.
+</ol>
+<p align="Justify">Pueden suscribirse contratos como en <I>Capital</I>.
+</ul>
+
+<h3>Juego 3: Plan</h3>
+<ul>
+<p align="Justify">Simulamos una planificación extrema: el planificador asigna <b>sin mercado</b> para alcanzar <B>un objetivo</B> dado.
+<p align="Justify">Las entregas se realizan entre los procesos de producción bajo control de cada jugador, que ejerce de planificador, sin entregas entre jugadores. Para cada jugador hay que crear una sala independiente con tres jugadores virtuales, para que pueda usar todos los procesos de producción.
+<p align="Justify">El objetivo puede definirse como en <I>Capital</I> o en <I>Anarquía</I>. 
+</ul>
+
+</div>
+
+
+
+<div class="info-box">
+
+<h2 align="Center">Variantes</h2>
+
+<p align="Justify">Recomendamos jugar primero a <I>Capital</I> con las variantes por defecto. No obstante, el administrador puede:
+<ul>
+<li align="Justify">Definir <B>recursos iniciales</B> diferentes para cada jugador (por defecto, todos comienzan con 1000 de trigo y 1000 de hierro).
+
+<li align="Justify">Modificar la <B>información</b> disponible por los jugadores (por defecto, son conocidas todas las entregas y cantidades, pero no la última sesión ni los <i>a</i> y <i>b</i>).
+
+<li align="Justify">Determinar el número de <b>entregas</b> máximo (por defecto, 5 por sesión).
+
+<li align="Justify">Limitar los <b>contratos</b> (por defecto, con hasta 4 jugadores).
+
+<li align="Justify">Establecer una <B>redistribución</b> de un porcentaje de trigo y hierro que se reparte entre todos (por defecto, sin redistribución).
+</ul>
+
+<p align="Justify">Se pueden <B>contrastar</b> los juegos, por ejemplo <i>Plan</i> con <i>Capital</i>, de manera que una parte de los jugadores juega a <i>Capital</i> mientras el resto intenta superar sus resultados con <i>Plan</i>. 
+
+<p align="Justify">También <B>combinarlos</B>, de forma que algunos jugadores jueguen a <i>Anarquía</i> mientras que los demás a <i>Capital</i>, intercambiando todos en el mismo mercado. 
+
+<P align="Justify"><I>OIKOS</I> está en su versión 1,0. Próximamente añadiremos más funcionalidades.
+
+</div>
+
+
+
+
+<div class="info-box">
+
+<font size="-1">
+<p align="Justify"><I>Capital</I> fue desarrollado como <B>un experimento para contrastar empíricamente la teoría económica</B> y como herramienta didáctica. 
+<B>Los juegos de <I>OIKOS</I> pueden utilizarse libremente</B>, sin necesidad ni de inscripción ni de participación en la investigación, pero agradecemos mucho cualquier contribución, por ejemplo enviando los resultados de un juego, y la señalaremos en las publicaciones que se deriven si así lo desean.
+El juego se inspiró en Alfons Barceló, «Juegos de simulación con modelos económicos reproductivos», <I>El Trimestre Económico</I>, Vol. 56, Nº 223(3) (julio-septiembre de 1989), y los primeros resultados del contraste se presentaron con 18 coautores en las <I>X Jornadas de Análisis Input-Output</I> (2024). 
+Para obtener más información o colaborar en el proyecto, pueden contactarnos en <a href="mailto:mmuinosp@ucm.es">mmuinosp@ucm.es</a> . 
+</font>
+
+</div>
+
+
+
+<font size=-1>
+<P align="Center">OIKOS, con las cosas de comer no se juega © 2025 by Manuel Muiños is licensed under <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">Creative Commons BY-NC-ND 4.0
+<img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"></A>
+</font>
+
+</body>
+</html>
