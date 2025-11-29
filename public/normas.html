@@ -1,0 +1,220 @@
+<!--
+© 2025 Manuel Muiños
+Licencia: CC BY-NC-ND 4.0 (Creative Commons Attribution-NonCommercial-NoDerivatives 4.0)
+https://creativecommons.org/licenses/by-nc-nd/4.0/
+-->
+ 
+<!DOCTYPE html>
+<html lang="es"> 
+<head>
+<meta charset="UTF-8">
+<title>OIKOS</title>
+<style>
+    body { font-family: Arial; margin: 20px; background: #ff8000; color: #222; }
+    h2 { margin-bottom: 10px; }
+    table { border-collapse: collapse; background: white; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; }
+    .boton { margin: 5px; padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer; background: #1976d2; color: white; }
+    .boton:hover { background: #1565c0; }
+    .boton.gris { background: #ccc; cursor: not-allowed; color: #555; }
+    .panel { display: none; margin-top: 10px; }
+    .info-box { background: white; padding: 10px; border-radius: 8px; margin-top: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    #loginForm { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.1); width: 300px; margin: 100px auto; text-align: center; }
+    #loginForm input { display: block; width: 90%; margin: 10px auto; padding: 6px; border-radius: 6px; border: 1px solid #aaa; }
+    .botonera { text-align: center; margin-top: 15px; }
+    .status-bar { margin-top: 10px; font-weight: bold; }
+    .abierto { color: green; }
+    .cerrado { color: red; }
+  </style>
+</head>
+<body>
+
+  
+<!-- Opciones iniciales -->
+
+<div class="info-box">
+
+<h1 align=center>OIKOS</h1>
+<h2 align=center>Con las cosas de comer no se juega</h2>
+
+<center>
+<a href="index.html"><button class="boton">Inicio</button></a>
+</center>
+</div>
+
+<div class="info-box">
+
+
+<h1 align=center>Administrador</h1>
+
+<p align="Justify">El administrador inicia el juego, incorpora a los jugadores y gestiona las fases de cada sesión.
+
+<h2>Iniciar un juego</h2>
+<ul>
+<li>El administrador entrará en la plataforma;
+
+<li>En la página que se abre, hará clic en "Crear nueva sala";
+
+<li>En la siguiente página, escribirá un nombre y una contraseña para la sala, y se abrirá la consola del administrador;
+
+<li>Se pueden abrir múltiples salas para realizar varios juegos simultáneamente.
+</ul>
+
+<h2>Incorporar jugadores</h2>
+<ul>
+<li>En el apartado de la consola "Gestión de jugadores" el administrador tiene que incorporar a los jugadores:ol>
+<ol>
+<li>Bien añadiéndolos uno a uno, con su nombre, contraseña, y el trigo y hierro del que dispondrán al inicio del juego;
+
+<li>Bien a partir de una hoja de cálculo que contenga en la primera fila los campos: nombre, password, trigo, hierro.
+</ol>
+<li>Una vez añadidos los jugadores, el administrador les informará del nombre de la sala, de su nombre de usuario y de su contraseña (por email, wasap, o cualquier otro medio) y podrán participar en el juego.
+</ul>
+
+<h2>Gestionar las fases del juego</h2>
+<ul>
+<li>Al generar una sala, el juego tendrá la fase de entregas abierta;
+
+<li>El administrador puede determinar el paso a la siguiente fase con el botón "Cerrar entregas y abrir producción";
+
+<li>Este botón cambiará a "Cerrar producción y nueva sesión" para poder pasar a la siguiente fase;
+
+<li>A su vez cambiará a "Abrir entregas" para que el administrador pueda seguir con una nueva sesión cuando lo estime;
+</ul>
+
+<h2>Información sobre la evolución del juego</h2>
+<ul>
+<li>Los demás botones informan al administrador de otras facetas del juego, como las cantidades de trigo y hierro de cada jugador o las entregas que se han realizado.
+
+<li>Permiten también que se descargue la información para su análisis.
+</ul>
+
+<h2>Validar contratos</h2>
+<ul>
+<li>El administrador informará a los jugadores del procedimiento para que los contratos sean validados.
+</ul>
+
+<h2>Variantes de los juegos</h2>
+Recomendamos jugar primero a Capital con las variantes por defecto. No obstante, el administrador puede:
+<ul>
+<li>Definir recursos iniciales diferentes para cada jugador (por defecto, todos comienzan con 1000 de trigo y 1000 de hierro).
+
+<li>Modificar la información disponible por los jugadores (por defecto, son conocidas todas las entregas y cantidades, pero no la última sesión, ni los a y b en Capital).
+
+<li>Determinar el número de entregas máximo (por defecto, 5 o menos).
+
+<li>Modificar las condiciones de los contratos admitiendo indemnizaciones por lucro cesante (por defecto, quién incumple pierde);
+
+<li>Modificar las condiciones de las empresas (por defecto, con 4 o menos miembros).
+
+<li>Establecer una redistribución de un porcentaje de trigo y hierro que se reparte entre todos (por defecto, sin redistribución).
+</ul>
+
+
+</div>
+
+<div class="info-box">
+
+
+
+
+
+
+
+
+<h1 align=center>Jugador</h1>
+El jugador negocia con otros jugadores, realiza entregas y produce. 
+
+<h2>Entrar al juego</h2>
+<ul>
+<li>Cada jugador entra en la plataforma;
+
+<li>Escribe el nombre de la sala, su nombre de usuario y su contraseña, y accederá la consola del Jugador:
+</ul>
+
+<h2>Información sobre la evolución del juego</h2>
+<ul>
+<li>El primer apartado de la consola informa de la sala en la que se juega, de las cantidades de trigo y hierro de las que dispone el jugador, del número de entregas que ha realizado, y de la etapa en la que se encuentra la sesión: entregas o producciones.
+
+<li>El tercer apartado de la consola es una calculadora que informa de las producciones que se obtendrían con unas determinadas cantidades de trigo y hierro. El uso de la calculadora es esencial a la hora de determinar si conviene o no un intercambio y también a la hora de decidir una producción.
+
+<li>El cuarto apartado informa de las entregas que ha hecho o ha recibido el jugador en la sesión corriente.
+
+<li>Los botones inferiores de la consola permiten conocer de las cantidades de trigo y hierro de las que disponen todos los jugadores, así como de todas las entregas que se han realizado en la sesión.
+</ul>
+
+<h2>Entregas</h2>
+<ul>
+<li>La negociación con otros jugadores es una parte esencial del juego. Ésta puede hacerse en persona, a través de email, de wasap, en foros, etc. 
+
+<li>Si en el juego están abiertas las entregas, estará disponible un apartado que permite hacer las entregas de trigo y/o hierro a otros jugadores.
+</ul>
+
+<h2>Contratos</h2>
+<ul>
+<li>Los jugadores pueden firmar contratos para formar empresas o cooperativas, y para garantizar entregas.
+</ul>
+
+<h2>Producción</h2>
+<ul>
+<li>Si en el juego está abierta la producción, podrá accederse a un apartado que permite elegir uno de los tres procesos de producción. 
+
+<li>Una vez elegido el proceso, éste no puede cambiarse. Si no se señala ninguno se supone que se usa el tercero.
+
+<li>Los jugadores no pueden acceder a la información de los procesos que están escogiendo el resto de jugadores.
+</ul>
+
+
+</div>
+
+<div class="info-box">
+
+
+
+
+
+
+<h1 align=center>Contratos</h1>
+
+<p align="Justify">En Capital y Anarquía pueden suscribirse contratos con hasta 4 jugadores. 
+
+<p align="Justify">Los contratos para ser efectivos deben ser entregados al administrador, por los medios que éste establezca para ser válidados (emails identificados, por ejemplo). 
+
+<h2>Contratos de entregas</h2>
+<ul>
+<p align="Justify">Los contratos especificarán el nombre de los participantes, las cantidades entregadas por cada uno, y las sesiones en las que se efectuarán las entregas; pueden acordarse entregas en sesiones futuras. 
+
+<p align="Justify">El jugador que incumpla un contrato pierde el juego. 
+
+<p align="Justify">Sin contrato está permitido no corresponder a una entrega. 
+
+<p align="Justify">Si un contrato especifica entregas en una sesión posterior a la que resulta ser la última, las entregas posteriores son ignoradas.
+</ul>
+
+<h2>Contratos de empresas y cooperativas</h2>
+<ul>
+<p align="Justify">Pueden formarse una empresa o cooperativa con un contrato que especifique el nombre de los participantes (hasta 4) y el de la empresa o cooperativa.
+
+<p align="Justify">Los participantes seguirán jugando como antes, haciendo entregas y contratos de forma individual, pero:
+<ol>
+
+<li>A la hora de medir el cumplimiento del objetivo, se considerará que las cantidades de trigo y hierro de las que dispongan todos los participantes en cada sesión se dividen por igual entre ellos.
+<ul>
+<li>Por ejemplo, en Capital se considerará el trigo y el hierro de todos los participantes en la última sesión dividido por igual entre ellos. 
+</ul>
+
+<li>Los participantes responderán solidariamente de los contratos de entregas que suscriban cualquiera de los miembros.
+</ol>
+
+<p align="Justify">Un jugador solo puede pertenecer a una empresa o cooperativa. 
+
+<p align="Justify">No se podrá disolver una empresa o cooperativa salvo por unanimidad de los participantes.
+</ul>
+
+<font size=-1>
+<P align="Center">OIKOS, con las cosas de comer no se juega © 2025 by Manuel Muiños is licensed under <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">Creative Commons BY-NC-ND 4.0
+<img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"></A>
+</font>
+
+</body>
+</html>

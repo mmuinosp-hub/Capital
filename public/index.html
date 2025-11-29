@@ -40,7 +40,12 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 <center>
 <a href="admin.html"><button class="boton">Entrar como Administrador</button></a>
 <a href="player.html"><button class="boton">Entrar como Jugador</button></a>
+<a href="normas.html"><button class="boton">Normas de los juegos</button></a>
 </center>
+
+</div>
+
+<div class="info-box">
 
 <P align="Justify">Cada jugador inicia el juego con unas cantidades de trigo y hierro.
 <P align="Justify">El juego se desarrolla en <b>sesiones sucesivas, con dos fases</b> en cada una:
@@ -81,7 +86,7 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 <p align="Justify">Simulamos un mercado con objetivos diferentes: agentes que <b>intercambian</B> y producen para maximizar <b>sus objetivos particulares</b>. 
 <p align="Justify">Los objetivos pueden establecerse:
 <ol>
-<li>Iguales para todos los jugadores: por ejemplo, gana el que consiga que la multiplicación de sus cantidades consumidas de trigo en todas las sesiones sea mayor.
+<li>Iguales para todos los jugadores: por ejemplo, gana el que consiga que la suma de sus cantidades consumidas de trigo en todas las sesiones sea mayor.
 <li>Diferentes para cada jugador: entonces un jugador no se contrasta con los demás sino consigo mismo, en comparación con otros juegos o sesiones anteriores.
 </ol>
 <p align="Justify">Pueden suscribirse contratos como en <I>Capital</I>.
@@ -96,50 +101,26 @@ https://creativecommons.org/licenses/by-nc-nd/4.0/
 
 </div>
 
-
-
 <div class="info-box">
 
-<h2 align="Center">Variantes</h2>
+<p align="Justify">Se pueden <b>contrastar</b> los juegos, por ejemplo <I>Plan</I> con <I>Capital</I>, de manera que una parte de los jugadores juega a <I>Capital</I> mientras el resto intenta superar sus resultados con <I>Plan</I>. 
 
-<p align="Justify">Recomendamos jugar primero a <I>Capital</I> con las variantes por defecto. No obstante, el administrador puede:
-<ul>
-<li align="Justify">Definir <B>recursos iniciales</B> diferentes para cada jugador (por defecto, todos comienzan con 1000 de trigo y 1000 de hierro).
-
-<li align="Justify">Modificar la <B>información</b> disponible por los jugadores (por defecto, son conocidas todas las entregas y cantidades, pero no la última sesión ni los <i>a</i> y <i>b</i>).
-
-<li align="Justify">Determinar el número de <b>entregas</b> máximo (por defecto, 5 por sesión).
-
-<li align="Justify">Limitar los <b>contratos</b> (por defecto, con hasta 4 jugadores).
-
-<li align="Justify">Establecer una <B>redistribución</b> de un porcentaje de trigo y hierro que se reparte entre todos (por defecto, sin redistribución).
-</ul>
-
-<p align="Justify">Se pueden <B>contrastar</b> los juegos, por ejemplo <i>Plan</i> con <i>Capital</i>, de manera que una parte de los jugadores juega a <i>Capital</i> mientras el resto intenta superar sus resultados con <i>Plan</i>. 
-
-<p align="Justify">También <B>combinarlos</B>, de forma que algunos jugadores jueguen a <i>Anarquía</i> mientras que los demás a <i>Capital</i>, intercambiando todos en el mismo mercado. 
-
-<P align="Justify"><I>OIKOS</I> está en su versión 0,1. Próximamente añadiremos más funcionalidades.
+<p align="Justify">También <b>combinarlos</b>, de forma que algunos jugadores jueguen a <I>Anarquía</I> mientras que los demás a <I>Capital</I>, intercambiando todos en el mismo mercado.
 
 </div>
 
-
-
-
 <div class="info-box">
-
-<font size="-1">
-<p align="Justify"><I>Capital</I> fue desarrollado como <B>un experimento para contrastar empíricamente la teoría económica</B> y como herramienta didáctica. 
-<B>Los juegos de <I>OIKOS</I> pueden utilizarse libremente</B>, sin necesidad ni de inscripción ni de participación en la investigación, pero agradecemos mucho cualquier contribución, por ejemplo enviando los resultados de un juego, y la señalaremos en las publicaciones que se deriven si así lo desean.
-El juego se inspiró en Alfons Barceló, «Juegos de simulación con modelos económicos reproductivos», <I>El Trimestre Económico</I>, Vol. 56, Nº 223(3) (julio-septiembre de 1989), y los primeros resultados del contraste se presentaron con 18 coautores en las <I>X Jornadas de Análisis Input-Output</I> (2024). 
-Para obtener más información o colaborar en el proyecto, pueden contactarnos en <a href="mailto:mmuinosp@ucm.es">mmuinosp@ucm.es</a> . 
-</font>
-
-</div>
-
-
 
 <font size=-1>
+<p align="Justify">OIKOS está en su versión 0,1. Próximamente se añadirán más funcionalidades y estarán disponibles versiones más orientadas para jugar a través de Internet, aunque esto ya es posible ahora.
+
+<p align="Justify">El servidor gratuito en el que la aplicación está ubicada en alguna ocasión tarda un poco en arrancar, y se reinicia sin guardar los datos si deja de usarse en un tiempo; en otros servidores sí se guardarían los datos. También puede utilizarse con un ordenador personal como servidor, por ejemplo instalando Node.js, para ejecutar la aplicación, y ngrok, para acceder a la misma en Internet.
+
+<p align="Justify">No voy a poder seguir con el desarrollo de la aplicación durante un tiempo, pero puede descargarse por si alguien quiere continuarlo. Está casi terminada pero, por ejemplo, faltaría agregar la limitación del número de entregas. Ruego que cualquier mejora se envíe a mmuinosp@ucm.es . 
+
+<p align="Justify">OIKOS fue desarrollado como un experimento para contrastar empíricamente la teoría económica y como herramienta didáctica. Los juegos de OIKOS pueden utilizarse libremente, sin necesidad ni de inscripción ni de participación en la investigación, pero agradecemos mucho cualquier contribución, por ejemplo enviando los resultados de un juego, y la señalaremos en las publicaciones que se deriven si así lo desean. El juego se inspiró en Alfons Barceló, «Juegos de simulación con modelos económicos reproductivos», El Trimestre Económico, Vol. 56, Nº 223(3) (julio-septiembre de 1989), y los primeros resultados del contraste se presentaron con 18 coautores en las X Jornadas de Análisis Input-Output (2024). Para obtener más información o colaborar en el proyecto, pueden contactarnos en mmuinosp@ucm.es .
+
+
 <P align="Center">OIKOS, con las cosas de comer no se juega © 2025 by Manuel Muiños is licensed under <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank">Creative Commons BY-NC-ND 4.0
 <img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"></A>
 </font>
